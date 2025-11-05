@@ -1,0 +1,61 @@
+<div
+  class="modal fade"
+  id="nanoplotRawModal"
+  tabindex="-1"
+  aria-labelledby="nanoplotRawModalLabel"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="nanoplotRawModalLabel">
+          Raw sequencing reads quality report
+        </h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <iframe 
+          style="height: 75vh; width: 100%"
+          frameborder="0"
+          src="data:text/html;base64,{{ run_qc.nanoplot_raw_html_base64 | urlencode }}"
+        ></iframe>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div
+  class="modal fade"
+  id="nanoplotFilteredModal"
+  tabindex="-1"
+  aria-labelledby="nanoplotFilteredModalLabel"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="nanoplotFilteredModalLabel">
+          Filtered sequencing reads quality report
+        </h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <iframe
+          style="height: 75vh; width: 100%"
+          frameborder="0"
+          src="data:text/html;base64,{{ run_qc.nanoplot_filtered_html_base64 | urlencode }}"
+        ></iframe>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,65 @@
+<div
+  class="modal fade"
+  id="consensusBlastModal"
+  tabindex="-1"
+  aria-labelledby="consensusBlastModalLabel"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="consensusBlastModalLabel">
+          Consensus sequence statistics
+        </h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <p>
+          This table shows BLAST hit and read mapping statistics for each assembled consensus sequences. Row colours indicate the strength of the evidence supporting the sequence, based on read mapping statistics.
+        </p>
+
+        <table class="table table-lined tight">
+          <thead>
+            <tr>
+              {% for colname in consensus_blast_hits.columns_display %}
+              <th
+                {% if consensus_blast_hits.COLUMN_METADATA[colname]['tooltip'] %}
+                title="{{ consensus_blast_hits.COLUMN_METADATA[colname]['tooltip'] }}"
+                data-bs-toggle="tooltip"
+                data-bs-placement="top"
+                {% endif %}
+              >
+                {{ consensus_blast_hits.COLUMN_METADATA[colname]['label'] }}
+              </th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in consensus_blast_hits %}
+            <tr
+              {% if row['bs_class'] %}
+              class="alert-{{ row['bs_class'] }}"
+              {% endif %}
+            >
+              {% for colname in consensus_blast_hits.columns_display %}
+              <td class="column-{{ row[colname] | lower }}">
+                {% if colname == 'evalue' %}
+                <span style="white-space: nowrap;">{{ row[colname] }}</span>
+                {% else %}
+                {{ row[colname] }}
+                {% endif %}
+              </td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

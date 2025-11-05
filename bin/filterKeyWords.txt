@@ -1,0 +1,73 @@
+Saccharomyces
+cellular organisms; Eukaryota; Viridiplantae;
+Blacklegged tick
+Bremia lactucae
+Coniothyrium
+Erysiphales
+Erysiphe
+Plasmopara
+Ophiocordyceps
+Phomopsis
+Sclerotinia
+Tetranychus urticae-associated 
+Bundaberg bee virus
+Weivirus-like virus
+dicistro-like virus
+dicistrovirus
+Narnaviridae
+Botourmiaviridae
+tick virus
+Nigrospora
+Bemisia tabaci
+flea-associated
+Podosphaera
+Puccinia
+Penicillium 
+Colletotrichum
+Cladosporium
+Neofusicoccum
+Alternaria
+Botrytis cinerea
+wasp-associated
+Neuropteran
+picorna-like virus
+Magoulivirus
+Nodaviridae
+Broome virga-like virus
+tori-like
+Soybean leaf-associated
+Soybean-associated double-stranded RNA virus 1
+XiangYun narna-levi-like virus
+Aphid
+retrovirus
+narnavirus
+phage
+mycovirus
+bunya-like virus
+narna-like virus
+botourmia-like virus
+Orthototiviridae
+betacytorhabdovirus
+totivirus
+splipalmivirus
+Caudoviricetes sp.
+mycotymovirus
+Paramecium bursaria Chlorella virus CVA-1
+Tequatrovirus T4
+Homavirus sp.
+Mitovirus sp.
+Achromobacter sp.
+mitochondrion
+ourmiavirus
+Actinomadura sp.
+Gammapapillomavirus
+Sphingomonas
+gammaherpesvirus
+Acremonium sclerotigenum ourmia-like virus 1
+Downy mildew lesion associated orfanplasmovirus 3
+Chelatococcus
+uncultured virus
+Actinomadura sp. CA-154981 chromosome, complete genome
+Leptosphaeria biglobosa letobirnavirus 1 RNA2
+Inoviridae sp.
+Myoviridae sp.

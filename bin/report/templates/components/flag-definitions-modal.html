@@ -1,0 +1,49 @@
+<div
+  class="modal fade"
+  id="flagDefinitionsModal"
+  tabindex="-1"
+  aria-labelledby="flagDefinitionsModalLabel"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-xxl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="flagDefinitionsModalLabel">
+          Definitions of flags used in this analysis
+        </h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+
+      <div class="modal-body">
+        <p>
+          Flags are discrete indicators of consensus sequence quality. Definitions of each flag and their possible values are listed below.
+        </p>
+
+        <table class="table table-striped tight">
+          <thead>
+            <tr>
+              {% for colname in flags[0] %}
+              <th class="column-{{ colname.lower() }}">{{ colname }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+
+          <tbody>
+            {% for row in flags %}
+            <tr>
+              {% for colname, value in row.items() %}
+              <td class="column-{{ colname.lower() }}">{{ value }}</td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

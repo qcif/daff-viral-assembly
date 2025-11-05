@@ -1,0 +1,30 @@
+<div
+  class="modal fade"
+  id="consensusFastaModal"
+  tabindex="-1"
+  aria-labelledby="consensusFastaModalLabel"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="consensusFastaModalLabel">
+          Consensus sequences (FASTA)
+        </h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <p>
+          These consensus sequences were assembled from the sequencing reads. One or more of these reads can be selected as a reference for taxonomic identification of the sample.
+        </p>
+
+        <pre>{{ consensus_fasta }}</pre>
+      </div>
+    </div>
+  </div>
+</div>

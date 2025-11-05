@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BAM Viewer</title>
+    <style>{{ bootstrap_css | safe }}</style>
+    <script>{{ bootstrap_js | safe }}</script>
+    <script>{{ igv_js | safe }}</script>
+  </head>
+  <body style="padding: 1.5rem;">
+    <h1>Read mapping alignment for sample <code>{{ sample_id }}</code></h1>
+    <div class="row">
+      <div class="col">
+        <p class="alert alert-info">
+          Please select a consensus sequence from the dropdown to view an alignment.
+        </p>
+      </div>
+      <div class="col-auto">
+        <button
+          type="button"
+          class="btn btn-primary my-2"
+          data-bs-toggle="modal"
+          data-bs-target="#igvHelpModal"
+        >
+          User guide
+        </button>
+      </div>
+    </div>
+    <div id="igv-container" style="width: 100%; height: 500px">
+      <div id="loadingSpinner" style="width: 50px; height: 50px; margin: auto;">
+        {{ loading_svg | safe }}
+      </div>
+    </div>
+
+    {% include 'components/bam-help-modal.html' %}
+
+    <script>
+      // Store binary data as a JavaScript array (placeholder example)
+      const bamBinary = new Uint8Array({{ bam_binary_arr | safe }});
+      const baiBinary = new Uint8Array({{ bai_binary_arr | safe }});
+      const fastaBinary = new Uint8Array({{ fasta_binary_arr | safe }});
+    </script>
+
+    <script>
+      // Create Blob URLs (works like a file URL)
+      const bamBlob = new Blob([bamBinary], { type: "application/octet-stream" });
+      const baiBlob = new Blob([baiBinary], { type: "application/octet-stream" });
+      const fastaBlob = new Blob([fastaBinary], { type: "text/plain" });
+
+      const urls = {
+        bam: URL.createObjectURL(bamBlob),
+        bai: URL.createObjectURL(baiBlob),
+        fasta: URL.createObjectURL(fastaBlob),
+      };
+
+      document.addEventListener("DOMContentLoaded", () => {
+        igv.createBrowser(document.getElementById("igv-container"), {
+          loadDefaultGenomes: false,
+          reference: {
+            id: "{{ sample_id }}",
+            fastaURL: urls.fasta,
+          },
+          tracks: [
+            {
+              type: "alignment",
+              format: "bam",
+              name: "Consensus alignments",
+              url: urls.bam,
+              indexURL: urls.bai,
+            },
+          ],
+        });
+      });
+    </script>
+  </body>
+</html>

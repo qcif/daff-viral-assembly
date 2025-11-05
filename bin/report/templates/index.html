@@ -1,0 +1,51 @@
+{% from "macros/subjective.html" import render_subjective_input %}
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ title }}</title>
+    {% include 'components/favicon.html' %}
+
+    {% for style in static.css %}
+      <style>
+        {{ style }}
+      </style>
+    {% endfor %}
+  </head>
+
+  <body>
+    <div class="container">
+      {% include "components/heading.html" %}
+      <div>
+        {% include "components/walltime.html" %}
+      </div>
+      <section id="overview">
+        {% include "components/overview.html" %}
+        {{ render_subjective_input(1) }}
+      </section>
+      <section id="consensus">
+        {% include "components/consensus.html" %}
+        {{ render_subjective_input(2) }}
+      </section>
+    </div>
+
+    {% include 'components/save-modal.html' %}
+
+  </body>
+
+  {% for script in static.js %}
+    <script>
+      {{ script }}
+    </script>
+  {% endfor %}
+
+  <script>
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+      return new bootstrap.Tooltip(tooltipTriggerEl)
+    })
+  </script>
+
+</html>

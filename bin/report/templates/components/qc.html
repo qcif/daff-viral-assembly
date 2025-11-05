@@ -1,0 +1,79 @@
+<h2>Input data quality report</h2>
+
+<table class="table">
+  <thead>
+    <th></th>
+    <th>Count</th>
+    <th>Outcome</th>
+    <th></th>
+  </thead>
+
+  <tr
+    class="alert-{{ run_qc.flag }}"
+    title="Raw sequencing reads"
+    data-bs-toggle="tooltip"
+    data-bs-placement="left"
+  >
+    <td>Raw reads</td>
+    <td>{{  "{:,}".format(run_qc.raw_reads) }}</td>
+    {% if run_qc.raw_reads_flag %}
+    <td>
+      <span>&#10060;</span>
+      {{ run_qc.raw_reads_flag }}
+    {% else %}
+    <td class="text-center">
+      <span>&#9989;</span>
+    {% endif %}
+    </td>
+    <td>
+      <button
+        class="btn btn-primary btn-sm"
+        data-bs-toggle="modal"
+        data-bs-target="#nanoplotRawModal"
+      >Nanoplot report</button>
+    </td>
+  </tr>
+  <tr
+    class="alert-{{ run_qc.flag }}"
+    title="Reads left after quality filtering and adapter trimming"
+    data-bs-toggle="tooltip"
+    data-bs-placement="left"
+  >
+    <td>Clean reads</td>
+    <td>
+      {% if run_qc.processed_reads is not none %}
+      {{ "{:,}". format(run_qc.processed_reads) }}
+      ({{ run_qc.percent_processed }}%)
+      {% else %}
+      NA
+      {% endif %}
+    </td>
+    <td class="text-center">
+      {% if run_qc.processed_flag %}
+      <span>&#10060;</span>
+      {{ run_qc.processed_flag }}
+      {% else %}
+      <span>&#9989;</span>
+      {% endif %}
+    </td>
+    <td>
+      <button
+        class="btn btn-primary btn-sm"
+        data-bs-toggle="modal"
+        data-bs-target="#nanoplotFilteredModal"
+      >Nanoplot report</button>
+    </td>
+  </tr>
+</table>
+
+<p class="text-center">
+  <a
+    class="btn btn-primary hide-broken"
+    href="./{{ run_qc.html_file }}"
+    target="_blank"
+  >
+    View run report
+  </a>
+</p>
+
+{% include 'components/nanoplot-modals.html' %}

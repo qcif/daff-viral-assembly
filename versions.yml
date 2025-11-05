@@ -1,0 +1,17 @@
+bbmap: 39.01
+blastn: 2.16.0
+chopper: 0.5.0
+cutadapt: 5.0
+fastcat: 0.15.1
+medaka: 2.0.1
+minimap2: 2.24-r1122
+mosdepth: 0.3.3
+nanoplot: 1.41.0
+porechop_abi: 0.5.0
+pyfaidx: 0.8.1.3
+pytaxonkit: 0.9.1
+python: 3.12.9
+racon: 1.5.0
+rattle: 1.0
+samtools: 1.16.1
+seqtk: 1.3-r106
