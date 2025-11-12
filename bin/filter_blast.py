@@ -24,34 +24,52 @@ def load_blast_results(path):
     if not os.path.isfile(path):
         raise FileNotFoundError(f"BLASTn results file not found: {path}")
     # Define column names as a string
-    header = ("qseqid\tsgi\tsacc\tlength\tpident\tmismatch\tgapopen\tqstart\tqend\tqlen\t"
-              "sstart\tsend\tslen\tsstrand\tevalue\tbitscore\tqcovhsp\tstitle\tstaxids\tqseq\t"
-              "sseq\tsseqid\tqcovs\tqframe\tsframe\n")
-    
+    #header = ("qseqid\tsgi\tsacc\talignment_length\tpident\tmismatch\tgapopen\tqstart\tqend\tqlen\t"
+    #          "sstart\tsend\tslen\tsstrand\tevalue\tbitscore\tqcovhsp\tstitle\tstaxids\tqseq\t"
+    #          "sseq\tsseqid\tqcovs\tqframe\tsframe\n")
+    # Define expected header (based on your BLAST output fields)
+    columns = [
+        "qseqid", "sgi", "sacc", "alignment_length", "pident", "mismatch", "gapopen",
+        "qstart", "qend", "qlen", "sstart", "send", "slen", "sstrand", "evalue",
+        "bitscore", "qcovhsp", "stitle", "staxids", "qseq", "sseq", "sseqid",
+        "qcovs", "qframe", "sframe"
+    ]
     # Create a temporary file with header + original content
-    with tempfile.NamedTemporaryFile(mode='w+', delete=False) as tmp_file:
-        tmp_file.write(header)
-        with open(path, 'r') as original_file:
-            shutil.copyfileobj(original_file, tmp_file)
-        tmp_path = tmp_file.name
-
+    #with tempfile.NamedTemporaryFile(mode='w+', delete=False) as tmp_file:
+    #    tmp_file.write(header)
+    #    with open(path, 'r') as original_file:
+    #        shutil.copyfileobj(original_file, tmp_file)
+    #    tmp_path = tmp_file.name
+    df = pd.read_csv(path, sep="\t", header=None, dtype=str)
+    if df.shape[1] != len(columns):
+        raise ValueError(
+            f"Expected {len(columns)} columns (BLAST output), but found {df.shape[1]} in {path}"
+        )
+    df.columns = columns
 
     # Define columns and dtypes
-    columns = header.strip().split('\t')
+    #columns = header.strip().split('\t')
     #columns = ["qseqid", "sgi", "sacc", "length", "nident", "pident", "mismatch", "gaps", "gapopen", "qstart",
     #           "qend", "qlen", "sstart", "send", "slen", "sstrand", "evalue", "bitscore", "qcovhsp", "stitle",
     #           "staxids", "qseq", "sseq", "sseqid", "qcovs", "qframe", "sframe"]
 
     dtype = {
-        "qseqid": 'str', "sgi": 'str', "sacc": 'str', "length": 'int64', "pident": 'float64', "mismatch": 'int64',
+        "qseqid": 'str', "sgi": 'str', "sacc": 'str', "alignment_length": 'int64', "pident": 'float64', "mismatch": 'int64',
         "gapopen": 'int64', "qstart": 'int64', "qend": 'int64', "qlen": 'int64', "sstart": 'int64', 
         "send": 'int64', "slen": 'int64', "sstrand": 'str', "evalue": 'float64', "bitscore": 'float64', 
         "qcovhsp": 'int64', "stitle": 'str', "staxids": 'str', "qseq": 'str', "sseq": 'str', "sseqid": 'str', 
         "qcovs": 'int64', "qframe": 'int64', "sframe": 'int64'
     }
     # Load DataFrame
-    df = pd.read_csv(tmp_path, sep='\t', usecols=columns, dtype=dtype)
+    #df = pd.read_csv(tmp_path, sep='\t', usecols=columns, dtype=dtype)
     #df = pd.read_csv(path, sep="\t", header=0, usecols=columns, dtype=dtype)
+    for col, dtype_ in dtype.items():
+        if col in df.columns:
+            if dtype_ in ("int64", "float64"):
+                df[col] = pd.to_numeric(df[col], errors="coerce").astype(dtype_)
+            else:
+                df[col] = df[col].astype(str)
+
     df["staxids"] = pd.to_numeric(df["staxids"].str.split(";").str[0], errors='coerce').fillna(0).astype(int)
     #top_hit = df.drop_duplicates(subset=["qseqid"], keep="first").copy()
 
@@ -60,16 +78,17 @@ def load_blast_results(path):
 def enrich_with_taxonomy(df, taxonkit_dir):
     """Add taxonomy information to the DataFrame."""
     staxids_l = df["staxids"].unique().tolist()
-
+    #lineage_df = pytaxonkit.lineage(staxids_l, data_dir=taxonkit_dir)
+    #lineage_df.rename(columns=str.lower, inplace=True)      
     lineage_df = pytaxonkit.lineage(staxids_l, data_dir=taxonkit_dir)[['TaxID', 'FullLineage']]
-    lineage_df.columns = ["staxids", "FullLineage"]
+    lineage_df.columns = ["staxids", "full_lineage"]
     lineage_df["staxids"] = lineage_df["staxids"].astype(int)
-    lineage_df["FullLineage"] = lineage_df["FullLineage"].str.lower().str.replace(" ", "_", regex=False)
+    lineage_df["full_lineage"] = lineage_df["full_lineage"].str.lower().str.replace(" ", "_", regex=False)
     lineage_df["broad_taxonomic_category"] = np.where(
-        lineage_df["FullLineage"].str.contains("viruses;"),
+        lineage_df["full_lineage"].str.contains("viruses;"),
         "virus",
         np.where(
-            lineage_df["FullLineage"].str.contains("viroids;"),
+            lineage_df["full_lineage"].str.contains("viroids;"),
             "viroids",
             "non-viral"
         )
@@ -85,7 +104,7 @@ def merge_taxonomy(dfs):
     """Merge taxonomy-enriched data."""
     return reduce(lambda left, right: pd.merge(left, right, on="staxids", how="outer"), dfs)
 
-def filter_and_format(df, sample_name, filter):
+def filter_and_format(df, sample_name, filter_file):
     """Filter only viral hits and format."""
     df.insert(0, "sample_name", sample_name)
     df = df[~df["species"].str.contains("synthetic construct", na=False)]
@@ -110,68 +129,97 @@ def filter_and_format(df, sample_name, filter):
         )
     )
 
-    #df["Species_updated"] = df[["species", "RNA_type"]].agg(" ".join, axis=1)
-    df["Species_updated"] = df[["species", "RNA_type"]].fillna("").astype(str).agg(" ".join, axis=1)
-    df["Species_updated"] = df["Species_updated"].str.replace("RNA1 RNA1", "RNA1", regex=False)
-    df["Species_updated"] = df["Species_updated"].str.replace("RNA2 RNA2", "RNA2", regex=False)
-    df["Species_updated"] = df["Species_updated"].str.replace("RNA3 RNA3", "RNA3", regex=False)
-    df["Species_updated"] = df["Species_updated"].str.rstrip()
+    #df["species_updated"] = df[["species", "RNA_type"]].agg(" ".join, axis=1)
+    df["species_updated"] = df[["species", "RNA_type"]].fillna("").astype(str).agg(" ".join, axis=1)
+    df["species_updated"] = df["species_updated"].str.replace("RNA1 RNA1", "RNA1", regex=False)
+    df["species_updated"] = df["species_updated"].str.replace("RNA2 RNA2", "RNA2", regex=False)
+    df["species_updated"] = df["species_updated"].str.replace("RNA3 RNA3", "RNA3", regex=False)
+    df["species_updated"] = df["species_updated"].str.rstrip()
 
-    df["naccs"] = df.groupby(["Species_updated", "sacc"])["sacc"].transform("count")
-    df["naccs_score"] = df.groupby("Species_updated")["naccs"].transform(max_naccs)
+    df["ncontigs"] = df.groupby(["species_updated", "sacc"])["sacc"].transform("count")
+    df["ncontigs_score"] = df.groupby("species_updated")["ncontigs"].transform(max_naccs)
 
     df["pident"] = df["pident"].astype(float)
-    df["pident_score"] = df.groupby("Species_updated")["pident"].transform(max_pid)
+    #df["pident"] = pd.to_numeric(df["pident"], errors="coerce")
+    df["pident_score"] = df.groupby("species_updated")["pident"].transform(max_pid)
 
     df["bitscore"] = df["bitscore"].astype(int)
-    df["bitscore_score"] = df.groupby("Species_updated")["bitscore"].transform(max_bitscore)
-
-    df["length"] = df["length"].astype(int)
-    df["length_score"] = df.groupby("Species_updated")["length"].transform(max_length)
-
-    df["cov"] = df["qseqid"].str.extract(r'_cov_([0-9.]+)').astype(float)
-    df["cov_score"] = df.groupby("Species_updated")["cov"].transform(max_cov)
+    #df["bitscore"] = pd.to_numeric(df["bitscore"], errors="coerce")
+    df["bitscore_score"] = df.groupby("species_updated")["bitscore"].transform(max_bitscore)
 
     df["evalue"] = df["evalue"].astype(float)
-    df["evalue_score"] = df.groupby("Species_updated")["evalue"].transform(min_evalue)
+    #df["evalue"] = pd.to_numeric(df["evalue"], errors="coerce")
+    df["evalue_score"] = df.groupby("species_updated")["evalue"].transform(min_evalue)
+    
+    # Extract cov value using regex and convert to float
+    df["assembly_kmer_cov"] = df["qseqid"].str.extract(r'_cov_([0-9.]+)').astype(float)
+    df["assembly_kmer_cov_score"] = df.groupby("species_updated")["assembly_kmer_cov"].transform(max_assembly_kmer_cov)
+
     # assign a score of 1 if qcovs > 75, else 0
-    df["global_qcovs_score"] = global_qcovs(df)
-    df["qcovs_score"] = df.groupby("Species_updated")["qcovs"].transform(max_qcovs)
+    df["qcovs_score"] = global_qcovs(df)
+    df["best_qcovs_score"] = df.groupby("species_updated")["qcovs"].transform(max_qcovs)
     df["completeness_score"] = df["stitle"].apply(completeness_score)
-    df["total_score"] = df["naccs_score"] + df["pident_score"] + df["bitscore_score"] + df["length_score"] + df["evalue_score"] + df["global_qcovs_score"] + df["qcovs_score"] + df["completeness_score"] + df["cov_score"].astype(int)
 
-    
-    final_columns = ["sample_name", "qseqid", "sgi", "sacc", "length", "pident", "mismatch",
-                     "gapopen", "qstart", "qend", "qlen", "sstart", "send", "slen", "sstrand", "evalue", "bitscore",
-                     "qcovhsp", "stitle", "staxids", "qseq", "sseq", "sseqid", "qcovs", "qframe", "sframe",
-                     "species", "Species_updated", "broad_taxonomic_category", "FullLineage", "naccs", "naccs_score", "pident_score",
-                     "bitscore_score", "evalue_score", "global_qcovs_score", "cov_score", "qcovs_score", "completeness_score", "length_score", "total_score"]
-    
+    df["qlen"] = df["alignment_length"].astype(int)
+    df["query_length_score"] = df.groupby("species_updated")["qlen"].transform(max_length)
+    #df["alignment_length"] = pd.to_numeric(df["alignment_length"], errors="coerce")
+    df["alignment_length"] = df["alignment_length"].astype(int)
+    df["alignment_length_score"] = df.groupby("species_updated")["alignment_length"].transform(max_length)
 
-    top_hits_df = df.loc[df.groupby(["Species_updated"])["total_score"].idxmax()].copy()
+    df["total_score"] = (
+        df["ncontigs_score"]
+        + df["pident_score"]
+        + df["bitscore_score"]
+        + df["evalue_score"]
+        + df["assembly_kmer_cov_score"]
+        + df["qcovs_score"]
+        + df["best_qcovs_score"]
+        + df["completeness_score"]
+        + df["alignment_length_score"]
+        + df["query_length_score"]
+    )
+
+    top_hits_df = df.loc[df.groupby(["species_updated"])["total_score"].idxmax()].copy()
     # Read exclusion patterns from a file
-    with open(filter, "r") as f:
+    with open(filter_file, "r") as f:
         exclude_patterns = [line.strip() for line in f if line.strip()]
 
     pattern = "|".join(exclude_patterns)
 
-    top_hits_df = top_hits_df[~top_hits_df["Species_updated"].str.contains(pattern, case=False, na=False)]
+    top_hits_df = top_hits_df[~top_hits_df["species_updated"].str.contains(pattern, case=False, na=False)]
     top_hits_df = top_hits_df[~top_hits_df["stitle"].str.contains(pattern, case=False, na=False)]
-    # Extract cov value using regex and convert to float
-    top_hits_df["cov"] = top_hits_df["qseqid"].str.extract(r'_cov_([0-9.]+)').astype(float)
-
+    
     # Filter out rows where cov < 5
-    top_hits_df = top_hits_df[top_hits_df["cov"] >= 1].copy()
+    # Filter out rows where qcovs < 30
+    top_hits_df = top_hits_df[top_hits_df["assembly_kmer_cov"] >= 5].copy()
     top_hits_df = top_hits_df[top_hits_df["qcovs"] >= 30].copy()    
     #
     #exclude_patterns = ["phage", "tick virus", "Sclerotinia", "Plasmopara", "Botrytis cinerea", "Erysiphales","Erysiphe"]
     #pattern = "|".join(exclude_patterns)  # create regex pattern: 'phage|tick virus|Sclerotinia|Plasmopara'
     #top_hits_df = top_hits_df[~top_hits_df["species"].str.contains(pattern, case=False, na=False)]
 
-    return df[final_columns], top_hits_df
+    final_columns = ["sample_name", "qseqid", "sacc", "alignment_length", "evalue", "bitscore", "pident", "mismatch",
+                     "gapopen", "qstart", "qend", "qlen", "sstart", "send", "slen", "sstrand", 
+                     "qcovhsp", "staxids", "qseq", "sseq", "qcovs", 
+                     "species_updated", "RNA_type", "stitle", "full_lineage", "ncontigs", 
+                     "ncontigs_score", "pident_score", "bitscore_score", "evalue_score", "assembly_kmer_cov_score", 
+                     "qcovs_score", "best_qcovs_score", "completeness_score", "alignment_length_score", "query_length_score", "total_score"]
+    
+    final_columns_filt = ["sample_name", "qseqid", "sacc", "alignment_length", "evalue", "bitscore", "pident", "mismatch",
+                     "gapopen", "qstart", "qend", "qlen", "sstart", "send", "slen", "sstrand",
+                     "qcovhsp", "staxids", "qseq", "sseq", "qcovs", 
+                     "species_updated", "RNA_type", "stitle", "full_lineage", "ncontigs", "total_score"]
+    
+    #columns before filtering and re-ordering:
+    # sample_name	qseqid	sgi	sacc	alignment_length	pident	mismatch	gapopen	qstart	qend	qlen	sstart	send	slen	
+    # sstrand	evalue	bitscore	qcovhsp	stitle	staxids	qseq	sseq	sseqid	qcovs	qframe	sframe	species	full_lineage	
+    # broad_taxonomic_category	RNA_type	species_updated	ncontigs	ncontigs_score	pident_score	bitscore_score	alignment_length_score	
+    # cov	cov_score	evalue_score	global_qcovs_score	qcovs_score	completeness_score	total_score
+
+    return df[final_columns], top_hits_df[final_columns_filt]
 
 def max_naccs(series):
-    max_val = max_val = series.max()
+    max_val =  series.max()
     return (series == max_val).astype(int)
 
 def max_pid(series):
@@ -194,10 +242,10 @@ def global_qcovs(df):
     return (df["qcovs"] > 75).astype(int)
 
 def max_qcovs(series):
-    min_val = series.min()
-    return (series == min_val).astype(int) * 2
+    max_val = series.max()
+    return (series == max_val).astype(int) * 2
 
-def max_cov(series):
+def max_assembly_kmer_cov(series):
     max_val = series.max()
     return (series == max_val).astype(int) * 2
 
@@ -228,7 +276,7 @@ def main():
     blastn_results_path = args.blastn_results
     sample_name = args.sample_name
     tk_db_dir = args.taxonkit_database_dir
-    filter = args.filter
+    filter_file = args.filter
 
     if not os.path.isfile(blastn_results_path):
         raise FileNotFoundError(f"{blastn_results_path} does not exist.")
@@ -236,7 +284,7 @@ def main():
     blastn_results = load_blast_results(blastn_results_path)
     enriched_dfs = enrich_with_taxonomy(blastn_results, tk_db_dir)
     merged_df = merge_taxonomy(enriched_dfs)
-    final_df, filtered_df = filter_and_format(merged_df, sample_name, filter)
+    final_df, filtered_df = filter_and_format(merged_df, sample_name, filter_file)
 
     out_file = os.path.basename(args.blastn_results).replace("_blastn.txt", "_megablast_top_viral_hits.txt")
     final_df.to_csv(out_file, sep="\t", index=False)

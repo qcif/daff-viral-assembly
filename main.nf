@@ -91,6 +91,9 @@ if (params.kraken2_db != null) {
 if (params.kaiju_nodes != null & params.kaiju_dbname != null & params.kaiju_names != null) {
     kaiju_dbs_dir = file(params.kaiju_nodes).parent
 }
+if (params.diamond_db != null) {
+    diamond_db_dir = file(params.diamond_db).parent
+}
 //if (params.taxdump != null) {
 //    taxdump_dir = file(params.taxdump).parent
 //}
@@ -123,6 +126,9 @@ switch (workflow.containerEngine) {
     if (params.taxdump != null) {
       bindbuild = (bindbuild + "-B ${params.taxdump} ")
     }
+    if (params.diamond_db != null) {
+      bindbuild = (bindbuild + "-B ${diamond_db_dir} ")
+    }
 
     if (params.sortmerna_ref != null) {
       bindbuild = (bindbuild + "-B ${sortmerna_ref_dir} ")
@@ -133,6 +139,7 @@ switch (workflow.containerEngine) {
     if (params.kaiju_nodes != null & params.kaiju_dbname != null & params.kaiju_names != null) {
       bindbuild = (bindbuild + "-B ${kaiju_dbs_dir} ")
     }
+
 //    if (params.reference != null) {
 //      bindbuild = (bindbuild + "-B ${reference_dir} ")
 //    }
@@ -183,6 +190,7 @@ process FASTP {
     path("${sampleid}.fastp.json")
     path("${sampleid}_fastp.log")
     tuple val(sampleid), path("${sampleid}_1_qtrimmed.fastq.gz"), path("${sampleid}_2_qtrimmed.fastq.gz"), emit: trimmed_fq
+    path("${sampleid}.fastp.json"), emit: fastp_json
 
   script:
     """
@@ -391,7 +399,7 @@ process SEQTK {
 
   script:
   """
-  seqtk seq -L 250 ${assembly} > ${sampleid}_scaffolds_filt.fasta
+  seqtk seq -L 150 ${assembly} > ${sampleid}_scaffolds_filt.fasta
   
   """
 }
@@ -445,7 +453,7 @@ process SPADES {
 process EXTRACT_VIRAL_BLAST_HITS {
   tag "${sampleid}"
   label "setting_2"
-  publishDir "$params.outdir/${sampleid}/06_annotation", mode: 'copy'
+  publishDir "${params.outdir}/${sampleid}/07_annotation", mode: 'copy'
   containerOptions "${bindOptions}"
 
   input:
@@ -455,6 +463,7 @@ process EXTRACT_VIRAL_BLAST_HITS {
     tuple val(sampleid), path("${sampleid}_megablast_top_viral_hits_filtered.txt"), emit: viral_blast_results
     path("${sampleid}_megablast_top_viral_hits.txt")
     path("${sampleid}_megablast_top_viral_hits_filtered.txt")
+    path("${sampleid}_blastn.txt")
 
   script:
   """
@@ -478,10 +487,10 @@ process EXTRACT_REF_FASTA {
   
   script:
     """
-    cut -f1,4 ${blast_results} | sed '1d' | sed 's/ /_/g' > ids_to_retrieve.txt
+    cut -f1,3 ${blast_results} | sed '1d' | sed 's/ /_/g' > ids_to_retrieve.txt
     if [ -s ids_to_retrieve.txt ]
       then
-        for i in `cut -f2  ids_to_retrieve.txt`; do j=`grep \${i} ids_to_retrieve.txt | cut -f1`; efetch -db nucleotide  -id \${i} -format fasta > ${sampleid}_\${i}_\${j}.fasta ; done
+        for i in `cut -f2  ids_to_retrieve.txt`; do j=`grep \${i} ids_to_retrieve.txt | cut -f1`; efetch -db nucleotide  -id \${i} -format fasta > ${sampleid}_\${i}.fasta ; done
         cat ${sampleid}_*.fasta > ${sampleid}_ref_sequences.fasta
     fi
     """
@@ -578,6 +587,7 @@ process BEDTOOLS {
 
   output:
     path("${sampleid}_bcftools_masked_consensus.fasta")
+    path("${sampleid}_bcftools_masked_consensus.fasta"), emit: bcftools_masked_consensus_fasta
 
   script:
     """
@@ -682,6 +692,7 @@ process KRAKEN2 {
   input:
     tuple val(sampleid), path(fastq1), path(fastq2)
   output:
+    path("${sampleid}_kraken2.log")
     path("${sampleid}_kraken2_report.txt")
     path("${sampleid}_kraken2_output.txt")
     path("${sampleid}_unclassified_1.fastq")
@@ -697,7 +708,9 @@ process KRAKEN2 {
           --report ${sampleid}_kraken2_report.txt \
           --output ${sampleid}_kraken2_output.txt \
           --unclassified-out ${sampleid}_unclassified#.fastq \
-          ${fastq1} ${fastq2}
+          --report-minimizer-data \
+          --minimum-hit-groups 3 \
+          ${fastq1} ${fastq2} > ${sampleid}_kraken2.log
   
   """
 }
@@ -723,7 +736,7 @@ process BRACKEN {
   est_abundance.py -i ${kraken_report} \
                   -k ${params.kraken2_db}/database50mers.kmer_distrib \
                   -t 1 \
-                  -l S -o ${sampleid}_bracken_report.txt
+                  -l S1 -o ${sampleid}_bracken_report.txt
 
 
   c1grep  "taxonomy_id\\|virus\\|viroid" ${sampleid}_bracken_report.txt > ${sampleid}_bracken_report_viral.txt
@@ -778,19 +791,85 @@ process RETRIEVE_VIRAL_READS_KRAKEN2 {
   input:
     tuple val(sampleid), path(kraken_report), path(kraken_output), path(fastq1), path(fastq2), path(unc_fastq1), path(unc_fastq2)
   output:
-        tuple val(sampleid), path("${sampleid}_cand_path_R1.fastq"), path("${sampleid}_cand_path_R2.fastq"), emit: fastq
+    tuple val(sampleid), path("${sampleid}_cand_path_R1.fastq"), path("${sampleid}_cand_path_R2.fastq"), emit: fastq
 
   script:
   """
   extract_kraken_reads.py -k ${kraken_output} -r ${kraken_report} \
                           -t 10239 --include-children \
-                          -s1  ${fastq1} -s2 ${fastq2} \
+                          -s1 ${fastq1} -s2 ${fastq2} \
+                          --fastq-output \
                           -o ${sampleid}_extracted_reads1.fq -o2 ${sampleid}_extracted_reads2.fq
   cat ${unc_fastq1} ${sampleid}_extracted_reads1.fq > ${sampleid}_cand_path_R1.fastq
   cat ${unc_fastq2} ${sampleid}_extracted_reads2.fq >  ${sampleid}_cand_path_R2.fastq
+  """
+}
+
+process DIAMOND  {
+  tag "${sampleid}"
+  label "setting_25"
+  containerOptions "${bindOptions}"
+  publishDir "${params.outdir}/${sampleid}/06_annotation", mode: 'copy'
+
+  input:
+    tuple val(sampleid), path(assembly)
+  output:
+    tuple val(sampleid), path("${sampleid}_diamond_matches.tsv"), emit: diamond_results
+
+  script:
+  """
+  diamond blastx --query ${assembly} \
+                 --db ${params.diamond_db} \
+                 --out ${sampleid}_diamond_matches.tsv \
+                 --outfmt 6 qseqid sgi sacc length pident mismatch gapopen qstart qend qlen sstart send slen evalue bitscore stitle staxids qseq sseq \
+                 --evalue 1e-3 \
+                 --max-target-seqs 5 \
+                 --threads ${task.cpus}
+  """
+}
+/*
+process RETRIEVE_VIRAL_READS_KRAKEN2 {
+  tag "${sampleid}"
+  label "setting_10"
+  containerOptions "${bindOptions}"
+  publishDir "${params.outdir}/${sampleid}/05_read_classification", mode: 'copy'
+
+  input:
+    tuple val(sampleid), path(kraken_report), path(kraken_output), path(fastq1), path(fastq2), path(unc_fastq1), path(unc_fastq2)
+  output:
+    tuple val(sampleid), path("${sampleid}_cand_path_R1.fastq"), path("${sampleid}_cand_path_R2.fastq"), emit: fastq
+
+  script:
+  """
+  extract_kraken_reads.py -k ${kraken_output} -r ${kraken_report} \
+                          -t 10239 --include-children \
+                          -s1 ${fastq1} -s2 ${fastq2} \
+                          --fastq-output \
+                          -o ${sampleid}_extracted_reads1.fq -o2 ${sampleid}_extracted_reads2.fq
+  cat ${unc_fastq1} ${sampleid}_extracted_reads1.fq > ${sampleid}_cand_path_R1.fastq
+  cat ${unc_fastq2} ${sampleid}_extracted_reads2.fq >  ${sampleid}_cand_path_R2.fastq
+  """
+}
+/*
+process MERGE_WITH_UNCLASSIFIED_READS_KRAKEN2 {
+  tag "${sampleid}"
+  label "setting_10"
+  containerOptions "${bindOptions}"
+  publishDir "${params.outdir}/${sampleid}/05_read_classification", mode: 'copy'
+
+  input:
+    tuple val(sampleid), path(kraken_report), path(kraken_output), path(fastq1), path(fastq2), path(unc_fastq1), path(unc_fastq2)
+  output:
+        tuple val(sampleid), path("${sampleid}_cand_path_R1.fastq"), path("${sampleid}_cand_path_R2.fastq"), emit: fastq
+
+  script:
+  """
+  grep 
 
   """
 }
+*/
+
 
 workflow {
   TIMESTAMP_START ()
@@ -833,17 +912,24 @@ workflow {
   BRACKEN ( KRAKEN2.out.kraken2_results2 )
   //retrieve reads that were not classified and reads classified as viral
   RETRIEVE_VIRAL_READS_KRAKEN2 ( KRAKEN2.out.kraken2_results )
+  //merge unclassified reads with viral reads from kraken2
+  //MERGE_WITH_UNCLASSIFIED_READS_KRAKEN2 ( RETRIEVE_VIRAL_READS_KRAKEN2.out.fastq )
 
-  //KAIJU ( FILTER_CONTROL.out.bbsplit_filtered_fq )
-
+  KAIJU ( FILTER_CONTROL.out.bbsplit_filtered_fq )
+  
   //perform de novo assembly with spades using rnaspades
   SPADES ( RETRIEVE_VIRAL_READS_KRAKEN2.out.fastq )
-
+   
 
 
   //SPADES ( FILTER_CONTROL.out.bbsplit_filtered_fq )
   //SPADES ( SORTMERNA.out.fastp_filtered_fq )
   SEQTK ( SPADES.out.assembly )
+  //DIAMOND  ( SEQTK.out.filt_fasta.splitFasta(by: 5000, file: true) )
+  //DIAMOND.out.diamond_results
+  //  .groupTuple()
+  //  .set { ch_blastxresults } 
+  //At the moment we are not 
   BLASTN( SEQTK.out.filt_fasta.splitFasta(by: 5000, file: true) )
   BLASTN.out.blast_results
     .groupTuple()
@@ -859,12 +945,16 @@ workflow {
   BEDTOOLS ( BCFTOOLS.out.vcf_applied_fasta )
   PYFAIDX ( EXTRACT_REF_FASTA.out.fasta_files )
   MOSDEPTH (SAMTOOLS2.out.sorted_bam.join(PYFAIDX.out.bed))
-  //cov_stats_summary_ch = MOSDEPTH.out.mosdepth_results.join(SAMTOOLS2.out.coverage)
-  //                                                           .join(SAMTOOLS2.out.mapping_quality)
-   //                                                          .join(FASTA2TABLE.out.blast_results)
-   //                                                          .join(QC_POST_DATA_PROCESSING.out.filtstats)
-//
-  //COVSTATS(cov_stats_summary_ch)
+  
+  cov_stats_summary_ch = MOSDEPTH.out.mosdepth_results.join(FASTA2TABLE.out.blast_results)
+                                                      .join(FASTP.out.fastp_json)
+                                                      .join(BEDTOOLS.out.bcftools_masked_consensus_fasta)
+                                                      .join(SAMTOOLS2.out.coverage)
+                                                      .join(SAMTOOLS2.out.mapping_quality)
+                                                      .join(EXTRACT_REF_FASTA.out.fasta_files)
+                                                      
+  COVSTATS(cov_stats_summary_ch)
+
 
   //MOSDEPTH (SAMTOOLS2.out.sorted_bams.join(PYFAIDX.out.bed))
   //trimmed_fq = FASTP.out.fastp_trimmed_fq
