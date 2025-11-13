@@ -94,6 +94,10 @@ if (params.kaiju_nodes != null & params.kaiju_dbname != null & params.kaiju_name
 if (params.diamond_db != null) {
     diamond_db_dir = file(params.diamond_db).parent
 }
+
+if (params.genomad_db != null) {
+    genomad_db_dir = file(params.genomad_db).parent
+}
 //if (params.taxdump != null) {
 //    taxdump_dir = file(params.taxdump).parent
 //}
@@ -138,6 +142,9 @@ switch (workflow.containerEngine) {
     }
     if (params.kaiju_nodes != null & params.kaiju_dbname != null & params.kaiju_names != null) {
       bindbuild = (bindbuild + "-B ${kaiju_dbs_dir} ")
+    }
+    if (params.genomad_db != null ) {
+      bindbuild = (bindbuild + "-B ${genomad_db_dir} ")
     }
 
 //    if (params.reference != null) {
@@ -807,7 +814,7 @@ process RETRIEVE_VIRAL_READS_KRAKEN2 {
 
 process DIAMOND  {
   tag "${sampleid}"
-  label "setting_25"
+  label "setting_27"
   containerOptions "${bindOptions}"
   publishDir "${params.outdir}/${sampleid}/06_annotation", mode: 'copy'
 
@@ -827,6 +834,45 @@ process DIAMOND  {
                  --threads ${task.cpus}
   """
 }
+
+process GENOMAD {
+    tag "${sampleid}"
+    label "setting_27"
+    containerOptions "${bindOptions}"
+    publishDir "${params.outdir}/${sampleid}/07_annotation", mode: 'copy'
+
+    input:
+      tuple val(sampleid), path(fasta)
+    output:
+      file "*_summary/*_virus.fna"
+      file "*_summary/*_virus_summary.tsv"
+      file "*_summary/*_virus_genes.tsv"
+      file "*_summary/*_virus_proteins.faa"
+      file "*_find_proviruses/*_provirus.tsv"
+      file "*_find_proviruses/*_provirus_taxonomy.tsv"
+      file "*_find_proviruses/*_provirus.fna"
+      file "*_find_proviruses/*_provirus_genes.tsv"
+      file "*_find_proviruses/*_provirus_proteins.faa"
+      file "*_aggregated_classification/*aggregated_classification.tsv"
+      file "*_annotate/*_taxonomy.tsv"
+      file "${sampleid}_genomad.log"
+      tuple val(sampleid), path("*_summary/*_virus.fna"), emit: virus_fasta
+      
+
+    script:
+    """
+      genomad \\
+        end-to-end \\
+        ${fasta} \\
+        ./ \\
+        ${params.genomad_db} \\
+        --threads ${task.cpus} \\
+        --min-score 0.7 \\
+        --splits 1 \\
+        > ${sampleid}_genomad.log 2>&1
+    """
+}
+
 /*
 process RETRIEVE_VIRAL_READS_KRAKEN2 {
   tag "${sampleid}"
@@ -953,9 +999,12 @@ workflow {
                                                       .join(SAMTOOLS2.out.mapping_quality)
                                                       .join(EXTRACT_REF_FASTA.out.fasta_files)
                                                       
-  COVSTATS(cov_stats_summary_ch)
+  COVSTATS( cov_stats_summary_ch )
+  
+  GENOMAD ( SPADES.out.assembly )
 
 
+  
   //MOSDEPTH (SAMTOOLS2.out.sorted_bams.join(PYFAIDX.out.bed))
   //trimmed_fq = FASTP.out.fastp_trimmed_fq
 

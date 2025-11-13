@@ -8,6 +8,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import collections
+import json
 
 
 def parse_args():
@@ -17,32 +18,32 @@ def parse_args():
     parser.add_argument("--fastp", type=str, required=True)
     parser.add_argument("--bed", type=str, required=True)
     parser.add_argument("--coverage", type=str, required=True)
-#    parser.add_argument("--target_size", type=str, required=True)
- #   parser.add_argument("--contig_seqids", type=str, help="Path to mapping file")
-#    parser.add_argument("--reads_fasta", type=str, help="Reads fasta file")
-#    parser.add_argument("--consensus", type=str, help="Reads fasta file")
+    parser.add_argument("--consensus", type=str, help="Reads fasta file")
     parser.add_argument("--mapping_quality", type=str, required=True)
+    parser.add_argument("--reference", type=str, help="Reads fasta file")
     return parser.parse_args()
 
 
 def read_filtered_read_count(fastp_path):
     filtered_reads = 0
     with open(fastp_path) as f:
+        data = json.load(f)
+    filtered_reads = data["summary"]["after_filtering"]["total_reads"]
         #raw_read1_section_found = False
-        filtered_read1_section_found = False
-        for line in f:
+        #filtered_read1_section_found = False
+        #for line in f:
         #    if "Read1 before filtering" in line:
         #        raw_read1_section_found = True
         #    elif raw_read1_section_found and "total reads:" in line:
         #        # Split on ':' and convert the second part to int
         #        raw_reads = int(line.strip().split(":")[1].strip())
-            if "Read1 after filtering:" in line:
-                filtered_read1_section_found = True
-            elif filtered_read1_section_found and "total reads:" in line:
+        #    if "Read1 after filtering:" in line:
+        #        filtered_read1_section_found = True
+        #    elif filtered_read1_section_found and "total reads:" in line:
                 # Split on ':' and convert the second part to int
-                filtered_reads = int(line.strip().split(":")[1].strip())
-        print(f"Filtered reads: {filtered_reads}")
-        return filtered_reads
+        #        filtered_reads = int(line.strip().split(":")[1].strip())
+        #print(f"Filtered reads: {filtered_reads}")
+    return filtered_reads
         
     raise ValueError("total reads not found in fastp log file")
 
@@ -364,22 +365,25 @@ def main():
     args = parse_args()
     blast_df = pd.read_csv(args.blastn_results, sep="\t", header=0)
     
-    if blast_df['sgi'].isna().all():
-        for col in ['query_match_length', 'qseq_mapping_read_count', 'qseq_mean_depth', 'qseq_pc_mapping_read', 'qseq_pc_cov_30X', 'mean_MQ', 'num_passing_90', 
-                    '30X_COVERAGE_FLAG', 'MAPPED_READ_COUNT_FLAG', 'MEAN_COVERAGE_FLAG', 'TARGET_ORGANISM_FLAG', 'TARGET_SIZE_FLAG', 'READ_LENGTH_FLAG', 
-                    'MEAN_MQ_FLAG', 'TOTAL_CONF_SCORE', 'NORMALISED_CONF_SCORE']:
-            if col not in blast_df.columns:
-                blast_df[col] = None
-        blast_df.to_csv(f"{args.sample}_top_blast_with_cov_stats.txt", index=None, sep="\t")
-    else:
-        filtered_read_counts = read_filtered_read_count(args.fastp)
-        blast_df.rename(columns={"length": "alignment_length"}, inplace=True)
-        samtools_cov, mosdepth_df, mq_df = load_and_prepare_data(
-            args.coverage,
-            args.bed,
-            args.mapping_quality,
-            filtered_read_counts
-        )
+    #if blast_df['sgi'].isna().all():
+    #    for col in ['query_match_length', 'qseq_mapping_read_count', 'qseq_mean_depth', 'qseq_pc_mapping_read', 'qseq_pc_cov_30X', 'mean_MQ', 'num_passing_90', 
+    #                '30X_COVERAGE_FLAG', 'MAPPED_READ_COUNT_FLAG', 'MEAN_COVERAGE_FLAG', 'TARGET_ORGANISM_FLAG', 'TARGET_SIZE_FLAG', 'READ_LENGTH_FLAG', 
+    #                'MEAN_MQ_FLAG', 'TOTAL_CONF_SCORE', 'NORMALISED_CONF_SCORE']:
+    #        if col not in blast_df.columns:
+    #            blast_df[col] = None
+    #    blast_df.to_csv(f"{args.sample}_top_blast_with_cov_stats.txt", index=None, sep="\t")
+    #else:
+    filtered_read_counts = read_filtered_read_count(args.fastp)
+    print(f"Filtered read counts: {filtered_read_counts}")
+       #    blast_df.rename(columns={"length": "alignment_length"}, inplace=True)
+    samtools_cov, mosdepth_df, mq_df = load_and_prepare_data(
+        args.coverage,
+        args.bed,
+        args.mapping_quality,
+        filtered_read_counts
+    )
+
+    
         #mapping = parse_mapping_file(args.contig_seqids)
         #read_lengths = get_read_lengths(args.reads_fasta)
         # = get_reference_lengths(args.consensus)
@@ -391,18 +395,23 @@ def main():
         #df_passes_70_15.to_csv("rpc_read_length_passes_70_15.csv", index=False)
         #df_passes_90_5.to_csv("rpc_read_length_passes_80_5.csv", index=False)
         #merged_df = merge_dataframes(blast_df, samtools_cov, mosdepth_df, mq_df, df_passes_90_5)
-        merged_df = merge_dataframes(samtools_cov, mosdepth_df, mq_df)
-        columns_to_extract = ["sacc", "species", "Species_updated","FullLineage" ]
-        subset_df = blast_df[columns_to_extract].drop_duplicates()
-        print(subset_df)
-        merged_df["qseqid_clean"] = merged_df["qseqid"].str.split(".").str[0]
-        subset_df["sacc"] = subset_df["sacc"].astype(str).str.strip()
-        print(merged_df["qseqid_clean"])
-        print(subset_df["sacc"])
-        merged_df2 = pd.merge(merged_df, subset_df, left_on="qseqid_clean", right_on="sacc", how="inner")
-        print(merged_df)
-        flagged_df = apply_qc_flags(merged_df2)
-        save_summary(flagged_df, args.sample)
+    merged_df = merge_dataframes(samtools_cov, mosdepth_df, mq_df)
+    print(merged_df)
+    columns_to_extract = ["sacc", "species_updated","full_lineage" ]
+    subset_df = blast_df[columns_to_extract].drop_duplicates()
+    
+    merged_df["qseqid_clean"] = merged_df["qseqid"].str.split(".").str[0]
+    subset_df["sacc"] = subset_df["sacc"].astype(str).str.strip()
+    print(merged_df["qseqid_clean"])
+    print(subset_df["sacc"])
+    merged_df2 = pd.merge(merged_df, subset_df, left_on="qseqid_clean", right_on="sacc", how="inner")
+    print(merged_df2)
+    flagged_df = apply_qc_flags(merged_df2)
+    save_summary(flagged_df, args.sample)
 
 if __name__ == "__main__":
     main()
+
+
+
+#ingularity exec -B /work/daff_viral_rnaseq/ ~/.nextflow/NXF_SINGULARITY_CACHEDIR/docker.io-gauthiem-python312.img /work/daff_viral_rnaseq/daff-viral-assembly/bin/derive_coverage_stats.py --sample Ta02_sub --blastn_results /work/daff_viral_rnaseq/daff-viral-assembly/results/Ta02_sub/07_annotation/Ta02_sub_megablast_top_viral_hits_filtered_with_contigs.txt --fastp /work/daff_viral_rnaseq/daff-viral-assembly/results/Ta02_sub/03_fastqc_trimmed/Ta02_sub.fastp.json --coverage /work/daff_viral_rnaseq/daff-viral-assembly/results/Ta02_sub/08_mapping_to_ref/Ta02_sub_coverage.txt  --bed /work/daff_viral_rnaseq/daff-viral-assembly/Ta02_sub.thresholds.bed --consensus /work/daff_viral_rnaseq/daff-viral-assembly/results/Ta02_sub/08_mapping_to_ref/Ta02_sub_bcftools_masked_consensus.fasta --mapping_quality /work/daff_viral_rnaseq/daff-viral-assembly/results/Ta02_sub/08_mapping_to_ref/Ta02_sub_mapq.txt  --reference /work/daff_viral_rnaseq/daff-viral-assembly/results/Ta02_sub/08_mapping_to_ref/Ta02_sub_ref_sequences.fasta
