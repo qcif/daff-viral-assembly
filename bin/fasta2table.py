@@ -27,22 +27,38 @@ def main():
         merged_df.insert(0, "sample_name", sample_name)
         #merged_df['n_read_cont_cluster'] = merged_df['qseqid'].str.split('_').str[5].astype(int)
        #merged_df['n_read_cont_cluster'] = merged_df['n_read_cont_cluster'].str.replace("RC","").astype(int)
-        merged_df = merged_df.sort_values(["bitscore"], ascending=[False])
+        merged_df = merged_df.sort_values(["best_contig_per_sp_filter"], ascending=[False])
 
         # merged_df.to_csv(str(sample_name) + "_blastn_top_hits.txt", index=None, sep="\t")
-        merged_df.to_csv(os.path.basename(blast).replace("_top_viral_hits_filtered.txt", "_top_viral_hits_filtered_with_contigs.txt"), index=None, sep="\t")
+        merged_df.to_csv(os.path.basename(blast).replace("_top_viral_hits.txt", "_top_viral_hits_with_contigs.txt"), index=None, sep="\t")
+        filtered_df = merged_df[merged_df["term_filter"] & merged_df["cov_filter"]]
+        filtered_df.to_csv(os.path.basename(blast).replace("_top_viral_hits.txt", "_top_viral_hits_filtered_with_contigs.txt"), index=None, sep="\t")
+        
+        # Extract column 4
+        col4 = filtered_df.iloc[:, 3].astype(str)  # ensure strings
+
+        # Replace spaces with underscores
+        col4 = col4.str.replace(" ", "_")
+
+        # Flatten values and get unique, sorted IDs
+        unique_ids = list(dict.fromkeys(col4))
+
+        # Save to file, one ID per line
+        with open(sample_name + "_ids_to_retrieve.txt", "w") as f:
+            for uid in unique_ids:
+                f.write(f"{uid}\n")
 
     else:
         print("DataFrame is empty!")
-        for col in ['sgi', 'sgi', 'sacc', 'length', 'pident', 'mismatch', 
-                    'gapopen', 'qstart', 'qend', 'qlen', 'sstart', 
-                    'send', 'slen', 'sstrand', 'evalue', 'bitscore', 
-                    'qcovhsp', 'stitle', 'staxids', 'qseq', 'sseq', 
-                    'sseqid', 'qcovs', 'qframe', 'sframe', 'species', 
-                    'broad_taxonomic_category', 'FullLineage', 'target_organism_match', 'cov']:
+        for col in ["sample_name", "qseqid", "sacc", "alignment_length", "evalue", "bitscore", "pident", "mismatch",
+                     "gapopen", "qstart", "qend", "qlen", "sstart", "send", "slen", "sstrand",
+                     "qcovhsp", "staxids", "qseq", "sseq", "qcovs", 
+                     "species_updated", "RNA_type", "stitle", "full_lineage", "ncontigs", "total_score", "term_filter", "cov_filter", "best_contig_per_sp_filter"]:
             if col not in fasta_df.columns:
                 fasta_df[col] = None
-                fasta_df.to_csv(os.path.basename(blast).replace("_top_viral_hits_filtered.txt", "_top_viral_hits_filtered_with_contigs.txt"), index=None, sep="\t")
+                fasta_df.to_csv(os.path.basename(blast).replace("_top_viral_hits.txt", "_top_viral_hits_with_contigs.txt"), index=None, sep="\t")
+                filtered_df[col] = None
+                filtered_df.to_csv(os.path.basename(blast).replace("_top_viral_hits.txt", "_top_viral_hits_filtered_with_contigs.txt"), index=None, sep="\t")
 # Function to convert FASTA file to DataFrame
 def fasta_to_dataframe(fasta_file):
     records = SeqIO.parse(fasta_file, "fasta")

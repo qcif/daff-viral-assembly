@@ -41,12 +41,6 @@ def helpMessage () {
                                       Default: false
       --preprocessing_only            Only perform preprocessing steps specied
                                       Default: false
-      --porechop_options              Porechop_ABI options
-                                      Default: ''
-      --porechop_custom_primers       Limit porechop search to custom adapters specified under porechop_custom_primers_path
-                                      Default: ''
-      --porechop_custom_primers_path  Path to custom adpaters for porechop
-                                      Default: ''
       --qual_filt                     Run quality filtering step using chopper
                                       [False]
       --chopper_options               Chopper options
@@ -197,7 +191,7 @@ process FASTP {
     path("${sampleid}.fastp.json")
     path("${sampleid}_fastp.log")
     tuple val(sampleid), path("${sampleid}_1_qtrimmed.fastq.gz"), path("${sampleid}_2_qtrimmed.fastq.gz"), emit: trimmed_fq
-    path("${sampleid}.fastp.json"), emit: fastp_json
+    tuple val(sampleid), path("${sampleid}.fastp.json"), emit: fastp_json
 
   script:
     """
@@ -221,20 +215,22 @@ process FASTP {
 process COVSTATS {
   tag "$sampleid"
   label "setting_1"
-  publishDir "${params.outdir}/${sampleid}/05_mapping_to_consensus", mode: 'copy'
+  publishDir "${params.outdir}/${sampleid}/08_mapping_to_ref", mode: 'copy'
 
   input:
-    tuple val(sampleid), path(bed), path(consensus), path(coverage), path(mapping_qual), path(top_hits), path(nanostats), val(target_size), path(reads_fasta), path(contig_seqids)
+    tuple val(sampleid), path(bed), path(blast_results), path(fastp), path(consensus), path(coverage), path(mapping_q), path(ref)
   output:
     path("*top_blast_with_cov_stats.txt")
     tuple val(sampleid), path("*top_blast_with_cov_stats.txt"), emit: detections_summary
     path("*top_blast_with_cov_stats.txt"), emit: detections_summary2
 
+
   script:
     """
-    derive_coverage_stats.py --sample ${sampleid} --blastn_results ${top_hits} --nanostat ${nanostats} --coverage ${coverage} --bed ${bed} --target_size ${target_size} --contig_seqids ${contig_seqids} --reads_fasta ${reads_fasta} --consensus ${consensus} --mapping_quality ${mapping_qual}
+    derive_coverage_stats.py --sample ${sampleid} --blastn_results ${blast_results} --fastp ${fastp} --coverage ${coverage} --bed ${bed} --reference ${ref} --consensus ${consensus} --mapping_quality ${mapping_q}
     """
 }
+
 
 process EXTRACT_BLAST_HITS {
   tag "${sampleid}"
@@ -280,7 +276,9 @@ process FASTA2TABLE {
   input:
     tuple val(sampleid), path(tophits), path(fasta)
   output:
+    file("${sampleid}_megablast_top_viral_hits_with_contigs.txt")
     file("${sampleid}_megablast_top_viral_hits_filtered_with_contigs.txt")
+    tuple val(sampleid), file("${sampleid}_ids_to_retrieve.txt"), emit: ids
     tuple val(sampleid), file("${sampleid}_megablast_top_viral_hits_filtered_with_contigs.txt"), emit: blast_results
 
   script:
@@ -467,9 +465,10 @@ process EXTRACT_VIRAL_BLAST_HITS {
     tuple val(sampleid), path(blast_results) 
 
   output:
-    tuple val(sampleid), path("${sampleid}_megablast_top_viral_hits_filtered.txt"), emit: viral_blast_results
-    path("${sampleid}_megablast_top_viral_hits.txt")
-    path("${sampleid}_megablast_top_viral_hits_filtered.txt")
+    //tuple val(sampleid), path("${sampleid}_megablast_top_viral_hits_filtered.txt"), emit: viral_blast_results
+    tuple val(sampleid), path("${sampleid}_megablast_top_viral_hits.txt"), emit: viral_blast_results
+    //path("${sampleid}_megablast_top_viral_hits.txt")
+    //path("${sampleid}_megablast_top_viral_hits_filtered.txt")
     path("${sampleid}_blastn.txt")
 
   script:
@@ -486,7 +485,7 @@ process EXTRACT_REF_FASTA {
   containerOptions "${bindOptions}"
 
   input:
-    tuple val(sampleid), path(blast_results)
+    tuple val(sampleid), path(ids_to_retrieve)
 
   output:
     path("*fasta"), optional: true
@@ -494,14 +493,41 @@ process EXTRACT_REF_FASTA {
   
   script:
     """
-    cut -f1,3 ${blast_results} | sed '1d' | sed 's/ /_/g' > ids_to_retrieve.txt
-    if [ -s ids_to_retrieve.txt ]
-      then
-        for i in `cut -f2  ids_to_retrieve.txt`; do j=`grep \${i} ids_to_retrieve.txt | cut -f1`; efetch -db nucleotide  -id \${i} -format fasta > ${sampleid}_\${i}.fasta ; done
-        cat ${sampleid}_*.fasta > ${sampleid}_ref_sequences.fasta
+    #cut -f1,4 ${ids_to_retrieve} | sed '1d' | sed 's/ /_/g' | sort | uniq > ids_to_retrieve.txt
+    #if [ -s ${ids_to_retrieve} ]
+    #  then
+    #    for i in `cut -f2  ids_to_retrieve.txt`; do j=`grep \${i} ids_to_retrieve.txt | cut -f1`; efetch -db nucleotide  -id \${i} -format fasta > ${sampleid}_\${i}.fasta ; done
+    #    for i in `cut -f1  ${ids_to_retrieve}`; do efetch -db nucleotide  -id \${i} -format fasta > ${sampleid}_\${i}.fasta ; done
+    #    cat ${sampleid}_*.fasta > ${sampleid}_ref_sequences.fasta
+    #fi
+
+    if [ -s "${ids_to_retrieve}" ]; then
+    
+       cut -f1 "${ids_to_retrieve}" | while read -r i; do
+          efetch -db nucleotide -id "\$i" -format fasta >> "${sampleid}_ref_sequences.fasta"
+      done
     fi
     """
 }
+
+
+process CLUSTER {
+  tag "${sampleid}"
+  label "setting_21"
+
+  input:
+    tuple val(sampleid), path(ref)
+
+  output:
+    tuple val(sampleid), path("${sampleid}_ref_sequences_clustered.fasta"), emit: clusters
+
+  script:
+  """
+  cd-hit -i ${ref} -o ${sampleid}_ref_sequences_clustered.fasta -c 0.98 -n 5
+  """
+}
+
+
 
 process MAPPING_BACK_TO_REF {
   tag "${sampleid}"
@@ -594,7 +620,7 @@ process BEDTOOLS {
 
   output:
     path("${sampleid}_bcftools_masked_consensus.fasta")
-    path("${sampleid}_bcftools_masked_consensus.fasta"), emit: bcftools_masked_consensus_fasta
+     tuple val(sampleid), path("${sampleid}_bcftools_masked_consensus.fasta"), emit: bcftools_masked_consensus_fasta
 
   script:
     """
@@ -983,8 +1009,11 @@ workflow {
   EXTRACT_VIRAL_BLAST_HITS ( ch_blastresults )
   //Add consensus sequence to blast results summary table
   FASTA2TABLE ( EXTRACT_VIRAL_BLAST_HITS.out.viral_blast_results.join(SEQTK.out.filt_fasta) )
-  EXTRACT_REF_FASTA ( EXTRACT_VIRAL_BLAST_HITS.out.viral_blast_results )
-  mapping_ch = EXTRACT_REF_FASTA.out.fasta_files.join(FILTER_CONTROL.out.bbsplit_filtered_fq)
+  EXTRACT_REF_FASTA ( FASTA2TABLE.out.ids )
+  
+  
+  CLUSTER ( EXTRACT_REF_FASTA.out.fasta_files )
+  mapping_ch = CLUSTER.out.clusters.join(FILTER_CONTROL.out.bbsplit_filtered_fq)
   MAPPING_BACK_TO_REF ( mapping_ch )
   SAMTOOLS2 ( MAPPING_BACK_TO_REF.out.aligned_sam )
   BCFTOOLS ( SAMTOOLS2.out.sorted_bam )
@@ -998,8 +1027,8 @@ workflow {
                                                       .join(SAMTOOLS2.out.coverage)
                                                       .join(SAMTOOLS2.out.mapping_quality)
                                                       .join(EXTRACT_REF_FASTA.out.fasta_files)
-                                                      
-  COVSTATS( cov_stats_summary_ch )
+
+  COVSTATS(cov_stats_summary_ch)
   
   GENOMAD ( SPADES.out.assembly )
 
