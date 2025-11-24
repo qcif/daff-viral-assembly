@@ -455,6 +455,31 @@ process SPADES {
   """
 }
 
+
+
+process EXTRACT_VIRAL_CLASSIFICATION_HITS {
+  tag "${sampleid}"
+  label "setting_2"
+  publishDir "${params.outdir}/${sampleid}/07_annotation", mode: 'copy'
+  containerOptions "${bindOptions}"
+
+  input:
+    tuple val(sampleid), path(blast_results) 
+
+  output:
+    //tuple val(sampleid), path("${sampleid}_megablast_top_viral_hits_filtered.txt"), emit: viral_blast_results
+    tuple val(sampleid), path("${sampleid}_megablast_top_viral_hits.txt"), emit: viral_blast_results
+    //path("${sampleid}_megablast_top_viral_hits.txt")
+    //path("${sampleid}_megablast_top_viral_hits_filtered.txt")
+    path("${sampleid}_blastn.txt")
+
+  script:
+  """
+  cat ${blast_results} > ${sampleid}_blastn.txt
+  filter_blast.py --blastn_results ${sampleid}_blastn.txt --sample_name ${sampleid} --taxonkit_database_dir ${params.taxdump} --filter ${params.filter_terms}
+  """
+}
+
 process EXTRACT_VIRAL_BLAST_HITS {
   tag "${sampleid}"
   label "setting_2"
@@ -477,6 +502,29 @@ process EXTRACT_VIRAL_BLAST_HITS {
   filter_blast.py --blastn_results ${sampleid}_blastn.txt --sample_name ${sampleid} --taxonkit_database_dir ${params.taxdump} --filter ${params.filter_terms}
   """
 }
+
+process SUMMARISE_READ_CLASSIFICATION {
+  tag "${sampleid}"
+  label "setting_2"
+  publishDir "${params.outdir}/${sampleid}/05_read_classification", mode: 'copy'
+  containerOptions "${bindOptions}"
+
+  input:
+    tuple val(sampleid), path(kaiju_results), path(bracken_results), path(fastp)
+
+  output:
+    //tuple val(sampleid), path("${sampleid}_megablast_top_viral_hits_filtered.txt"), emit: viral_blast_results
+    path("${sampleid}_kaiju_summary.txt")
+    path("${sampleid}_kraken_summary.txt")
+    //path("${sampleid}_megablast_top_viral_hits.txt")
+    //path("${sampleid}_megablast_top_viral_hits_filtered.txt")
+
+  script:
+  """
+  filter_classification_results.py --kaiju ${kaiju_results} --sample_name ${sampleid} --bracken ${bracken_results} --taxonkit_database_dir ${params.taxdump} --fastp ${fastp}
+  """
+}
+
 
 process EXTRACT_REF_FASTA {
   tag "$sampleid"
@@ -759,7 +807,7 @@ process BRACKEN {
 
   output:
     file("${sampleid}_bracken_report*.txt")
-
+    tuple val(sampleid), path("${sampleid}_bracken_report.txt"), emit: bracken_results2
     tuple val(sampleid), path("${sampleid}_bracken_report_viral.txt"), emit: bracken_results
 
   script:
@@ -786,10 +834,11 @@ process KAIJU {
   input:
     tuple val(sampleid), path(fastq1), path(fastq2)
   output:
-    file "${sampleid}_kaiju_name.tsv"
+    file "${sampleid}_kaiju_*name.tsv"
     file "${sampleid}_kaiju_summary*.tsv"
     file "${sampleid}_kaiju.krona"
     tuple val(sampleid), path("${sampleid}_kaiju_summary_viral.tsv"), emit: kaiju_results
+    tuple val(sampleid), path ("${sampleid}_kaiju_summary.tsv"), emit: kaiju_results2
     tuple val(sampleid), path("*kaiju.krona"), emit: krona_results
 
 
@@ -807,6 +856,15 @@ process KAIJU {
       -v
 
   kaiju-addTaxonNames -t ${params.kaiju_nodes} -n ${params.kaiju_names} -i ${sampleid}_kaiju.tsv -o ${sampleid}_kaiju_name.tsv
+  
+  kaiju-addTaxonNames \
+  -t ${params.kaiju_nodes} \
+  -n ${params.kaiju_names} \
+  -i ${sampleid}_kaiju.tsv \
+  -o ${sampleid}_kaiju_full_lineage_name.tsv \
+  -r superkingdom,phylum,class,order,family,genus,species
+  
+  
   kaiju2table -e -t ${params.kaiju_nodes} -r species -n ${params.kaiju_names} -o ${sampleid}_kaiju_summary.tsv ${sampleid}_kaiju.tsv
   kaiju2krona -t ${params.kaiju_nodes} -n ${params.kaiju_names} -i ${sampleid}_kaiju.tsv -o ${sampleid}_kaiju.krona
 
@@ -984,11 +1042,15 @@ workflow {
   BRACKEN ( KRAKEN2.out.kraken2_results2 )
   //retrieve reads that were not classified and reads classified as viral
   RETRIEVE_VIRAL_READS_KRAKEN2 ( KRAKEN2.out.kraken2_results )
+
   //merge unclassified reads with viral reads from kraken2
   //MERGE_WITH_UNCLASSIFIED_READS_KRAKEN2 ( RETRIEVE_VIRAL_READS_KRAKEN2.out.fastq )
 
   KAIJU ( FILTER_CONTROL.out.bbsplit_filtered_fq )
-  
+  read_classification_ch = KAIJU.out.kaiju_results2.join(BRACKEN.out.bracken_results2)
+                                                  .join(FASTP.out.fastp_json)
+  SUMMARISE_READ_CLASSIFICATION ( read_classification_ch )
+
   //perform de novo assembly with spades using rnaspades
   SPADES ( RETRIEVE_VIRAL_READS_KRAKEN2.out.fastq )
    

@@ -240,14 +240,14 @@ def apply_qc_flags(df):
 
 
 def save_summary(df, sample_name):
-    df = df.sort_values("NORMALISED_CONF_SCORE", ascending=False)
+    df = df.sort_values("normalised_conf_score", ascending=False)
     #df.drop("pc_read_length_passes_90_5" , axis=1, inplace=True)
-    df.drop("30X_COVERAGE_FLAG_SCORE" , axis=1, inplace=True)
-    df.drop("MAPPED_READ_COUNT_FLAG_SCORE" , axis=1, inplace=True)
-    df.drop("MEAN_COVERAGE_FLAG_SCORE" , axis=1, inplace=True)
+    #df.drop("30X_COVERAGE_FLAG_SCORE" , axis=1, inplace=True)
+    #df.drop("MAPPED_READ_COUNT_FLAG_SCORE" , axis=1, inplace=True)
+    #df.drop("MEAN_COVERAGE_FLAG_SCORE" , axis=1, inplace=True)
     #df.drop("TARGET_SIZE_FLAG_SCORE" , axis=1, inplace=True)
     #df.drop("READ_LENGTH_FLAG_SCORE" , axis=1, inplace=True)
-    df.drop("MEAN_MQ_FLAG_SCORE" , axis=1, inplace=True)
+    #df.drop("MEAN_MQ_FLAG_SCORE" , axis=1, inplace=True)
 
     output_file = f"{sample_name}_top_blast_with_cov_stats.txt"
     df.to_csv(output_file, index=False, sep="\t")
@@ -407,7 +407,24 @@ def main():
     merged_df2 = pd.merge(merged_df, subset_df, left_on="qseqid_clean", right_on="sacc", how="inner")
     print(merged_df2)
     flagged_df = apply_qc_flags(merged_df2)
-    save_summary(flagged_df, args.sample)
+    flagged_df = flagged_df.rename(columns={
+        "species_updated": "taxon_name",
+        "query_match_length": "reference_length",
+        "qseq_mapping_read_count": "reads",
+        "qseq_mean_depth": "mean_depth",
+        "qseq_pc_mapping_read": "pc_reads",
+        "qseq_pc_cov_30X": "pc_cov_30X",
+        "mean_MQ": "mean_mapping_quality",
+        "30X_COVERAGE_FLAG": "30x_cov_flag",
+        "MAPPED_READ_COUNT_FLAG": "read_count_flag",
+        "MEAN_COVERAGE_FLAG": "mean_depth_flag",
+        "MEAN_MQ_FLAG": "mean_mq_flag",
+        "TOTAL_CONF_SCORE": "total_conf_score",
+        "NORMALISED_CONF_SCORE": "normalised_conf_score"
+    })
+    flagged_df_subset = flagged_df[['taxon_name', 'sacc', 'full_lineage', 'reference_length', 'reads', 'pc_reads', 'mean_depth', 'pc_cov_30X', 
+                                    'mean_mapping_quality', 'read_count_flag', 'mean_depth_flag', '30x_cov_flag', 'mean_mq_flag', 'total_conf_score','normalised_conf_score']]
+    save_summary(flagged_df_subset, args.sample)
 
 if __name__ == "__main__":
     main()

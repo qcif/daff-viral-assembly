@@ -11,6 +11,7 @@ import shutil
 import re
 from pytaxonkit import lineage
 import pprint
+import json
 
 
 def parse_arguments():
@@ -20,6 +21,8 @@ def parse_arguments():
     parser.add_argument("--sample_name", required=True, type=str)
     parser.add_argument("--bracken", required=True, type=str)
     parser.add_argument("--taxonkit_database_dir", required=True, type=str)
+    parser.add_argument("--fastp", required=True, type=str, help="Path to fastp JSON report for filtered read count") 
+
     return parser.parse_args()
 
 def load_blast_results(path):
@@ -287,7 +290,7 @@ def main():
     lin_df = lin_df.rename(columns={
         "TaxID": "taxid",
         "FullLineageTaxIDs": "full_lineage_taxids",
-        "FullLineage": "lineage_names",
+        "FullLineage": "full_lineage_names",
         "Name": "name"
     })
 
@@ -297,34 +300,27 @@ def main():
     # Make sure full_lineage_taxids is string
     lin_df["full_lineage_taxids"] = lin_df["full_lineage_taxids"].fillna("")
 
-    # Convert taxid to int safely
-    lin_df["taxid"] = pd.to_numeric(lin_df["taxid"], errors="coerce").fillna(0).astype(int)
-
     # Build mapping
     taxid_to_lineage = {int(k): str(v) for k, v in zip(lin_df["taxid"], lin_df["full_lineage_taxids"])}
 
+
+    taxid_to_lineage_names = dict(zip(
+        lin_df["taxid"],
+        lin_df["full_lineage_names"]
+    ))
+    
     # Viral check
-    def is_viral(tid):
-    # Treat 0 or invalid IDs as non-viral
-        if not tid:
-            return False
-        lineage_path = taxid_to_lineage.get(tid, "")
-        if not lineage_path:
-            return False
-        # Split semicolon-separated lineage, remove empty strings
-        lineage_ids = [x for x in lineage_path.split(";") if x]
-        # Check for Viruses taxid 10239
-        return "10239" in lineage_ids
 
     df["taxon_id"] = pd.to_numeric(df["taxon_id"], errors="coerce").fillna(0).astype(int)
     def is_viral(tid):
-        if not tid:
+        if not tid or tid == 0:
             return False
         lineage_path = taxid_to_lineage.get(tid, "")
         if not lineage_path:
             return False
         lineage_ids = [x for x in lineage_path.split(";") if x]
-        return "10239" in lineage_ids  # 10239 = Viruses
+        return ("10239" in lineage_ids) or ("12884" in lineage_ids)
+
 
 
     def categorize(row):
@@ -338,20 +334,66 @@ def main():
             return "Higher viral, cannot be classified at spp level"
         else:
             return "other non-viral"
-    df["above_threshold"] = df["percent"].astype(float) >= 0.02
-
-    df["broad_category"] = df.apply(categorize, axis=1)
-    df.to_csv("trial_kaiju_summary.txt", sep="\t", index=False)
-
-
-
-    #out_file = os.path.basename(args.blastn_results).replace("_blastn.txt", "_megablast_top_viral_hits.txt")
-    #final_df.to_csv(out_file, sep="\t", index=False)
-    #print(f"Virus-only results saved to {out_file}")
     
-    #out_file2 = os.path.basename(args.blastn_results).replace("_blastn.txt", "_megablast_top_viral_hits_filtered.txt")
-    #filtered_df.to_csv(out_file2, sep="\t", index=False)
-    #print(f"Virus-only filtered results saved to {out_file2}")
+    def categorize_bracken(row):
+        tid = row["taxon_id"]
+        if is_viral(tid):
+            return "viral"
+        else:
+            return "other non-viral"
+
+    df["full_lineage"] = df["taxon_id"].apply(lambda x: taxid_to_lineage_names.get(int(x), ""))
+    df["broad_categories"] = df.apply(categorize, axis=1)
+    df["cov_filter"] = df["pc_reads"].astype(float) >= 0.02
+    df_subset = df[['taxon_name', 'taxon_id', 'full_lineage', 'broad_categories', 'reads', 'pc_reads', 'cov_filter']]
+    df_subset.to_csv(sample_name + "_kaiju_summary.txt", sep="\t", index=False)
+
+    br = pd.read_csv(bracken_path, sep="\t", dtype=str)
+    br = br.rename(columns={
+        "taxonomy_id": "taxon_id"})
+    unique_taxids_br = br.loc[br["taxon_id"] != 0, "taxon_id"].unique().tolist()
+    lin2 = lineage(unique_taxids_br)  # no 'format' keyword
+    lin2_df = pd.DataFrame(lin2)
+    lin2_df = lin2_df.rename(columns={
+        "TaxID": "taxid",
+        "FullLineageTaxIDs": "full_lineage_taxids",
+        "FullLineage": "full_lineage_names",
+        "Name": "name"
+    })
+    lin2_df["taxid"] = pd.to_numeric(lin2_df["taxid"], errors="coerce").fillna(0).astype(int)
+    lin2_df["full_lineage_taxids"] = lin2_df["full_lineage_taxids"].fillna("")
+    taxid_to_lineage = {int(k): str(v) for k, v in zip(lin2_df["taxid"], lin2_df["full_lineage_taxids"])}
+    taxid_to_lineage_names = dict(zip(
+        lin2_df["taxid"],
+        lin2_df["full_lineage_names"]
+    ))
+    br["taxon_id"] = pd.to_numeric(br["taxon_id"], errors="coerce").fillna(0).astype(int)
+    br["full_lineage"] = br["taxon_id"].apply(lambda x: taxid_to_lineage_names.get(int(x), ""))
+    br["broad_categories"] = br.apply(categorize_bracken, axis=1)
+    
+    
+    filtered_read_counts = read_filtered_read_count(args.fastp)
+    print(filtered_read_counts)
+    br["new_est_reads"] = pd.to_numeric(br["new_est_reads"], errors="coerce")
+    br["pc_reads"] = (br["new_est_reads"] / filtered_read_counts) * 100
+    br["cov_filter"] = br["pc_reads"].astype(float) >= 0.001
+    br = br.rename(columns={
+        "name": "taxon_name",
+        "new_est_reads": "reads",
+    })
+    br_subset = br[['taxon_name', 'taxon_id', 'full_lineage', 'broad_categories', 'reads', 'pc_reads', 'cov_filter']]
+
+    br_subset.to_csv(sample_name + "_kraken_summary.txt", sep="\t", index=False)
+
+
+def read_filtered_read_count(fastp_path):
+    filtered_reads = 0
+    with open(fastp_path) as f:
+        data = json.load(f)
+    filtered_reads = data["summary"]["after_filtering"]["total_reads"]
+
+    return filtered_reads
+        
 
 if __name__ == "__main__":
     main()
