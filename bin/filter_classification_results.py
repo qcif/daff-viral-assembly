@@ -21,8 +21,7 @@ def parse_arguments():
     parser.add_argument("--sample_name", required=True, type=str)
     parser.add_argument("--bracken", required=True, type=str)
     parser.add_argument("--taxonkit_database_dir", required=True, type=str)
-    parser.add_argument("--fastp", required=True, type=str, help="Path to fastp JSON report for filtered read count") 
-
+    parser.add_argument("--stats", required=True, type=str, help="path to bbsplit stats file")
     return parser.parse_args()
 
 def load_blast_results(path):
@@ -250,7 +249,75 @@ def filter_and_format(df, sample_name, filter_file):
     #return df[final_columns], top_hits_df[final_columns_filt]
     return df[final_columns_filt]
     
+def parse_bbsplit_log(logfile):   
+    total_reads = None
+    r1_mapped = r2_mapped = 0
 
+    with open(logfile, "r") as f:
+        section = None
+        for line in f:
+            line = line.strip()
+
+            # total input reads
+            m_total = re.match(r"Reads Used:\s+(\d+)", line)
+            if m_total:
+                total_reads = int(m_total.group(1))
+                continue
+
+            # detect sections
+            if line.startswith("Read 1 data"):
+                section = "R1"
+                continue
+            elif line.startswith("Read 2 data"):
+                section = "R2"
+                continue
+
+            # mapped reads per read
+            m_mapped = re.match(r"mapped:\s+[\d\.%]+\s+(\d+)", line)
+            if m_mapped:
+                count = int(m_mapped.group(1))
+                if section == "R1":
+                    r1_mapped = count
+                elif section == "R2":
+                    r2_mapped = count
+
+    if total_reads is None:
+        raise ValueError("Could not find total reads in log file.")
+
+    total_mapped_reads = r1_mapped + r2_mapped
+    clean_reads = total_reads - total_mapped_reads
+
+  
+
+    return clean_reads
+
+def is_viral(tid, taxid_to_lineage):
+    if not tid or tid == 0:
+        return False
+    lineage_path = taxid_to_lineage.get(tid, "")
+    if not lineage_path:
+        return False
+    lineage_ids = [x for x in lineage_path.split(";") if x]
+    return ("10239" in lineage_ids) or ("12884" in lineage_ids)
+
+def categorize(row, taxid_to_lineage):
+    tid = row["taxon_id"]
+    name = str(row.get("taxon_name", "")).lower()  # in case it's NaN
+    if "unclassified" in name:
+        return "unclassified"
+    elif is_viral(tid, taxid_to_lineage):
+        return "viral"
+    if "cannot be assigned to a (non-viral) species" in name:
+        return "Higher viral, cannot be classified at spp level"
+    else:
+        return "other non-viral"
+
+def categorize_bracken(row, taxid_to_lineage):
+    tid = row["taxon_id"]
+    if is_viral(tid, taxid_to_lineage):
+        return "viral"
+    else:
+        return "other non-viral"
     
 def main():
     args = parse_arguments()
@@ -258,6 +325,7 @@ def main():
     sample_name = args.sample_name
     bracken_path = args.bracken
     tk_db_dir = args.taxonkit_database_dir
+    log = args.stats
 
     if not os.path.isfile(kaiju_path):
         raise FileNotFoundError(f"{kaiju_path} does not exist.")
@@ -303,51 +371,28 @@ def main():
     # Build mapping
     taxid_to_lineage = {int(k): str(v) for k, v in zip(lin_df["taxid"], lin_df["full_lineage_taxids"])}
 
-
     taxid_to_lineage_names = dict(zip(
         lin_df["taxid"],
         lin_df["full_lineage_names"]
     ))
     
     # Viral check
-
     df["taxon_id"] = pd.to_numeric(df["taxon_id"], errors="coerce").fillna(0).astype(int)
-    def is_viral(tid):
-        if not tid or tid == 0:
-            return False
-        lineage_path = taxid_to_lineage.get(tid, "")
-        if not lineage_path:
-            return False
-        lineage_ids = [x for x in lineage_path.split(";") if x]
-        return ("10239" in lineage_ids) or ("12884" in lineage_ids)
-
-
-
-    def categorize(row):
-        tid = row["taxon_id"]
-        name = str(row.get("taxon_name", "")).lower()  # in case it's NaN
-        if "unclassified" in name:
-            return "unclassified"
-        elif is_viral(tid):
-            return "viral"
-        if "cannot be assigned to a (non-viral) species" in name:
-            return "Higher viral, cannot be classified at spp level"
-        else:
-            return "other non-viral"
-    
-    def categorize_bracken(row):
-        tid = row["taxon_id"]
-        if is_viral(tid):
-            return "viral"
-        else:
-            return "other non-viral"
 
     df["full_lineage"] = df["taxon_id"].apply(lambda x: taxid_to_lineage_names.get(int(x), ""))
-    df["broad_categories"] = df.apply(categorize, axis=1)
+    #df["broad_categories"] = df.apply(categorize, axis=1, taxid_to_lineage)
+    df["broad_categories"] = df.apply(
+        lambda row: categorize(row, taxid_to_lineage),
+        axis=1
+    )
+    df = df.rename(columns={
+        "percent": "pc_reads"
+    })
     df["cov_filter"] = df["pc_reads"].astype(float) >= 0.02
     df_subset = df[['taxon_name', 'taxon_id', 'full_lineage', 'broad_categories', 'reads', 'pc_reads', 'cov_filter']]
     df_subset.to_csv(sample_name + "_kaiju_summary.txt", sep="\t", index=False)
 
+    #BRACKEN processing
     br = pd.read_csv(bracken_path, sep="\t", dtype=str)
     br = br.rename(columns={
         "taxonomy_id": "taxon_id"})
@@ -369,30 +414,57 @@ def main():
     ))
     br["taxon_id"] = pd.to_numeric(br["taxon_id"], errors="coerce").fillna(0).astype(int)
     br["full_lineage"] = br["taxon_id"].apply(lambda x: taxid_to_lineage_names.get(int(x), ""))
-    br["broad_categories"] = br.apply(categorize_bracken, axis=1)
+    #br["broad_categories"] = br.apply(categorize_bracken, axis=1)
+    br["broad_categories"] = br.apply(
+        lambda row: categorize_bracken(row, taxid_to_lineage),
+        axis=1
+    )
     
-    
-    filtered_read_counts = read_filtered_read_count(args.fastp)
-    print(filtered_read_counts)
+    #filtered_read_counts = read_filtered_read_count(args.stats)
+    filtered_read_counts = parse_bbsplit_log(log)
+    #print(filtered_read_counts)
     br["new_est_reads"] = pd.to_numeric(br["new_est_reads"], errors="coerce")
-    br["pc_reads"] = (br["new_est_reads"] / filtered_read_counts) * 100
-    br["cov_filter"] = br["pc_reads"].astype(float) >= 0.001
     br = br.rename(columns={
         "name": "taxon_name",
         "new_est_reads": "reads",
     })
+    #unclassified_reads = filtered_read_counts – sum(br["reads"])
+    # Sum of all classified reads in Bracken table
+    classified_reads = br["reads"].sum()
+    # Compute unclassified reads
+    unclassified_reads = filtered_read_counts - classified_reads
+    unclassified_reads = max(unclassified_reads, 0)  # safety
+    # Build the unclassified row
+    unclassified_row = {
+        "taxon_name": "unclassified",
+        "taxon_id": 0,
+        "full_lineage": "NA",
+        "broad_categories": "unclassified",
+        "reads": unclassified_reads
+    }
+    # Append to the bottom of the table
+    br = pd.concat([br, pd.DataFrame([unclassified_row])], ignore_index=True)
+
+    br["pc_reads"] = (br["reads"] / filtered_read_counts) * 100
+    br["cov_filter"] = br["pc_reads"].astype(float) >= 0.001
+    
     br_subset = br[['taxon_name', 'taxon_id', 'full_lineage', 'broad_categories', 'reads', 'pc_reads', 'cov_filter']]
 
     br_subset.to_csv(sample_name + "_kraken_summary.txt", sep="\t", index=False)
 
 
-def read_filtered_read_count(fastp_path):
-    filtered_reads = 0
-    with open(fastp_path) as f:
-        data = json.load(f)
-    filtered_reads = data["summary"]["after_filtering"]["total_reads"]
+#def read_filtered_read_count(fastp_json_path):
+#    filtered_reads = 0
+#    with open(fastp_json_path) as f:
+#        data = json.load(f)
+#    filtered_reads = data["summary"]["after_filtering"]["total_reads"]
 
-    return filtered_reads
+#    return filtered_reads
+
+
+
+ 
+            
         
 
 if __name__ == "__main__":

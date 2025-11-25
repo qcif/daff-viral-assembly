@@ -5,62 +5,129 @@ import glob
 import os
 import time
 import numpy as np
+import re
+import json
+
+
+def read_filtered_read_count(fastp_path):
+    with open(fastp_path) as f:
+        data = json.load(f)
+        raw_reads = data["summary"]["before_filtering"]["total_reads"]
+        mean_raw_read_length = data["summary"]["after_filtering"]["read1_mean_length"]
+        quality_filtered_reads = data["summary"]["after_filtering"]["total_reads"]
+        mean_filtered_read_length = data["summary"]["after_filtering"]["read1_mean_length"]
+        gc_content = data["summary"]["after_filtering"]["gc_content"]
+    f.close()
+            #raw_read1_section_found = False
+        #filtered_read1_section_found = False
+        #for line in f:
+        #    if "Read1 before filtering" in line:
+        #        raw_read1_section_found = True
+        #    elif raw_read1_section_found and "total reads:" in line:
+        #        # Split on ':' and convert the second part to int
+        #        raw_reads = int(line.strip().split(":")[1].strip())
+        #    if "Read1 after filtering:" in line:
+        #        filtered_read1_section_found = True
+        #    elif filtered_read1_section_found and "total reads:" in line:
+                # Split on ':' and convert the second part to int
+        #        filtered_reads = int(line.strip().split(":")[1].strip())
+        #print(f"Filtered reads: {filtered_reads}")
+    return raw_reads, quality_filtered_reads,  mean_raw_read_length,  mean_filtered_read_length, gc_content
 
 def main():
 
     timestr = time.strftime("%Y%m%d-%H%M%S")
     summary_dict = {}
 
-    for raw_read_out in glob.glob("*raw_NanoStats.txt"):
-        raw_reads = ()
-        line_number = 0
-        sample = (os.path.basename(raw_read_out).replace('_raw_NanoStats.txt', ''))
-        with open(raw_read_out, 'r') as f:
-            for line in f:
-                string_to_search = ("number_of_reads")
-                line_number += 1
-                if string_to_search in line:
-                    elements = line.rsplit('\t')
-                    raw_reads = int(elements[1].strip())
-                    print(raw_reads)
+    for raw_read_out in glob.glob("*.fastp.json"):
+        mean_raw_read_length = 0
+        quality_filtered_reads = 0
+        mean_filtered_read_length = 0
+        gc_content = 0
+        sample = (os.path.basename(raw_read_out).replace('.fastp.json', ''))
+        raw_reads, quality_filtered_reads, mean_raw_read_length, mean_filtered_read_length, gc_content  = read_filtered_read_count(raw_read_out)  
 
-        summary_dict[sample] = [raw_reads]
-        print(summary_dict)
-        f.close()
+        summary_dict[sample] = [raw_reads,  quality_filtered_reads, mean_raw_read_length, mean_filtered_read_length, gc_content]
+    print(summary_dict)
+        
 
-    for qt_read_out in glob.glob("*filtered_NanoStats.txt"):
-        qt_reads = ()
-        line_number = 0 
-        sample = (os.path.basename(qt_read_out).replace('_filtered_NanoStats.txt', ''))
-        with open(qt_read_out, 'r') as f:
+    for rRNA_clean_read_out in glob.glob("*_rRNA_reads.log"):
+        rRNA_cleaned_reads = ()
+        sample = (os.path.basename(rRNA_clean_read_out).replace('_rRNA_reads.log', ''))
+        with open(rRNA_clean_read_out, 'r') as f:
             for line in f:
-                string_to_search = ("number_of_reads")
-                line_number += 1
-                if string_to_search in line:
-                    elements = line.rsplit('\t')
-                    qt_reads = int(elements[1].strip())
-                    print(qt_reads)
+                if line.strip().startswith("Result:"):
+                    m = re.search(r'Result:\s+(\d+)\s+reads', line)
+                    if m:
+                        rRNA_cleaned_reads = int(m.group(1))
+                        break
             #first_line = next(f)
             #qt_reads = int(first_line[0].strip())
         f.close()
-        summary_dict[sample].append(qt_reads)
+        summary_dict[sample].append(rRNA_cleaned_reads)
 
-    run_data_df = pd.DataFrame([([k] + v) for k, v in summary_dict.items()], columns=['Sample','raw_reads','processed_reads'])
-    run_data_df['percent_processed'] = run_data_df['processed_reads'] / run_data_df['raw_reads'] * 100
-    run_data_df['percent_processed'] = run_data_df['percent_processed'].apply(lambda x: float("{:.2f}".format(x)))
+
+    for bbsplit_log in glob.glob("*_bbsplit_stats.txt"):
+        phix_cleaned_reads = ()
+        sample = (os.path.basename(bbsplit_log).replace('_bbsplit_stats.txt', ''))
+        r1_mapped = r2_mapped = 0
+
+        with open(bbsplit_log, "r") as f:
+            section = None
+            for line in f:
+                line = line.strip()
+
+                # total input reads
+                m_total = re.match(r"Reads Used:\s+(\d+)", line)
+                if m_total:
+                    total_reads = int(m_total.group(1))
+                    continue
+
+                # detect sections
+                if line.startswith("Read 1 data"):
+                    section = "R1"
+                    continue
+                elif line.startswith("Read 2 data"):
+                    section = "R2"
+                    continue
+
+                # mapped reads per read
+                m_mapped = re.match(r"mapped:\s+[\d\.%]+\s+(\d+)", line)
+                if m_mapped:
+                    count = int(m_mapped.group(1))
+                    if section == "R1":
+                        r1_mapped = count
+                    elif section == "R2":
+                        r2_mapped = count
+
+        if total_reads is None:
+            raise ValueError("Could not find total reads in log file.")
+
+        total_mapped_reads = r1_mapped + r2_mapped
+        phix_cleaned_reads = total_reads - total_mapped_reads
+        f.close()
+        summary_dict[sample].append(phix_cleaned_reads)
+
+
+    run_data_df = pd.DataFrame([([k] + v) for k, v in summary_dict.items()], columns=['Sample','raw_reads','quality_filtered_reads','mean_raw_read_length','mean_filtered_read_length','gc_content','rRNA_cleaned_reads','phix_cleaned_reads'])
+    run_data_df['percent_qfiltered'] = run_data_df['quality_filtered_reads'] / run_data_df['raw_reads'] * 100
+    run_data_df['percent_qfiltered'] = run_data_df['percent_qfiltered'].apply(lambda x: float("{:.2f}".format(x)))
+    run_data_df['percent_cleaned'] = run_data_df['phix_cleaned_reads'] / run_data_df['raw_reads'] * 100
+    run_data_df['percent_cleaned'] = run_data_df['percent_cleaned'].apply(lambda x: float("{:.2f}".format(x)))
+    
     run_data_df = run_data_df.sort_values("Sample")
-    run_data_df['raw_reads_flag'] = np.where((run_data_df['raw_reads'] < 2500), "Less than 2500 raw reads", "")
-    run_data_df['processed_reads_flag'] = np.where((run_data_df['processed_reads'] < 200), "Less than 200 processed reads", "")
+    run_data_df['raw_reads_flag'] = np.where((run_data_df['raw_reads'] < 8000000), "Less than 10M raw reads", "")
+    run_data_df['qfiltered_reads_flag'] = np.where((run_data_df['phix_cleaned_reads'] < 2500000), "Less than 5M cleaned reads", "")
     run_data_df["QC_FLAG"] = np.where(
-        (run_data_df['processed_reads'] < 200),
+        (run_data_df['phix_cleaned_reads'] < 2500000),
         "RED",
         np.where(
-            ((run_data_df['raw_reads'] < 2500) &
-            (run_data_df['processed_reads'] >= 200)),
+            ((run_data_df['raw_reads'] < 8000000) &
+            (run_data_df['phix_cleaned_reads'] >= 2500000)),
             "ORANGE",
             np.where(
-                ((run_data_df['raw_reads'] >= 2500) &
-                (run_data_df['processed_reads'] >= 200)),
+                ((run_data_df['raw_reads'] >= 8000000) &
+                (run_data_df['phix_cleaned_reads'] >= 2500000)),
                 "GREEN",
                 ""
             )

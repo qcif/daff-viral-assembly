@@ -15,38 +15,55 @@ def main():
     fasta_file = args.fasta
     sample_name = args.sample
     blast = args.tophits
-    if os.path.getsize(blast) > 0:
+    
+    if os.path.getsize(fasta_file) > 0:
         fasta_df = fasta_to_dataframe(fasta_file)
     else:
         fasta_df = pd.DataFrame(columns=["qseqid", "contig_seq"])
 
     if os.path.getsize(blast) > 0:
-        blastn_results = pd.read_csv(blast, sep="\t", header=0)
-        blastn_results.drop(['sample_name'], axis=1, inplace=True)
-        merged_df = pd.merge(fasta_df, blastn_results, on = ['qseqid'], how = 'inner')
-        merged_df.insert(0, "sample_name", sample_name)
-        #merged_df['n_read_cont_cluster'] = merged_df['qseqid'].str.split('_').str[5].astype(int)
-       #merged_df['n_read_cont_cluster'] = merged_df['n_read_cont_cluster'].str.replace("RC","").astype(int)
-        merged_df = merged_df.sort_values(["best_contig_per_sp_filter"], ascending=[False])
-
-        # merged_df.to_csv(str(sample_name) + "_blastn_top_hits.txt", index=None, sep="\t")
-        merged_df.to_csv(os.path.basename(blast).replace("_top_viral_hits.txt", "_top_viral_hits_with_contigs.txt"), index=None, sep="\t")
-        filtered_df = merged_df[merged_df["term_filter"] & merged_df["cov_filter"]]
-        filtered_df.to_csv(os.path.basename(blast).replace("_top_viral_hits.txt", "_top_viral_hits_filtered_with_contigs.txt"), index=None, sep="\t")
         
-        # Extract column 4
-        col4 = filtered_df.iloc[:, 3].astype(str)  # ensure strings
+        blastn_results = pd.read_csv(blast, sep="\t", header=0)
+        first_col = blastn_results.columns[0]
 
-        # Replace spaces with underscores
-        col4 = col4.str.replace(" ", "_")
+        #This handles two cases based on the first column name
+        # Case 1: first column is "sample_name" for blast top viral hits
+        
+        if first_col == "sample_name":
+            # Case 1: the BLAST table starts with sample_name
+            blastn_results.drop(['sample_name'], axis=1, inplace=True)
+            
+            
 
-        # Flatten values and get unique, sorted IDs
-        unique_ids = list(dict.fromkeys(col4))
+            merged_df = pd.merge(fasta_df, blastn_results, on = ['qseqid'], how = 'inner')
+            merged_df.insert(0, "sample_name", sample_name)
+            merged_df = merged_df.sort_values(["best_contig_per_sp_filter"], ascending=[False])
 
-        # Save to file, one ID per line
-        with open(sample_name + "_ids_to_retrieve.txt", "w") as f:
-            for uid in unique_ids:
-                f.write(f"{uid}\n")
+            merged_df.to_csv(os.path.basename(blast).replace("_top_viral_hits.txt", "_top_viral_hits_with_contigs.txt"), index=None, sep="\t")
+            filtered_df = merged_df[merged_df["term_filter"] & merged_df["cov_filter"]]
+            filtered_df.to_csv(os.path.basename(blast).replace("_top_viral_hits.txt", "_top_viral_hits_filtered_with_contigs.txt"), index=None, sep="\t")
+            
+                    
+            # Extract IDs to perform mapping back to reference
+            col4 = filtered_df.iloc[:, 3].astype(str)  # ensure strings
+            col4 = col4.str.replace(" ", "_")
+            # Flatten values and get unique, sorted IDs
+            unique_ids = list(dict.fromkeys(col4))
+
+            # Save to file, one ID per line
+            with open(sample_name + "_ids_to_retrieve.txt", "w") as f:
+                for uid in unique_ids:
+                    f.write(f"{uid}\n")
+        # Case 2: first column is "taxon_name" for reference with cov stats
+        elif first_col == "taxon_name":
+            
+            fasta_df["sacc"] = fasta_df["qseqid"].str.split(".").str[0]
+            # Case 2: it starts with something else
+            merged_df = pd.merge(fasta_df, blastn_results, on = ['sacc'], how = 'inner')
+            merged_df.insert(0, "sample_name", sample_name)
+            merged_df = merged_df.sort_values(["normalised_conf_score"], ascending=[False])
+            merged_df.to_csv(os.path.basename(blast).replace("_reference_with_cov_stats.txt", "_reference_with_cov_stats_final.txt"), index=None, sep="\t")
+
 
     else:
         print("DataFrame is empty!")
@@ -59,6 +76,11 @@ def main():
                 fasta_df.to_csv(os.path.basename(blast).replace("_top_viral_hits.txt", "_top_viral_hits_with_contigs.txt"), index=None, sep="\t")
                 filtered_df[col] = None
                 filtered_df.to_csv(os.path.basename(blast).replace("_top_viral_hits.txt", "_top_viral_hits_filtered_with_contigs.txt"), index=None, sep="\t")
+
+        
+        
+
+        
 # Function to convert FASTA file to DataFrame
 def fasta_to_dataframe(fasta_file):
     records = SeqIO.parse(fasta_file, "fasta")

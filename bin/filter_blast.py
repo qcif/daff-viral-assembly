@@ -23,11 +23,7 @@ def load_blast_results(path):
     """Load BLASTn results based on mode."""
     if not os.path.isfile(path):
         raise FileNotFoundError(f"BLASTn results file not found: {path}")
-    # Define column names as a string
-    #header = ("qseqid\tsgi\tsacc\talignment_length\tpident\tmismatch\tgapopen\tqstart\tqend\tqlen\t"
-    #          "sstart\tsend\tslen\tsstrand\tevalue\tbitscore\tqcovhsp\tstitle\tstaxids\tqseq\t"
-    #          "sseq\tsseqid\tqcovs\tqframe\tsframe\n")
-    # Define expected header (based on your BLAST output fields)
+     # Define expected header (based on your BLAST output fields)
     columns = [
         "qseqid", "sgi", "sacc", "alignment_length", "pident", "mismatch", "gapopen",
         "qstart", "qend", "qlen", "sstart", "send", "slen", "sstrand", "evalue",
@@ -35,23 +31,13 @@ def load_blast_results(path):
         "qcovs", "qframe", "sframe"
     ]
     # Create a temporary file with header + original content
-    #with tempfile.NamedTemporaryFile(mode='w+', delete=False) as tmp_file:
-    #    tmp_file.write(header)
-    #    with open(path, 'r') as original_file:
-    #        shutil.copyfileobj(original_file, tmp_file)
-    #    tmp_path = tmp_file.name
+   
     df = pd.read_csv(path, sep="\t", header=None, dtype=str)
     if df.shape[1] != len(columns):
         raise ValueError(
             f"Expected {len(columns)} columns (BLAST output), but found {df.shape[1]} in {path}"
         )
     df.columns = columns
-
-    # Define columns and dtypes
-    #columns = header.strip().split('\t')
-    #columns = ["qseqid", "sgi", "sacc", "length", "nident", "pident", "mismatch", "gaps", "gapopen", "qstart",
-    #           "qend", "qlen", "sstart", "send", "slen", "sstrand", "evalue", "bitscore", "qcovhsp", "stitle",
-    #           "staxids", "qseq", "sseq", "sseqid", "qcovs", "qframe", "sframe"]
 
     dtype = {
         "qseqid": 'str', "sgi": 'str', "sacc": 'str', "alignment_length": 'int64', "pident": 'float64', "mismatch": 'int64',

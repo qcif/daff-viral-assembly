@@ -9,13 +9,56 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import collections
 import json
+import re
 
+
+def parse_bbsplit_log(logfile):   
+    total_reads = None
+    r1_mapped = r2_mapped = 0
+
+    with open(logfile, "r") as f:
+        section = None
+        for line in f:
+            line = line.strip()
+
+            # total input reads
+            m_total = re.match(r"Reads Used:\s+(\d+)", line)
+            if m_total:
+                total_reads = int(m_total.group(1))
+                continue
+
+            # detect sections
+            if line.startswith("Read 1 data"):
+                section = "R1"
+                continue
+            elif line.startswith("Read 2 data"):
+                section = "R2"
+                continue
+
+            # mapped reads per read
+            m_mapped = re.match(r"mapped:\s+[\d\.%]+\s+(\d+)", line)
+            if m_mapped:
+                count = int(m_mapped.group(1))
+                if section == "R1":
+                    r1_mapped = count
+                elif section == "R2":
+                    r2_mapped = count
+
+    if total_reads is None:
+        raise ValueError("Could not find total reads in log file.")
+
+    total_mapped_reads = r1_mapped + r2_mapped
+    clean_reads = total_reads - total_mapped_reads
+
+  
+
+    return clean_reads
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Load blast and coverage stats summary")
     parser.add_argument("--sample", type=str, required=True, help='Provide sample name')
     parser.add_argument("--blastn_results", type=str, required=True)
-    parser.add_argument("--fastp", type=str, required=True)
+    parser.add_argument("--bbsplit_stats", type=str, required=True)
     parser.add_argument("--bed", type=str, required=True)
     parser.add_argument("--coverage", type=str, required=True)
     parser.add_argument("--consensus", type=str, help="Reads fasta file")
@@ -249,10 +292,9 @@ def save_summary(df, sample_name):
     #df.drop("READ_LENGTH_FLAG_SCORE" , axis=1, inplace=True)
     #df.drop("MEAN_MQ_FLAG_SCORE" , axis=1, inplace=True)
 
-    output_file = f"{sample_name}_top_blast_with_cov_stats.txt"
+    output_file = f"{sample_name}_reference_with_cov_stats.txt"
     df.to_csv(output_file, index=False, sep="\t")
     print(f"Saved final summary to {output_file}")
-    print(df.head())
 
 def parse_mapping_file(mapping_path):
     """Parse tab-delimited file of read_id and reference."""
@@ -364,7 +406,6 @@ def analyze_read_lengths_against_reference(reference_lengths, grouped_read_lengt
 def main():
     args = parse_args()
     blast_df = pd.read_csv(args.blastn_results, sep="\t", header=0)
-    
     #if blast_df['sgi'].isna().all():
     #    for col in ['query_match_length', 'qseq_mapping_read_count', 'qseq_mean_depth', 'qseq_pc_mapping_read', 'qseq_pc_cov_30X', 'mean_MQ', 'num_passing_90', 
     #                '30X_COVERAGE_FLAG', 'MAPPED_READ_COUNT_FLAG', 'MEAN_COVERAGE_FLAG', 'TARGET_ORGANISM_FLAG', 'TARGET_SIZE_FLAG', 'READ_LENGTH_FLAG', 
@@ -373,7 +414,8 @@ def main():
     #            blast_df[col] = None
     #    blast_df.to_csv(f"{args.sample}_top_blast_with_cov_stats.txt", index=None, sep="\t")
     #else:
-    filtered_read_counts = read_filtered_read_count(args.fastp)
+    #filtered_read_counts = read_filtered_read_count(args.fastp)
+    filtered_read_counts = parse_bbsplit_log(args.bbsplit_stats)
     print(f"Filtered read counts: {filtered_read_counts}")
        #    blast_df.rename(columns={"length": "alignment_length"}, inplace=True)
     samtools_cov, mosdepth_df, mq_df = load_and_prepare_data(
@@ -396,16 +438,14 @@ def main():
         #df_passes_90_5.to_csv("rpc_read_length_passes_80_5.csv", index=False)
         #merged_df = merge_dataframes(blast_df, samtools_cov, mosdepth_df, mq_df, df_passes_90_5)
     merged_df = merge_dataframes(samtools_cov, mosdepth_df, mq_df)
-    print(merged_df)
-    columns_to_extract = ["sacc", "species_updated","full_lineage" ]
+    #print(merged_df)
+    columns_to_extract = ["sacc", "species_updated", "full_lineage" ]
     subset_df = blast_df[columns_to_extract].drop_duplicates()
-    
+    #clean the qseqid by removing version numbers
     merged_df["qseqid_clean"] = merged_df["qseqid"].str.split(".").str[0]
+    #clean the sacc by removing version numbers
     subset_df["sacc"] = subset_df["sacc"].astype(str).str.strip()
-    print(merged_df["qseqid_clean"])
-    print(subset_df["sacc"])
     merged_df2 = pd.merge(merged_df, subset_df, left_on="qseqid_clean", right_on="sacc", how="inner")
-    print(merged_df2)
     flagged_df = apply_qc_flags(merged_df2)
     flagged_df = flagged_df.rename(columns={
         "species_updated": "taxon_name",
