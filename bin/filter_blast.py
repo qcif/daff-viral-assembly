@@ -129,58 +129,128 @@ def filter_and_format(df, sample_name, filter_file):
     df["species_updated"] = df["species_updated"].str.replace("RNA3 RNA3", "RNA3", regex=False)
     df["species_updated"] = df["species_updated"].str.rstrip()
 
-    df["ncontigs"] = df.groupby(["species_updated", "sacc"])["sacc"].transform("count")
-    df["ncontigs_score"] = df.groupby("species_updated")["ncontigs"].transform(max_naccs)
+    df["ncontigs_per_sacc"] = df.groupby(["species_updated", "sacc"])["sacc"].transform("count")
+    df["ncontigs_per_spp"] = df.groupby("species_updated").species_updated.transform("size")
+    #df["ncontigs_score"] = df.groupby("species_updated")["ncontigs"].transform(max_naccs)
 
-    df["pident"] = df["pident"].astype(float)
+    #df["pident"] = df["pident"].astype(float)
     #df["pident"] = pd.to_numeric(df["pident"], errors="coerce")
-    df["pident_score"] = df.groupby("species_updated")["pident"].transform(max_pid)
+    #df["pident_score"] = df.groupby("species_updated")["pident"].transform(max_pid)
 
-    df["bitscore"] = df["bitscore"].astype(int)
+    #df["bitscore"] = df["bitscore"].astype(int)
     #df["bitscore"] = pd.to_numeric(df["bitscore"], errors="coerce")
-    df["bitscore_score"] = df.groupby("species_updated")["bitscore"].transform(max_bitscore)
+    #df["bitscore_score"] = df.groupby("species_updated")["bitscore"].transform(max_bitscore)
 
-    df["evalue"] = df["evalue"].astype(float)
+    #df["evalue"] = df["evalue"].astype(float)
     #df["evalue"] = pd.to_numeric(df["evalue"], errors="coerce")
-    df["evalue_score"] = df.groupby("species_updated")["evalue"].transform(min_evalue)
+    #df["evalue_score"] = df.groupby("species_updated")["evalue"].transform(min_evalue)
     
     # Extract cov value using regex and convert to float
-    df["assembly_kmer_cov"] = df["qseqid"].str.extract(r'_cov_([0-9.]+)').astype(float)
-    df["assembly_kmer_cov_score"] = df.groupby("species_updated")["assembly_kmer_cov"].transform(max_assembly_kmer_cov)
+    #df["assembly_kmer_cov"] = df["qseqid"].str.extract(r'_cov_([0-9.]+)').astype(float)
+    #df["assembly_kmer_cov_score"] = df.groupby("species_updated")["assembly_kmer_cov"].transform(max_assembly_kmer_cov)
 
     # assign a score of 1 if qcovs > 75, else 0
+    #df["qcovs_score"] = global_qcovs(df)
+    #df["best_qcovs_score"] = df.groupby("species_updated")["qcovs"].transform(max_qcovs)
+    #df["completeness_score"] = df["stitle"].apply(completeness_score)
+
+    #df["qlen"] = df["alignment_length"].astype(int)
+    #df["query_length_score"] = df.groupby("species_updated")["qlen"].transform(max_length)
+    #df["alignment_length"] = pd.to_numeric(df["alignment_length"], errors="coerce")
+    #df["alignment_length"] = df["alignment_length"].astype(int)
+    #df["alignment_length_score"] = df.groupby("species_updated")["alignment_length"].transform(max_length)
+
+    #df["total_score"] = (
+#   #    df["ncontigs_score"]
+    #    df["pident_score"]
+    ##    + df["bitscore_score"]
+    #    + df["evalue_score"]
+    #    + df["assembly_kmer_cov_score"]
+    #    + df["qcovs_score"]
+    #    + df["best_qcovs_score"]
+    ##    + df["completeness_score"]
+    #    + df["alignment_length_score"]
+    ##    + df["query_length_score"]
+    #)
+
+
+    
+
+    
+    
+    #apply scores at species level
+    df["pident"] = df["pident"].astype(float)
+    df = apply_group_score(df, "species_updated", "pident", max_pid, "pident_score_spp")
+    #df["pident_score"] = df.groupby("species_updated")["pident"].transform(max_pid)
+
+    df["bitscore"] = df["bitscore"].astype(int)
+    df = apply_group_score(df, "species_updated", "bitscore", max_bitscore, "bitscore_score_spp")
+
+    df["evalue"] = df["evalue"].astype(float)
+    df = apply_group_score(df, "species_updated", "evalue", min_evalue, "evalue_score_spp")
+
+    df["assembly_kmer_cov"] = df["qseqid"].str.extract(r'_cov_([0-9.]+)').astype(float)
+    df = apply_group_score(df, "species_updated", "assembly_kmer_cov", max_assembly_kmer_cov, "assembly_kmer_cov_score_spp")
+
     df["qcovs_score"] = global_qcovs(df)
-    df["best_qcovs_score"] = df.groupby("species_updated")["qcovs"].transform(max_qcovs)
+    df = apply_group_score(df, "species_updated", "qcovs", max_qcovs, "best_qcovs_score_spp")
+
     df["completeness_score"] = df["stitle"].apply(completeness_score)
 
     df["qlen"] = df["alignment_length"].astype(int)
-    df["query_length_score"] = df.groupby("species_updated")["qlen"].transform(max_length)
-    #df["alignment_length"] = pd.to_numeric(df["alignment_length"], errors="coerce")
-    df["alignment_length"] = df["alignment_length"].astype(int)
-    df["alignment_length_score"] = df.groupby("species_updated")["alignment_length"].transform(max_length)
+    df = apply_group_score(df, "species_updated", "qlen", max_length, "query_length_score_spp")
 
-    df["total_score"] = (
-        df["ncontigs_score"]
-        + df["pident_score"]
-        + df["bitscore_score"]
-        + df["evalue_score"]
-        + df["assembly_kmer_cov_score"]
-        + df["qcovs_score"]
-        + df["best_qcovs_score"]
-        + df["completeness_score"]
-        + df["alignment_length_score"]
-        + df["query_length_score"]
+    df["alignment_length"] = df["alignment_length"].astype(int)
+    df = apply_group_score(df, "species_updated", "alignment_length", max_length, "alignment_length_score_spp")
+
+    df["total_score_spp"] = (
+    #       df["ncontigs_score"]
+            df["pident_score_spp"]
+            + df["bitscore_score_spp"]
+            + df["evalue_score_spp"]
+            + df["assembly_kmer_cov_score_spp"]
+            + df["qcovs_score"]
+            + df["best_qcovs_score_spp"]
+            + df["completeness_score"]
+            + df["alignment_length_score_spp"]
+            + df["query_length_score_spp"]
     )
+    best_idx_per_spp = df.groupby("species_updated")["total_score_spp"].idxmax()
+    df["best_contig_per_sp_filter"] = df.index.isin(best_idx_per_spp)
+
+
+    #apply the same scores per accession number
+
+    df = apply_group_score(df, "sacc", "pident", max_pid, "pident_score_sacc")
+    df = apply_group_score(df, "sacc", "bitscore", max_bitscore, "bitscore_score_sacc")
+    df = apply_group_score(df, "sacc", "evalue", min_evalue, "evalue_score_sacc")
+    df = apply_group_score(df, "sacc", "assembly_kmer_cov", max_assembly_kmer_cov, "assembly_kmer_cov_score_sacc")
+    df = apply_group_score(df, "sacc", "qcovs", max_qcovs, "best_qcovs_score_sacc")
+    df = apply_group_score(df, "sacc", "qlen", max_length, "query_length_score_sacc")
+    df = apply_group_score(df, "sacc", "alignment_length", max_length, "alignment_length_score_sacc")
 
     #top_hits_df = df.loc[df.groupby(["species_updated"])["total_score"].idxmax()].copy()
-
+    df["total_score_sacc"] = (
+    #       df["ncontigs_score"]
+            df["pident_score_sacc"]
+            + df["bitscore_score_sacc"]
+            + df["evalue_score_sacc"]
+            + df["assembly_kmer_cov_score_sacc"]
+            + df["qcovs_score"]
+            + df["best_qcovs_score_sacc"]
+            + df["completeness_score"]
+            + df["alignment_length_score_sacc"]
+            + df["query_length_score_sacc"]
+    )
 
     # Find the index of the best hit per species
-    best_idx = df.groupby("species_updated")["total_score"].idxmax()
+    
+
+    best_idx_per_acc = df.groupby("sacc")["total_score_sacc"].idxmax()
 
     #Create a new column indicating whether the row is the best hit
-    df["best_contig_per_sp_filter"] = df.index.isin(best_idx)
-
+    
+    df["best_contig_per_acc_filter"] = df.index.isin(best_idx_per_acc)
 
     # Read exclusion patterns from a file
     with open(filter_file, "r") as f:
@@ -219,7 +289,7 @@ def filter_and_format(df, sample_name, filter_file):
     final_columns_filt = ["sample_name", "qseqid", "sacc", "alignment_length", "evalue", "bitscore", "pident", "mismatch",
                      "gapopen", "qstart", "qend", "qlen", "sstart", "send", "slen", "sstrand",
                      "qcovhsp", "staxids", "qseq", "sseq", "qcovs", 
-                     "species_updated", "RNA_type", "stitle", "full_lineage", "ncontigs", "total_score", "term_filter", "cov_filter", "best_contig_per_sp_filter"]
+                     "species_updated", "RNA_type", "stitle", "full_lineage", "ncontigs_per_sacc", "ncontigs_per_spp", "total_score_spp", "total_score_sacc", "term_filter", "cov_filter", "best_contig_per_sp_filter", "best_contig_per_acc_filter"]
     
     #columns before filtering and re-ordering:
     # sample_name	qseqid	sgi	sacc	alignment_length	pident	mismatch	gapopen	qstart	qend	qlen	sstart	send	slen	
@@ -229,7 +299,26 @@ def filter_and_format(df, sample_name, filter_file):
 
     #return df[final_columns], top_hits_df[final_columns_filt]
     return df[final_columns_filt]
-    
+
+def apply_group_score(df, group_col, target_col, score_func, new_col):
+        """
+        Apply a grouped scoring function (max, min, custom) to a column.
+
+        Parameters
+        ----------
+        df : DataFrame
+        group_col : str
+            Column to group by.
+        target_col : str
+            Column to compute the score on.
+        score_func : callable
+            Function used inside transform(), e.g., max, min.
+        new_col : str
+            Output column name.
+        """
+        df[new_col] = df.groupby(group_col)[target_col].transform(score_func)
+        return df
+  
 
 def max_naccs(series):
     max_val =  series.max()

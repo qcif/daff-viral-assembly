@@ -171,64 +171,6 @@ def apply_qc_flags(df):
         default=""
     )
 
-    #######TARGET_ORGANISM_FLAG#######
-    #Conditions:
-    #GREEN: If sgi != 0 and the target_organism_match is Y
-    #RED: If sgi != 0 and the target_organism_match is N
-    #GREY: If sgi == 0.
-    #df['TARGET_ORGANISM_FLAG'] = np.select(
-    #    [
-    #        (df['sacc'] != 0) & (df['target_organism_match'] == 'Y') & (df['pident'] >= 90),
-    #        (df['sacc'] != 0) & (df['target_organism_match'] == 'Y') & (df['pident'] < 90),
-    #        (df['sacc'] != 0) & (df['target_organism_match'] == 'N'),
-    #        (df['sacc'].isin([0, None, '', '0', '-']))
-    #    ],
-    #    ['GREEN', 'ORANGE', 'RED', 'GREY'],
-    #    default=""
-    #)
-
-    #######TARGET_SIZE_FLAG#######
-    #Conditions:
-    #GREEN: If sgi != 0 and the query_match_length is within ±20% of the target_size.
-    #ORANGE: If sgi != 0 and the query_match_length is between:
-    #    Target size + 20% to 40%, OR
-    #    Target size - 20% to -40%.
-    #RED: If sgi != 0 and the query_match_length is outside the range of ±40% of the target_size.
-    #GREY: If sgi == 0.
-    #target_size = float(target_size)
-    #df['TARGET_SIZE_FLAG'] = np.select(
-    #    [
-    #        (df['sacc'] != 0) &
-    #        (df['query_match_length'].between(target_size * 0.8, target_size * 1.2)),
-    #        (df['sacc'] != 0) &
-    ##        (df['query_match_length'].between(target_size * 0.6, target_size * 0.8)) |
-    #       (df['query_match_length'].between(target_size * 1.2, target_size * 1.4)),
-    #        (df['sacc'] != 0) &
-    #        ((df['query_match_length'] < target_size * 0.6) |
-    #         (df['query_match_length'] > target_size * 1.4)),
-    #        (df['sacc'].isin([0, None, '', '0', '-']))
-    #    ],
-    #    ['GREEN', 'ORANGE', 'RED', 'GREY'],
-    #    default=""
-    #)
-    #df['READ_LENGTH_FLAG'] = np.where(
-    #    (df['sacc'] != 0) & 
-    #    (df['num_passing_90'] >= 200),
-    #    "GREEN",
-    #    np.where((df['sacc'] != 0) & 
-    #            (df['num_passing_90'] < 200) & 
-    #            (df['num_passing_90'] >= 50),
-    #            "ORANGE",
-    #        np.where((df['sacc'] != 0) &
-    #            (df['num_passing_90'] < 50), 
-    ##            "RED",
-     #           np.where(df['sacc'].isin([0, None, '', '0', '-']),
-    #                "GREY",
-    #                ""
-    #            )
-    #        )
-    #    )
-    #)
     # Mean mapping quality flag
     df['MEAN_MQ_FLAG'] = np.where(
         (df['qseqid'] != 0) & 
@@ -260,8 +202,6 @@ def apply_qc_flags(df):
         '30X_COVERAGE_FLAG',
         'MAPPED_READ_COUNT_FLAG',
         'MEAN_COVERAGE_FLAG',
-    #    'TARGET_SIZE_FLAG',
-    #    'READ_LENGTH_FLAG',
         'MEAN_MQ_FLAG'
     ]
 

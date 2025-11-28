@@ -148,8 +148,9 @@ def main():
             <blockquote>
             <p><b> Definitions:</b></p>
             <p><b> raw_reads </b>= total raw reads sequenced </p>
-            <p><b> processed_reads </b>= total reads left-over after adapter trimming and/or quality filtering </p>
-            <p><b> percent_processed </b>= (processed_reads/raw_reads x 100)</p>
+            <p><b> processed_reads </b>= total reads left-over after adapter trimming and quality filtering </p>
+            <p><b> percent_qfiltered </b>= (quality filtered/raw_reads x 100)</p>
+            <p><b> percent_cleaned </b>= (cleaned reads/raw_reads x 100)</p>
             </blockquote>
             <!-- *** Section 1 *** --->
             ''' + summary_table + '''

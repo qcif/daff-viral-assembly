@@ -22,6 +22,7 @@ def parse_arguments():
     parser.add_argument("--bracken", required=True, type=str)
     parser.add_argument("--taxonkit_database_dir", required=True, type=str)
     parser.add_argument("--stats", required=True, type=str, help="path to bbsplit stats file")
+    parser.add_argument("--filter", required=True, type=str, help="path to file with terms to filter out")
     return parser.parse_args()
 
 def load_blast_results(path):
@@ -326,6 +327,13 @@ def main():
     bracken_path = args.bracken
     tk_db_dir = args.taxonkit_database_dir
     log = args.stats
+    filter_file = args.filter
+
+
+    with open(filter_file, "r") as f:
+        exclude_patterns = [line.strip() for line in f if line.strip()]
+
+    pattern = "|".join(exclude_patterns)
 
     if not os.path.isfile(kaiju_path):
         raise FileNotFoundError(f"{kaiju_path} does not exist.")
@@ -385,11 +393,15 @@ def main():
         lambda row: categorize(row, taxid_to_lineage),
         axis=1
     )
+    
+    df["term_filter"] = ~(
+        df["taxon_name"].str.contains(pattern, case=False, na=False)
+        )
     df = df.rename(columns={
         "percent": "pc_reads"
     })
-    df["cov_filter"] = df["pc_reads"].astype(float) >= 0.02
-    df_subset = df[['taxon_name', 'taxon_id', 'full_lineage', 'broad_categories', 'reads', 'pc_reads', 'cov_filter']]
+    df["cov_filter"] = df["pc_reads"].astype(float) >= 0.002
+    df_subset = df[['taxon_name', 'taxon_id', 'full_lineage', 'broad_categories', 'reads', 'pc_reads', 'term_filter', 'cov_filter']]
     df_subset.to_csv(sample_name + "_kaiju_summary.txt", sep="\t", index=False)
 
     #BRACKEN processing
@@ -428,6 +440,9 @@ def main():
         "name": "taxon_name",
         "new_est_reads": "reads",
     })
+    br["term_filter"] = ~(
+        br["taxon_name"].str.contains(pattern, case=False, na=False)
+        )
     #unclassified_reads = filtered_read_counts – sum(br["reads"])
     # Sum of all classified reads in Bracken table
     classified_reads = br["reads"].sum()
@@ -448,11 +463,13 @@ def main():
     br["pc_reads"] = (br["reads"] / filtered_read_counts) * 100
     br["cov_filter"] = br["pc_reads"].astype(float) >= 0.001
     
-    br_subset = br[['taxon_name', 'taxon_id', 'full_lineage', 'broad_categories', 'reads', 'pc_reads', 'cov_filter']]
+    br_subset = br[['taxon_name', 'taxon_id', 'full_lineage', 'broad_categories', 'reads', 'pc_reads', 'term_filter', 'cov_filter']]
 
     br_subset.to_csv(sample_name + "_kraken_summary.txt", sep="\t", index=False)
 
 
+
+    
 #def read_filtered_read_count(fastp_json_path):
 #    filtered_reads = 0
 #    with open(fastp_json_path) as f:

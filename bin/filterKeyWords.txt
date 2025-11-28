@@ -56,6 +56,7 @@ Paramecium bursaria Chlorella virus CVA-1
 Tequatrovirus T4
 Homavirus sp.
 Mitovirus sp.
+mitovirus
 Achromobacter sp.
 mitochondrion
 ourmiavirus
@@ -63,6 +64,7 @@ Actinomadura sp.
 Gammapapillomavirus
 Sphingomonas
 gammaherpesvirus
+ourmia-like virus
 Acremonium sclerotigenum ourmia-like virus 1
 Downy mildew lesion associated orfanplasmovirus 3
 Chelatococcus
@@ -71,3 +73,8 @@ Actinomadura sp. CA-154981 chromosome, complete genome
 Leptosphaeria biglobosa letobirnavirus 1 RNA2
 Inoviridae sp.
 Myoviridae sp.
+Human papillomavirus
+Influenza A virus
+ormycovirus
+coronavirus
+Gammapapillomavirus
