@@ -64,6 +64,7 @@ def main():
             merged_df = merged_df.rename(columns={
                 "contig_seq": "consensus_seq"
             })
+            merged_df.drop("qseqid" , axis=1, inplace=True)
             merged_df = merged_df.sort_values(["normalised_conf_score"], ascending=[False])
             merged_df.to_csv(os.path.basename(blast).replace("_reference_with_cov_stats.txt", "_reference_with_cov_stats_final.txt"), index=None, sep="\t")
 
@@ -72,7 +73,7 @@ def main():
         for col in ["sample_name", "qseqid", "sacc", "alignment_length", "evalue", "bitscore", "pident", "mismatch",
                      "gapopen", "qstart", "qend", "qlen", "sstart", "send", "slen", "sstrand",
                      "qcovhsp", "staxids", "qseq", "sseq", "qcovs", 
-                     "species_updated", "RNA_type", "stitle", "full_lineage", "ncontigs", "total_score", "term_filter", "cov_filter", "best_contig_per_sp_filter"]:
+                     "species", "RNA_type", "stitle", "full_lineage", "ncontigs", "total_score", "term_filter", "cov_filter", "best_contig_per_sp_filter"]:
             if col not in fasta_df.columns:
                 fasta_df[col] = None
                 fasta_df.to_csv(os.path.basename(blast).replace("_top_viral_hits.txt", "_top_viral_hits_with_contigs.txt"), index=None, sep="\t")

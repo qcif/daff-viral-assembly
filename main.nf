@@ -262,6 +262,8 @@ process FASTA2TABLE {
     file("${sampleid}_megablast_top_viral_hits_filtered_with_contigs.txt")
     tuple val(sampleid), file("${sampleid}_ids_to_retrieve.txt"), emit: ids
     tuple val(sampleid), file("${sampleid}_megablast_top_viral_hits_filtered_with_contigs.txt"), emit: blast_results
+    tuple val(sampleid), file("${sampleid}_megablast_top_viral_hits_with_contigs.txt"), emit: blast_results2
+
 
   script:
     """
@@ -278,6 +280,7 @@ process FASTA2TABLE2 {
     tuple val(sampleid), path(fasta), path(stats)
   output:
     file("${sampleid}_reference_with_cov_stats_final.txt")
+    tuple val(sampleid), file("${sampleid}_reference_with_cov_stats_final.txt"), emit: detections_summary_final
 
   script:
     """
@@ -512,6 +515,8 @@ process SUMMARISE_READ_CLASSIFICATION {
     //tuple val(sampleid), path("${sampleid}_megablast_top_viral_hits_filtered.txt"), emit: viral_blast_results
     path("${sampleid}_kaiju_summary.txt")
     path("${sampleid}_kraken_summary.txt")
+    tuple val(sampleid), path("${sampleid}_kaiju_summary.txt"), emit: kaiju_summary
+    tuple val(sampleid), path("${sampleid}_kraken_summary.txt"), emit: kraken_summary
     //path("${sampleid}_megablast_top_viral_hits.txt")
     //path("${sampleid}_megablast_top_viral_hits_filtered.txt")
 
@@ -565,7 +570,7 @@ process CLUSTER {
 
   script:
   """
-  cd-hit -i ${ref} -o ${sampleid}_ref_sequences_clustered.fasta -c 0.98 -n 5
+  cd-hit -i ${ref} -o ${sampleid}_ref_sequences_clustered.fasta -c 0.97 -n 5
   """
 }
 
@@ -824,7 +829,7 @@ process BRACKEN {
 
 process KAIJU {
   tag "${sampleid}"
-  label "setting_23"
+  label "setting_28"
   containerOptions "${bindOptions}"
   publishDir "${params.outdir}/${sampleid}/05_read_classification", mode: 'copy'
 
@@ -1002,7 +1007,7 @@ process HMMSCAN {
               > ${sampleid}_hmmscan.log 2>&1
     """
 }
-/*
+
 process SUMMARISE_RESULTS {
   tag "${sampleid}"
   label "setting_2"
@@ -1010,17 +1015,17 @@ process SUMMARISE_RESULTS {
   containerOptions "${bindOptions}"
 
   input:
-    tuple val(sampleid), path(kaiju_results), path(bracken_results), path(blast)
+    tuple val(sampleid), path(kraken_results), path(kaiju_results), path(blast), path(map2ref)
 
   output:
-    path("${sampleid}_results_summary.txt")
+    path("${sampleid}_summary_viral_results.tsv")
 
   script:
   """
-  viral_results_summary.py --kaiju ${kaiju_results} --sample_name ${sampleid} --bracken ${bracken_results} --blast ${blast} 
+  viral_results_summary.py --kaiju ${kaiju_results} --sample_name ${sampleid} --kraken ${kraken_results} --blast ${blast} --map2ref ${map2ref}
   """
 }
-*/
+
 
 
 workflow {
@@ -1127,6 +1132,10 @@ workflow {
                       .collect()
 
   QCREPORT(ch_multiqc_files)
+  SUMMARISE_RESULTS ( SUMMARISE_READ_CLASSIFICATION.out.kraken_summary.join(SUMMARISE_READ_CLASSIFICATION.out.kaiju_summary)
+                                                                      .join(FASTA2TABLE.out.blast_results2) 
+                                                                      .join(FASTA2TABLE2.out.detections_summary_final) 
+                                                                      )
     
 /*
     if (params.subsample) {

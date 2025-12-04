@@ -180,28 +180,21 @@ def filter_and_format(df, sample_name, filter_file):
     
     #apply scores at species level
     df["pident"] = df["pident"].astype(float)
-    df = apply_group_score(df, "species_updated", "pident", max_pid, "pident_score_spp")
-    #df["pident_score"] = df.groupby("species_updated")["pident"].transform(max_pid)
-
     df["bitscore"] = df["bitscore"].astype(int)
-    df = apply_group_score(df, "species_updated", "bitscore", max_bitscore, "bitscore_score_spp")
-
     df["evalue"] = df["evalue"].astype(float)
-    df = apply_group_score(df, "species_updated", "evalue", min_evalue, "evalue_score_spp")
-
     df["assembly_kmer_cov"] = df["qseqid"].str.extract(r'_cov_([0-9.]+)').astype(float)
-    df = apply_group_score(df, "species_updated", "assembly_kmer_cov", max_assembly_kmer_cov, "assembly_kmer_cov_score_spp")
-
-    df["qcovs_score"] = global_qcovs(df)
-    df = apply_group_score(df, "species_updated", "qcovs", max_qcovs, "best_qcovs_score_spp")
-
-    df["completeness_score"] = df["stitle"].apply(completeness_score)
-
     df["qlen"] = df["alignment_length"].astype(int)
-    df = apply_group_score(df, "species_updated", "qlen", max_length, "query_length_score_spp")
-
     df["alignment_length"] = df["alignment_length"].astype(int)
-    df = apply_group_score(df, "species_updated", "alignment_length", max_length, "alignment_length_score_spp")
+    
+    df = apply_group_score(df, "species", "pident", max_pid, "pident_score_spp")
+    df = apply_group_score(df, "species", "bitscore", max_bitscore, "bitscore_score_spp")
+    df = apply_group_score(df, "species", "evalue", min_evalue, "evalue_score_spp")
+    df = apply_group_score(df, "species", "assembly_kmer_cov", max_assembly_kmer_cov, "assembly_kmer_cov_score_spp")
+    df["qcovs_score"] = global_qcovs(df)
+    df = apply_group_score(df, "species", "qcovs", max_qcovs, "best_qcovs_score_spp")
+    df["completeness_score"] = df["stitle"].apply(completeness_score)
+    df = apply_group_score(df, "species", "qlen", max_length, "query_length_score_spp")
+    df = apply_group_score(df, "species", "alignment_length", max_length, "alignment_length_score_spp")
 
     df["total_score_spp"] = (
     #       df["ncontigs_score"]
@@ -215,8 +208,34 @@ def filter_and_format(df, sample_name, filter_file):
             + df["alignment_length_score_spp"]
             + df["query_length_score_spp"]
     )
-    best_idx_per_spp = df.groupby("species_updated")["total_score_spp"].idxmax()
+    best_idx_per_spp = df.groupby("species")["total_score_spp"].idxmax()
     df["best_contig_per_sp_filter"] = df.index.isin(best_idx_per_spp)
+
+    #apply scores at species-rna level
+    df = apply_group_score(df, "species_updated", "pident", max_pid, "pident_score_spp_rna")
+    df = apply_group_score(df, "species_updated", "bitscore", max_bitscore, "bitscore_score_spp_rna")
+    df = apply_group_score(df, "species_updated", "evalue", min_evalue, "evalue_score_spp_rna")
+    df = apply_group_score(df, "species_updated", "assembly_kmer_cov", max_assembly_kmer_cov, "assembly_kmer_cov_score_spp_rna")
+    df["qcovs_score"] = global_qcovs(df)
+    df = apply_group_score(df, "species_updated", "qcovs", max_qcovs, "best_qcovs_score_spp_rna")
+    df["completeness_score"] = df["stitle"].apply(completeness_score)
+    df = apply_group_score(df, "species_updated", "qlen", max_length, "query_length_score_spp_rna")
+    df = apply_group_score(df, "species_updated", "alignment_length", max_length, "alignment_length_score_spp_rna")
+
+    df["total_score_spp_rna"] = (
+    #       df["ncontigs_score"]
+            df["pident_score_spp_rna"]
+            + df["bitscore_score_spp_rna"]
+            + df["evalue_score_spp_rna"]
+            + df["assembly_kmer_cov_score_spp_rna"]
+            + df["qcovs_score"]
+            + df["best_qcovs_score_spp_rna"]
+            + df["completeness_score"]
+            + df["alignment_length_score_spp_rna"]
+            + df["query_length_score_spp_rna"]
+    )
+    best_idx_per_spp_rna = df.groupby("species_updated")["total_score_spp_rna"].idxmax()
+    df["best_contig_per_sp_rna_filter"] = df.index.isin(best_idx_per_spp_rna)
 
 
     #apply the same scores per accession number
@@ -271,7 +290,7 @@ def filter_and_format(df, sample_name, filter_file):
     #top_hits_df = top_hits_df[top_hits_df["qcovs"] >= 30].copy()    
     
     df["cov_filter"] = (
-        (df["assembly_kmer_cov"] >= 5) &
+        (df["assembly_kmer_cov"] >= 1) &
         (df["qcovs"] >= 30)
         )
 
@@ -288,8 +307,8 @@ def filter_and_format(df, sample_name, filter_file):
     
     final_columns_filt = ["sample_name", "qseqid", "sacc", "alignment_length", "evalue", "bitscore", "pident", "mismatch",
                      "gapopen", "qstart", "qend", "qlen", "sstart", "send", "slen", "sstrand",
-                     "qcovhsp", "staxids", "qseq", "sseq", "qcovs", 
-                     "species_updated", "RNA_type", "stitle", "full_lineage", "ncontigs_per_sacc", "ncontigs_per_spp", "total_score_spp", "total_score_sacc", "term_filter", "cov_filter", "best_contig_per_sp_filter", "best_contig_per_acc_filter"]
+                     "qcovhsp", "staxids", "qseq", "sseq", "qcovs", "species",
+                     "species_updated", "RNA_type", "stitle", "full_lineage", "ncontigs_per_sacc", "ncontigs_per_spp", "assembly_kmer_cov", "total_score_spp", "total_score_spp_rna", "total_score_sacc", "term_filter", "cov_filter", "best_contig_per_sp_filter", "best_contig_per_sp_rna_filter", "best_contig_per_acc_filter"]
     
     #columns before filtering and re-ordering:
     # sample_name	qseqid	sgi	sacc	alignment_length	pident	mismatch	gapopen	qstart	qend	qlen	sstart	send	slen	
