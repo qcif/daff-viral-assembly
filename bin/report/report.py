@@ -49,7 +49,7 @@ def render(
         analyst_name,
         facility,
     )
-    path = config.result_dir / 'example_report_context.json'
+    path = config.result_dir / 'report_context.json'
     with path.open('w') as f:
         logger.info(f"Writing report context to {path}")
         json.dump(context, f, indent=2, default=serialize)
@@ -100,7 +100,6 @@ def _get_report_context(
     """Build the context for the report template."""
     blast_hits = _get_blast_hits()
     consensus_fasta = ConsensusFASTA(config.consensus_fasta_path)
-    consensus_match_fasta = ConsensusFASTA(config.consensus_match_fasta_path)
     return {
         'title': config.REPORT.TITLE,
         'subtitle_html': config.REPORT.SUBTITLE,
@@ -116,12 +115,7 @@ def _get_report_context(
         'run_qc': _get_run_qc(),
         'bam_html_file': config.bam_html_path.name,
         'consensus_blast_hits': blast_hits,
-        'consensus_blast_stats': _calculate_blast_stats(
-            blast_hits,
-            consensus_fasta,
-        ),
         'consensus_fasta': consensus_fasta,
-        'consensus_match_fasta': consensus_match_fasta,
         'flags': config.flags,
         'blast_passed': config.blast_passed,
         'rattle_passed': config.rattle_passed,
@@ -198,9 +192,17 @@ def _get_run_qc() -> dict:
     - Sample
     - raw_reads
     - quality_filtered_reads
-    - percent_quality_filtered
+    - mean_raw_read_length
+    - mean_filtered_read_length
+    - gc_content
+    - rRNA_cleaned_reads
+    - phix_cleaned_reads
+    - percent_qfiltered
+    - percent_cleaned
     - raw_reads_flag
-    - qfiltered_flag
+    - qfiltered_reads_flag
+    - QC_FLAG
+
     """
     with config.run_qc_path.open() as f:
         reader = csv.DictReader(f, delimiter='\t')
@@ -217,13 +219,13 @@ def _get_blast_hits() -> BlastHits:
         return BlastHits(reader)
 
 
-def _calculate_blast_stats(
-    blast_hits: BlastHits,
-    consensus_fasta: ConsensusFASTA,
-) -> dict:
-    return {
-        'count': len(blast_hits.positive_hits),
-        'percent': 'NA' if not consensus_fasta else round(
-            100 * len(blast_hits.positive_hits) / len(consensus_fasta)
-        ),
-    }
+# def _calculate_blast_stats(
+#     blast_hits: BlastHits,
+#     consensus_fasta: ConsensusFASTA,
+# ) -> dict:
+#     return {
+#         'count': len(blast_hits.positive_hits),
+#         'percent': 'NA' if not consensus_fasta else round(
+#             100 * len(blast_hits.positive_hits) / len(consensus_fasta)
+#         ),
+#     }

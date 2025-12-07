@@ -203,19 +203,7 @@ class BlastHits(AbstractResultRows):
 
     def set_bs_class(self):
         def _get_bs_class(row):
-            # Extract numeric scores (expected in the range 0 to 1)
-            conf_score = row.get('NORMALISED_CONF_SCORE', 1)
-            sacc = row.get('sacc')
- 
-            # Define thresholds (customize as needed)
-            if conf_score == 0 and sacc in [None, '', '0', '-']:
-                return 'secondary'   # grey
-            elif conf_score < 0.5:
-                return 'danger'      # red
-            elif conf_score < 0.8:
-                return 'warning'     # orange
-            else:
-                return 'success'     # green
+            return 'success'
 
         self.rows = [
             {
@@ -229,42 +217,8 @@ class BlastHits(AbstractResultRows):
         """Set rows with no hits to have a null value."""
         for row in self.rows:
             if not row['sacc'] or row['sacc'] == '0':
-                for colname in self.COLUMNS[3:41] + self.COLUMNS[49:50]:
+                for colname in self.COLUMNS[3:]:
                     row[colname] = '-'
-
-
-class BlastHitsPolished(AbstractResultRows):
-    COLUMNS = [
-        'qseqid',
-        'sgi',
-        'sacc',
-        'length',
-        'nident',
-        'pident',
-        'mismatch',
-        'gaps',
-        'gapopen',
-        'qstart',
-        'qlen',
-        'qend',
-        'sstart',
-        'send',
-        'slen',
-        'sstrand',
-        'evalue',
-        'bitscore',
-        'qcovhsp',
-        'stitle',
-        'staxids',
-        'qseq',
-        'sseq',
-        'sseqid',
-        'qcovs',
-        'qframe',
-        'sframe',
-        'species',
-        'broad_taxonomic_category',
-    ]
 
 
 class ConsensusFASTA:

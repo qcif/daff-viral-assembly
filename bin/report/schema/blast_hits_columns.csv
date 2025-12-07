@@ -1,14 +1,13 @@
 colname,label,type,primary_display,tooltip
 sample_name,,,,
 qseqid,Consensus ID,,Y,
-consensus_seq,,,,
-sgi,,,,
+contig_seq,,,,
 sacc,Hit accession,,,
 alignment_length,Alignment length,int,,
-nident,,int,,
-pident,Identity %,,Y,
+evalue,E-value,scientific,Y,
+bitscore,Bitscore,float,,
+pident,Identity %,float,Y,
 mismatch,,int,,
-gaps,Gaps,int,,
 gapopen,,int,,
 qstart,Query start,int,,
 qend,Query end,int,,
@@ -17,33 +16,17 @@ sstart,Subject start,int,,
 send,Subject end,int,,
 slen,Subject length,int,,
 sstrand,,,,
-evalue,E-value,scientific,Y,
-bitscore,Bitscore,,,
-qcovhsp,,,,
-stitle,,,,
+qcovhsp,,int,,
 staxids,,,,
 qseq,,,,
 sseq,,,,
-sseqid,Subject ID,,,
-qcovs,,,,
-qframe,,,,
-sframe,,,,
-species,Preliminary taxonomic classification,,,
-broad_taxonomic_category,Broad taxonomic category,,Y,
-FullLineage,,,,
-target_organism_match,Target organism match,,Y,
-n_read_cont_cluster,,int,,
-query_match_length,Consensus match length,int,Y,
-qseq_mapping_read_count,Mapped read count,int,Y,The number of reads mapped to this sequence. A higher read count suggests greater confidence in the sequence.
-qseq_mean_depth,Mean read depth,,Y,The mean depth of reads mapped to this sequence – a depth of 30X indicates high confidence in the sequence.
-qseq_pc_mapping_read,Mapped read (%),,Y,Percentage of total reads that were mapped to this sequence. This can indicate what proportion of sample material this sequence represents.
-qseq_pc_cov_30X,30X coverage (%),,Y,Percentage of this sequence with a depth of mapped reads of 30X or greater.
-30X_COVERAGE_FLAG,30X coverage flag,,,Flag is green if the 30X depth coverage percentage of this sequence is >= 90%; orange if between 75% and 90%; and red if < 75%.
-MEAN_COVERAGE_FLAG,Mean read depth flag,,,Flag is green if the mean depth of reads mapped to this sequence is > 500; orange if between 100 and 500; and red if < 100.
-MAPPED_READ_COUNT_FLAG,Mapped read count flag,,,Flag is green if the number of reads mapped to this sequence is > 1000; orange if between 200 and 1000; and red if < 200.
-TARGET_ORGANISM_FLAG,Target organism flag,,,Flag is green if the preliminary homology blast search of the sequence is predicted to be >= 90% identical to the sample organism targeted; orange if predicted to be < 90% identical to the sample organism targeted; and red if it is not predicted to be the sample organism targeted.
-TARGET_SIZE_FLAG,Target size flag,,,Flag is green if the sequence length is within 20% of the target amplicon size; orange if between 20% and 40%; and red if 40% smaller or larger than expected.
-READ_LENGTH_FLAG,Mapped reads length flag,,,Flag is green if number of mapped reads whose lengths are at least 90% of the reference length is >=200; orange if between 50 and 200; and red if < 50.
-MEAN_MQ_FLAG,Mean mapping quality flag,,,Flag is green if the mean mapping quality of reads to this sequence is >= 30; orange if between 10 and 30; and red if < 10.
-TOTAL_CONF_SCORE,Total confidence score,float,,The confidence score is based on a scoring system which assigns different weight to each flag colour. A higher score indicates a higher confidence in the sequence.
-NORMALISED_CONF_SCORE,Normalised confidence score,float,Y,The normalised confidence score is a value between 0 and 1 that is calculated by normalising the confidence score to the maximum possible score for this sequence. A value of 1 indicates the sequence with highest confidence.
+qcovs,,int,,
+species_updated,Preliminary taxonomic classification,,,
+RNA_type,,,,
+stitle,,,,
+full_lineage,,,,
+ncontigs,,int,,
+total_score,,int,,
+term_filter,,bool,,
+cov_filter,,bool,,
+best_contig_per_sp_filter,,bool,,

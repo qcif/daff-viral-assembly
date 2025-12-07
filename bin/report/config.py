@@ -12,7 +12,8 @@ from .utils import path_safe
 
 PARENT_DIR = Path(__file__).parent
 ROOT_DIR = Path(__file__).parents[2].resolve()
-REPO_URL = 'https://github.com/maelyg/ont_amplicon'
+REPO_URL = 'https://github.com/qcif/daff-viral-assembly'
+WF_NAME = 'ViroGen'
 
 
 class Config:
@@ -30,15 +31,15 @@ class Config:
         BAM_HTML_FILE_TEMPLATE = '{sample_id}_bam-alignment.html'
 
     class REPORT:
-        TITLE = "Amplicon sequencing assembly report"
+        TITLE = "Viral genome assembly report"
         SUBTITLE = (
             "Results generated through the"
             f' <a href="{REPO_URL}" target="_blank">'
-            'ONT-amplicon NextFlow workflow</a>.')
+            f'{WF_NAME} NextFlow workflow</a>.')
 
     class CRITERIA:
-        MIN_RAW_READS = 2500
-        MIN_FILTERED_READS = 200
+        MIN_RAW_READS = 2500  # ! confirm?
+        MIN_FILTERED_READS = 200  # ! confirm?
 
     @property
     def default_params(self) -> dict[str, str]:
@@ -75,15 +76,7 @@ class Config:
 
     @property
     def run_qc_html_file(self) -> str:
-        return self._get_file_by_pattern('run_qc_report.html').name
-
-    @property
-    def nanoplot_raw_html_path(self) -> Path:
-        return self._get_file_by_pattern('*raw_nanoplot-report.html')
-
-    @property
-    def nanoplot_filtered_html_path(self) -> Path:
-        return self._get_file_by_pattern('*filtered_nanoplot-report.html')
+        return self._get_file_by_pattern('run_qc_report_*.html').name
 
     @property
     def bam_path(self) -> Path:
@@ -95,42 +88,35 @@ class Config:
 
     @property
     def consensus_fasta_path(self) -> Path:
-        return self._get_file_by_pattern("*polished_consensus.fasta")
+        # ! confirm?
+        return self._get_file_by_pattern("*_masked_consensus.fasta")
     
     @property
-    def consensus_match_fasta_path(self) -> Path:
-        return self._get_file_by_pattern("*polished_consensus_match.fasta")
+    def reference_fasta_path(self) -> Path:
+        return self._get_file_by_pattern("*_ref_sequences_clustered.fasta")
 
     @property
     def blast_hits_path(self) -> Path:
-        return self._get_file_by_pattern("*top_blast_with_cov_stats.txt")
-
-    @property
-    def blast_hits_polished_path(self) -> Path:
         return self._get_file_by_pattern(
-            "*polished_consensus_rc_megablast_top_10_hits.txt")
+            "*_megablast_top_viral_hits_with_contigs.txt")
 
-    @property
-    def blast_passed(self) -> bool:
-        """Check if BLAST was successful."""
-        path = self._get_file_by_pattern("*_blast_status.txt")
-        if not path.exists():
-            return True  # If no file written, assume it passed
-        return 'fail' not in path.read_text().lower()
+    # @property
+    # def PLACEHOLDER(self) -> Path:
+    #     return self._get_file_by_pattern("*.*")
 
-    @property
-    def rattle_passed(self) -> bool:
-        """Check if clustering was successful."""
-        path = self._get_file_by_pattern("*_rattle_status.txt")
-        if not path.exists():
-            return True  # If no file written, assume it passed
-        return 'fail' not in path.read_text().lower()
+    # @property
+    # def PLACEHOLDER(self) -> Path:
+    #     return self._get_file_by_pattern("*.*")
+
+    # @property
+    # def PLACEHOLDER(self) -> Path:
+    #     return self._get_file_by_pattern("*.*")
 
     @cached_property
     def sample_id(self) -> str:
         """Return the sample ID from the result directory."""
         bam_path = self._get_file_by_pattern('*.bam')
-        return bam_path.name.split('_aln.')[0]
+        return bam_path.name.split('_ref_aln.')[0]
 
     @cached_property
     def start_time(self) -> str:
