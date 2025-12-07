@@ -1,0 +1,17 @@
+{
+    "configurations": [
+        {
+            "type": "debugpy",
+            "request": "launch",
+            "name": "Workflow report",
+            "program": "bin/build_report.py",
+            "args": [
+                "--result_dir", "outputs/Dataset_1/",
+                "--samplesheet", "outputs/Dataset_1/index.csv",
+                "--analyst", "John Doe",
+                "--facility", "Mock facility",
+                // "--params_file", "params/params_mtdt_test.yml",
+            ],
+        }
+    ]
+}
