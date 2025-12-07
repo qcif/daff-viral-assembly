@@ -3,39 +3,33 @@
 <table class="table table-striped my-3">
   <tr>
     <td class="fw-bold">Sample ID</td>
-    <td><code>{{ sample_id }}</code></td>
+    <td><code>{{ sampleid }}</code></td>
   </tr>
   <tr>
     <td class="fw-bold">FASTQ files</td>
-    <td><code><small>{{ metadata['fastq_path'] }}</small></code></td>
+    <td>
+      <code>
+        <small>{{ metadata['fastq_1'] }}</small>
+        <br>
+        <small>{{ metadata['fastq_2'] }}</small>
+      </code>
+    </td>
   </tr>
   <tr>
-    <td class="fw-bold">Target taxon</td>
-    <td>{{ metadata['target_organism'] }}</td>
+    <td class="fw-bold">Sample info</td>
+    <td>{{ metadata['sample_information'] }}</td>
   </tr>
   <tr>
-    <td class="fw-bold">Target gene</td>
-    <td>{{ metadata['target_gene'] }}</td>
+    <td class="fw-bold">Sample type</td>
+    <td>{{ metadata['sample_type'] }}</td>
   </tr>
   <tr>
-    <td class="fw-bold">Amplicon size (nt)</td>
-    <td>{{ metadata['target_size'] }}</td>
+    <td class="fw-bold">Received on</td>
+    <td>{{ metadata['sample_receipt_date'] }}</td>
   </tr>
   <tr>
-    <td class="fw-bold">FWD primer sequence</td>
-    <td>{{ metadata['fwd_primer'] }}</td>
-  </tr>
-  <tr>
-    <td class="fw-bold">REV primer sequences</td>
-    <td>{{ metadata['rev_primer'] }}</td>
-  </tr>
-    <tr>
-    <td class="fw-bold">Test</td>
-    <td>{{ metadata['test'] }}</td>
-  </tr>
-  <tr>
-    <td class="fw-bold">Method</td>
-    <td>{{ metadata['method'] }}</td>
+    <td class="fw-bold">Sample location</td>
+    <td>{{ metadata['storage_location'] }}</td>
   </tr>
 </table>
 

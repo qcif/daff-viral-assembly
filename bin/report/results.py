@@ -11,6 +11,23 @@ from .config import Config
 config = Config()
 
 
+class FLAGS:
+    SUCCESS = 'success'
+    WARNING = 'warning'
+    DANGER = 'danger'
+    NONE = 'secondary'
+
+
+def colour_to_bs_class(colour: str) -> str:
+    """Convert a colour string to a Bootstrap class."""
+    mapping = {
+        'green': FLAGS.SUCCESS,
+        'yellow': FLAGS.WARNING,
+        'red': FLAGS.DANGER,
+    }
+    return mapping.get(colour.lower(), FLAGS.secondary)
+
+
 def _csv_to_dict(csv_path, index_col='colname'):
     with open(csv_path) as f:
         reader = csv.reader(f)
@@ -32,13 +49,6 @@ def _csv_to_dict(csv_path, index_col='colname'):
             colname: data[colname]
             for colname in ordered_colnames
         }
-
-
-class FLAGS:
-    SUCCESS = 'success'
-    WARNING = 'warning'
-    DANGER = 'danger'
-    NONE = 'secondary'
 
 
 class AbstractDataRow:
@@ -95,33 +105,33 @@ class RunQC(AbstractDataRow):
 
     COLUMNS = [
         ('raw_reads', int),
-        ('processed_reads', int),
-        ('percent_processed', float),
-        ('raw_reads_flag', str),
-        ('processed_flag', str),
+        ('quality_filtered_reads', int),
+        ('mean_raw_read_length', int),
+        ('mean_filtered_read_length', int),
+        ('gc_content', float),
+        ('rRNA_cleaned_reads', int),
+        ('phix_cleaned_reads', int),
+        ('percent_qfiltered', float),
+        ('percent_cleaned', float),
+        ('raw_reads_flag', Optional[str]),
+        ('qfiltered_reads_flag', Optional[str]),
+        ('QC_FLAG', str),
     ]
 
     @property
     def flag(self):
-        raw_threshold = self.raw_reads > config.CRITERIA.MIN_RAW_READS
-        qfiltered_threshold = (
-            (self.processed_reads or 0)
-            > config.CRITERIA.MIN_FILTERED_READS)
-        if qfiltered_threshold:
-            if raw_threshold:
-                return FLAGS.SUCCESS
-            return FLAGS.WARNING
-        return FLAGS.DANGER
+        return colour_to_bs_class(self.QC_FLAG)
 
-    @property
-    def nanoplot_raw_html_base64(self):
-        content_bytes = config.nanoplot_raw_html_path.read_bytes()
-        return base64.b64encode(content_bytes).decode()
-
-    @property
-    def nanoplot_filtered_html_base64(self):
-        content_bytes = config.nanoplot_filtered_html_path.read_bytes()
-        return base64.b64encode(content_bytes).decode()
+        #! Check we don't want a calculated flag?
+        # raw_threshold = self.raw_reads > config.CRITERIA.MIN_RAW_READS
+        # qfiltered_threshold = (
+        #     (self.percent_cleaned or 0 / 100 * self.raw_reads)
+        #     > config.CRITERIA.MIN_FILTERED_READS)
+        # if qfiltered_threshold:
+        #     if raw_threshold:
+        #         return FLAGS.SUCCESS
+        #     return FLAGS.WARNING
+        # return FLAGS.DANGER
 
     @property
     def html_file(self):
@@ -129,7 +139,18 @@ class RunQC(AbstractDataRow):
 
 
 class AbstractResultRows:
-    """A result composed of a series of rows with defined columns names."""
+    """A result composed of a series of rows with defined columns names.
+
+    This allows for easy parsing and rendering of different tabular data by
+    setting the COLUMNS and COLUMN_METADATA attributes, which should describe
+    the table schema.
+
+    COLUMNS: list of column names in order
+    COLUMN_METADATA: dict of column name to metadata dict, which should include
+        'type': str indicating type for casting (e.g., 'int', 'float', ...) and
+        and other arbitrary metadata that might be used in the subclass.
+
+    """
     COLUMNS = []
     COLUMN_METADATA = {}
 
@@ -203,6 +224,7 @@ class BlastHits(AbstractResultRows):
 
     def set_bs_class(self):
         def _get_bs_class(row):
+            # TODO: define this
             return 'success'
 
         self.rows = [

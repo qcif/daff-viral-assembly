@@ -3,9 +3,8 @@
 <table class="table">
   <thead>
     <th></th>
-    <th>Count</th>
+    <th>Value</th>
     <th>Outcome</th>
-    <th></th>
   </thead>
 
   <tr
@@ -25,13 +24,6 @@
       <span>&#9989;</span>
     {% endif %}
     </td>
-    <td>
-      <button
-        class="btn btn-primary btn-sm"
-        data-bs-toggle="modal"
-        data-bs-target="#nanoplotRawModal"
-      >Nanoplot report</button>
-    </td>
   </tr>
   <tr
     class="alert-{{ run_qc.flag }}"
@@ -41,28 +33,30 @@
   >
     <td>Clean reads</td>
     <td>
-      {% if run_qc.processed_reads is not none %}
-      {{ "{:,}". format(run_qc.processed_reads) }}
-      ({{ run_qc.percent_processed }}%)
+      {% if run_qc.percent_cleaned is not none %}
+      {{ run_qc.percent_cleaned }}%
       {% else %}
       NA
       {% endif %}
     </td>
     <td class="text-center">
-      {% if run_qc.processed_flag %}
+      {% if run_qc.qfiltered_reads_flag %}
       <span>&#10060;</span>
-      {{ run_qc.processed_flag }}
+      {{ run_qc.qfiltered_reads_flag }}
       {% else %}
       <span>&#9989;</span>
       {% endif %}
     </td>
-    <td>
-      <button
-        class="btn btn-primary btn-sm"
-        data-bs-toggle="modal"
-        data-bs-target="#nanoplotFilteredModal"
-      >Nanoplot report</button>
-    </td>
+  </tr>
+  <tr
+    class="alert-{{ run_qc.flag }}"
+    title="Reads left after quality filtering and adapter trimming"
+    data-bs-toggle="tooltip"
+    data-bs-placement="left"
+  >
+    <td>Any other fields?</td>
+    <td></td>
+    <td></td>
   </tr>
 </table>
 
@@ -75,5 +69,3 @@
     View run report
   </a>
 </p>
-
-{% include 'components/nanoplot-modals.html' %}
