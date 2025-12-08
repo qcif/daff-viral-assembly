@@ -15,14 +15,13 @@
   >
     <td>Raw reads</td>
     <td>{{  "{:,}".format(run_qc.raw_reads) }}</td>
-    {% if run_qc.raw_reads_flag %}
     <td>
-      <span>&#10060;</span>
+      {% if run_qc.raw_reads_flag %}
+      <span class="emoji">❌</span>
       {{ run_qc.raw_reads_flag }}
-    {% else %}
-    <td class="text-center">
-      <span>&#9989;</span>
-    {% endif %}
+      {% else %}
+      <span class="emoji">✅</span>
+      {% endif %}
     </td>
   </tr>
   <tr
@@ -39,22 +38,22 @@
       NA
       {% endif %}
     </td>
-    <td class="text-center">
+    <td>
       {% if run_qc.qfiltered_reads_flag %}
-      <span>&#10060;</span>
+      <span class="emoji">❌</span>
       {{ run_qc.qfiltered_reads_flag }}
       {% else %}
-      <span>&#9989;</span>
+      <span class="emoji">✅</span>
       {% endif %}
     </td>
   </tr>
   <tr
     class="alert-{{ run_qc.flag }}"
-    title="Reads left after quality filtering and adapter trimming"
+    title="TBC"
     data-bs-toggle="tooltip"
     data-bs-placement="left"
   >
-    <td>Any other fields?</td>
+    <td class="text-danger">Any other fields?</td>
     <td></td>
     <td></td>
   </tr>

@@ -18,6 +18,15 @@ code {
 .font-small {
   font-size: 0.8rem;
 }
+.emoji {
+  font-family:
+    "Apple Color Emoji",     /* macOS / iOS */
+    "Segoe UI Emoji",        /* Windows */
+    "Noto Color Emoji",      /* Linux */
+    "Twemoji Mozilla",       /* Firefox fallback if present */
+    emoji,                   /* generic alias (Chrome/Android) */
+    sans-serif;
+}
 table.tight th, table.tight td {
   padding: 0 3rem 0 1rem;
 }

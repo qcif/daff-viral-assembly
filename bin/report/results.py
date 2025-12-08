@@ -24,7 +24,7 @@ def colour_to_bs_class(colour: str) -> str:
         'yellow': FLAGS.WARNING,
         'red': FLAGS.DANGER,
     }
-    return mapping.get(colour.lower(), FLAGS.secondary)
+    return mapping.get(colour.lower(), FLAGS.NONE)
 
 
 def _csv_to_dict(csv_path, index_col='colname'):
@@ -88,14 +88,12 @@ class Metadata(AbstractDataRow):
     """Report the sample metadata."""
 
     COLUMNS = [
-        ('fastq_path', str),
-        ('target_size', int),
-        ('target_organism', str),
-        ('target_gene', str),
-        ('fwd_primer', Optional[str]),
-        ('rev_primer', Optional[str]),
-        ('test', Optional[str]),
-        ('method', Optional[str]),
+        ('fastq_1', str),
+        ('fastq_2', str),
+        ('sample_information', str),
+        ('sample_type', str),
+        ('sample_receipt_date', str),
+        ('storage_location', str),
     ]
 
 
