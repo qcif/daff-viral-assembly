@@ -1,6 +1,5 @@
 """Define specific results from the analysis."""
 
-import base64
 import csv
 from typing import Optional, Union, get_args, get_origin
 
@@ -296,7 +295,6 @@ class KrakenResults(AbstractResultRows):
 class KaijuResults(AbstractResultRows):
     COLUMN_METADATA = _csv_to_dict(config.SCHEMA.KRAKEN_KAIJU_FIELD_CSV)
     COLUMNS = list(COLUMN_METADATA.keys())
-
 
 
 class MappingResults(AbstractResultRows):

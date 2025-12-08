@@ -26,6 +26,7 @@ class Config:
     class SCHEMA:
         BLAST_HITS_FIELD_CSV = PARENT_DIR / 'schema/blast_fields.csv'
         KRAKEN_KAIJU_FIELD_CSV = PARENT_DIR / 'schema/kraken_kaiju_fields.csv'
+        MAPPING_FIELD_CSV = PARENT_DIR / 'schema/mapping_fields.csv'
 
     class OUTPUTS:
         REPORT_FILE_TEMPLATE = '{sample_id}_report.html'
@@ -103,11 +104,11 @@ class Config:
 
     @property
     def kraken_hits_path(self) -> Path:
-        return self._get_file_by_pattern("*._kraken_summary.txt")
+        return self._get_file_by_pattern("*_kraken_summary.txt")
 
     @property
     def kaiju_hits_path(self) -> Path:
-        return self._get_file_by_pattern("*._kaiju_summary.txt")
+        return self._get_file_by_pattern("*_kaiju_summary.txt")
 
     @property
     def ref_mapping_path(self) -> Path:
@@ -117,6 +118,17 @@ class Config:
     # @property
     # def PLACEHOLDER(self) -> Path:
     #     return self._get_file_by_pattern("*.*")
+
+    @property
+    def blast_passed(self) -> bool:
+        """Check if BLAST was successful."""
+        try:
+            path = self._get_file_by_pattern("*_blast_status.txt")
+        except FileNotFoundError:
+            return True  # If no file written, assume it passed
+        if not path.exists():
+            return True
+        return 'fail' not in path.read_text().lower()
 
     @cached_property
     def sample_id(self) -> str:
@@ -138,6 +150,8 @@ class Config:
     @cached_property
     def flags(self) -> list[dict[str, str]]:
         """Load flag definitions from a CSV file."""
+        if not self.FLAGS_CSV.exists():
+            return []
         with self.FLAGS_CSV.open() as f:
             reader = csv.DictReader(f)
             flags = list(reader)

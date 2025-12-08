@@ -12,17 +12,20 @@ def main():
     """Parse the command line arguments and build the report."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
+        '--result_dir',
+        type=existing_path,
+        help="The directory containing the output data.",
+    )
+    parser.add_argument(
         "--samplesheet",
         type=existing_path,
         help="Path to the samplesheet CSV file.",
     )
-    
     parser.add_argument(
         "--default_params_file",
         type=existing_path,
         help=("Path to the default parameters YAML file."),
     )
-    
     parser.add_argument(
         "--params_file",
         type=existing_path,
@@ -41,11 +44,6 @@ def main():
     parser.add_argument(
         "--facility",
         help="The name of the facility where the workflow was submitted from.",
-    )
-    parser.add_argument(
-        '--result_dir',
-        type=existing_path,
-        help="The directory containing the output data.",
     )
 
     args = parser.parse_args()

@@ -27,7 +27,7 @@ def render_bam_html():
         for k, v in [
             ('bam_binary_arr', config.bam_path),
             ('bai_binary_arr', config.bai_path),
-            ('fasta_binary_arr', config.consensus_match_fasta_path),
+            ('fasta_binary_arr', config.contigs_fasta_path),
         ]
     }
     context.update({

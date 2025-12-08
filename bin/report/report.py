@@ -65,7 +65,7 @@ def render(
         f.write(rendered_html)
     logger.info(f"HTML document written to {path}")
 
-    if len(context['consensus_blast_hits']):
+    if len(context['blast_hits']):
         render_bam_html()
 
 
@@ -118,7 +118,7 @@ def _get_report_context(
         'run_qc': _get_run_qc(),
         'bam_html_file': config.bam_html_path.name,
         'contigs_fasta': contigs_fasta,
-        'consensus_blast_hits': blast_hits,
+        'blast_hits': blast_hits,
         'blast_stats': _calculate_blast_stats(
             blast_hits,
             contigs_fasta,
@@ -175,6 +175,8 @@ def _get_parameters(
     params_file: Path,
 ) -> dict[str, dict[str, str]]:
     """Return the parameters as a dict."""
+    if not default_params_file or not default_params_file.exists():
+        return {}
     defaults = _get_default_parameters(default_params_file)
     with params_file.open() as f:
         user_params = yaml.safe_load(f)

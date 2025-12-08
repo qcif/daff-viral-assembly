@@ -26,27 +26,27 @@
         <table class="table table-lined tight">
           <thead>
             <tr>
-              {% for colname in consensus_blast_hits.columns_display %}
+              {% for colname in blast_hits.columns_display %}
               <th
-                {% if consensus_blast_hits.COLUMN_METADATA[colname]['tooltip'] %}
-                title="{{ consensus_blast_hits.COLUMN_METADATA[colname]['tooltip'] }}"
+                {% if blast_hits.COLUMN_METADATA[colname]['tooltip'] %}
+                title="{{ blast_hits.COLUMN_METADATA[colname]['tooltip'] }}"
                 data-bs-toggle="tooltip"
                 data-bs-placement="top"
                 {% endif %}
               >
-                {{ consensus_blast_hits.COLUMN_METADATA[colname]['label'] }}
+                {{ blast_hits.COLUMN_METADATA[colname]['label'] }}
               </th>
               {% endfor %}
             </tr>
           </thead>
           <tbody>
-            {% for row in consensus_blast_hits %}
+            {% for row in blast_hits %}
             <tr
               {% if row['bs_class'] %}
               class="alert-{{ row['bs_class'] }}"
               {% endif %}
             >
-              {% for colname in consensus_blast_hits.columns_display %}
+              {% for colname in blast_hits.columns_display %}
               <td class="column-{{ row[colname] | lower }}">
                 {% if colname == 'evalue' %}
                 <span style="white-space: nowrap;">{{ row[colname] }}</span>

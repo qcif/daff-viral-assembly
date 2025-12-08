@@ -1,8 +1,0 @@
-colname,label,type,tooltip
-taxon_name,Taxon name,,
-taxon_id,Taxon ID,int,
-full_lineage,Full lineage,,
-broad_categories,Broad categories,,
-reads,Reads,int,
-pc_reads,% Reads,float,
-cov_filter,Coverage filter,bool,
