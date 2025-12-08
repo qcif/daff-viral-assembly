@@ -1,0 +1,51 @@
+<h2>Kraken/Braken results</h2>
+
+<p>
+  This section shows [...]
+</p>
+
+<div class="my-3" style="overflow-x: auto;">
+
+  {% if kraken | length %}
+  <table class="table table-lined tight text-center">
+    <thead>
+      <tr>
+        {% for colname in kraken.COLUMNS %}
+        <th
+          {% if kraken.COLUMN_METADATA[colname]['tooltip'] %}
+          title="{{ kraken.COLUMN_METADATA[colname]['tooltip'] }}"
+          data-bs-toggle="tooltip"
+          data-bs-placement="top"
+          {% endif %}
+        >
+          {{ kraken.COLUMN_METADATA[colname]['label'] }}
+        </th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in kraken %}
+      <tr
+        {% if row['bs_class'] %}
+        class="alert-{{ row['bs_class'] }}"
+        {% endif %}
+      >
+        {% for colname in kraken.COLUMNS %}
+        <td>
+          {% if colname == 'evalue' %}
+          <span style="white-space: nowrap;">{{ row[colname] }}</span>
+          {% else %}
+          {{ row[colname] }}
+          {% endif %}
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>
+    No taxonomic classification results to show.
+  </p>
+  {% endif %}
+</div>

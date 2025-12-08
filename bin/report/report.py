@@ -15,6 +15,9 @@ from .bam import render_bam_html
 from .results import (
     BlastHits,
     ConsensusFASTA,
+    KaijuResults,
+    KrakenResults,
+    MappingResults,
     Metadata,
     RunQC,
 )
@@ -98,8 +101,8 @@ def _get_report_context(
     facility: str,
 ) -> dict:
     """Build the context for the report template."""
-    blast_hits = _get_blast_hits()
-    consensus_fasta = ConsensusFASTA(config.consensus_fasta_path)
+    blast_hits = BlastHits.from_csv(config.blast_hits_path)
+    contigs_fasta = ConsensusFASTA(config.contigs_fasta_path)
     return {
         'title': config.REPORT.TITLE,
         'subtitle_html': config.REPORT.SUBTITLE,
@@ -114,11 +117,17 @@ def _get_report_context(
         'parameters': _get_parameters(default_params_file, params_file),
         'run_qc': _get_run_qc(),
         'bam_html_file': config.bam_html_path.name,
+        'contigs_fasta': contigs_fasta,
         'consensus_blast_hits': blast_hits,
-        'consensus_fasta': consensus_fasta,
+        'blast_stats': _calculate_blast_stats(
+            blast_hits,
+            contigs_fasta,
+        ),
+        'kraken': KrakenResults.from_csv(config.kraken_hits_path),
+        'kaiju': KaijuResults.from_csv(config.kaiju_hits_path),
+        'mapping': MappingResults.from_csv(config.ref_mapping_path),
         'flags': config.flags,
         'blast_passed': config.blast_passed,
-        'rattle_passed': config.rattle_passed,
     }
 
 
@@ -212,20 +221,13 @@ def _get_run_qc() -> dict:
     return {}
 
 
-def _get_blast_hits() -> BlastHits:
-    """Return the blast hits as a dict."""
-    with config.blast_hits_path.open() as f:
-        reader = csv.DictReader(f, delimiter='\t')
-        return BlastHits(reader)
-
-
-# def _calculate_blast_stats(
-#     blast_hits: BlastHits,
-#     consensus_fasta: ConsensusFASTA,
-# ) -> dict:
-#     return {
-#         'count': len(blast_hits.positive_hits),
-#         'percent': 'NA' if not consensus_fasta else round(
-#             100 * len(blast_hits.positive_hits) / len(consensus_fasta)
-#         ),
-#     }
+def _calculate_blast_stats(
+    blast_hits: BlastHits,
+    contigs_fasta: ConsensusFASTA,
+) -> dict:
+    return {
+        'count': len(blast_hits.positive_hits),
+        'percent': 'NA' if not contigs_fasta else round(
+            100 * len(blast_hits.positive_hits) / len(contigs_fasta)
+        ),
+    }

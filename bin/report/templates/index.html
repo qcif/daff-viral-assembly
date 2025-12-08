@@ -25,9 +25,20 @@
         {% include "components/overview.html" %}
         {{ render_subjective_input(1) }}
       </section>
-      <section id="consensus">
-        {% include "components/consensus.html" %}
+      <section id="blast">
+        {% include "components/blast.html" %}
+        {{ render_subjective_input(4) }}
+      </section>
+      <section id="kraken">
+        {% include "components/kraken.html" %}
         {{ render_subjective_input(2) }}
+      </section id="kaiju">
+        {% include "components/kaiju.html" %}
+        {{ render_subjective_input(3) }}
+      </section>
+      <section id="mapping">
+        {% include "components/mapping.html" %}
+        {{ render_subjective_input(5) }}
       </section>
     </div>
 

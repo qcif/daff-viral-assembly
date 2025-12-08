@@ -166,6 +166,13 @@ class AbstractResultRows:
     def __getitem__(self, index):
         return self.rows[index]
 
+    @classmethod
+    def from_csv(cls, path, delimiter='\t'):
+        """Return the blast hits as a dict."""
+        with path.open() as f:
+            reader = csv.DictReader(f, delimiter=delimiter)
+            return cls(reader)
+
     def _parse_rows(self, rows):
         return [
             {
@@ -192,6 +199,8 @@ class AbstractResultRows:
         if type_str == 'scientific' and 'e' in value:
             num = float(value)
             return f"{num:.2e}"
+        if type_str == 'bool':
+            return value.lower() in ['true', '1', 'yes']
         return value
 
     def to_json(self):
@@ -277,3 +286,19 @@ class ConsensusFASTA:
             seq.id: str(seq.seq)
             for seq in self.records
         }
+
+
+class KrakenResults(AbstractResultRows):
+    COLUMN_METADATA = _csv_to_dict(config.SCHEMA.KRAKEN_KAIJU_FIELD_CSV)
+    COLUMNS = list(COLUMN_METADATA.keys())
+
+
+class KaijuResults(AbstractResultRows):
+    COLUMN_METADATA = _csv_to_dict(config.SCHEMA.KRAKEN_KAIJU_FIELD_CSV)
+    COLUMNS = list(COLUMN_METADATA.keys())
+
+
+
+class MappingResults(AbstractResultRows):
+    COLUMN_METADATA = _csv_to_dict(config.SCHEMA.MAPPING_FIELD_CSV)
+    COLUMNS = list(COLUMN_METADATA.keys())

@@ -1,21 +1,22 @@
-<h2>Consensus sequences</h2>
+<h2>Homology to viral reference sequences</h2>
 
 <p>
-  This section shows the consensus sequences assembled from the sequencing reads. Based on the data shown here, the analyst should select one of more consensus sequences as a reference for taxonomic identification of the sample.
+  This section shows assembled contigs which match a known virus sequence in the reference BLAST database.
 </p>
 
 <p class="alert alert-warning">
-  It is likely that not all sequences shown here match the sample organism. Erroneous sequences often result from sample contamination or from sequencing/assembly artefacts. It is the responsibility of the analyst to select the most appropriate sequence(s) for taxonomic identification based on the evidence shown. Furthermore, the results shown here <strong>cannot be used</strong> to make a confident assessment of the sample taxonomy. Taxonomic identity should be determined by downstream analysis.
+  It is possible that not all sequences shown here match the sample organism.
+  Erroneous sequences often result from sample contamination or from sequencing/assembly artefacts. It is the responsibility of the analyst to select the most appropriate sequence(s) for taxonomic identification based on the evidence shown. Furthermore, the results shown here <strong>cannot be used</strong> to make a confident assessment of the sample taxonomy. Taxonomic identity of a consensus sequence should be determined by an appropriate downstream analysis.
 </p>
 
 <ul class="lead">
   <li>
-    {{ consensus_fasta | length }} consensus sequences were assembled from the data.
+    {{ contigs_fasta | length }} contigs were assembled from cleaned reads.
   </li>
   <li>
     {{ consensus_blast_stats.count }}
     ({{ consensus_blast_stats.percent }}%)
-    consensus sequences matched a reference sequence with BLAST.
+    of contigs matched a reference sequence with BLAST.
   </li>
 </ul>
 
@@ -59,17 +60,14 @@
     </tbody>
   </table>
   {% else %}
-    {% if not rattle_passed %}
-    <p class="alert alert-danger">
-      Clustering with Rattle failed. Therefore, only a limited report is available. Consider relaxing the criteria at the quality filtering step and/or reducing the minimum read length during cluster generation. 
-    </p>
-    {% elif not blast_passed %}
+    {% if not blast_passed %}
     <p class="alert alert-danger">
       BLAST search against reference sequences failed . Therefore, only a limited report is available as no coverage statistics were generated. Blast homology search can fail when the consensuses generated are too short. If this is the case for this sample, consider relaxing the criteria at the quality filtering step and/or reducing the minimum read length during cluster generation.
     </p>
     {% else %}
     <p class="alert alert-info">
-      No sequences matched a reference sequence with BLAST (nothing to show here).
+      No consensus sequences matched a reference with BLAST. This implies that the consensus sequence(s) are from novel species, or are the result of assembly artifact(s).
+      <!-- TODO: verify this -->
     </p>
     {% endif %}
   {% endif %}
@@ -83,28 +81,6 @@
   data-bs-target="#consensusBlastModal"
 >
   Consensus statistics
-</button>
-{% endif %}
-
-{% if rattle_passed %}
-<button
-  type="button"
-  class="btn btn-primary"
-  data-bs-toggle="modal"
-  data-bs-target="#consensusFastaModal"
->
-  All consensus sequences
-</button>
-{% endif %}
-
-{% if consensus_blast_hits | length %}
-<button
-  type="button"
-  class="btn btn-primary"
-  data-bs-toggle="modal"
-  data-bs-target="#consensusMatchFastaModal"
->
-  Matching consensus sequences
 </button>
 
 <a
@@ -127,7 +103,6 @@
 
 {% include 'components/consensus-fasta-modal.html' %}
 {% if consensus_blast_hits | length %}
-{% include 'components/consensus-blast-modal.html' %}
-{% include 'components/consensus-match-fasta-modal.html' %}
-{% include 'components/flag-definitions-modal.html' %}
+  {% include 'components/consensus-blast-modal.html' %}
+  {% include 'components/flag-definitions-modal.html' %}
 {% endif %}

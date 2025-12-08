@@ -1,0 +1,51 @@
+<h2>Mapping reads to viral references</h2>
+
+<p>
+  This section shows [...]
+</p>
+
+<div class="my-3" style="overflow-x: auto;">
+
+  {% if mapping | length %}
+  <table class="table table-lined tight text-center">
+    <thead>
+      <tr>
+        {% for colname in mapping.COLUMNS %}
+        <th
+          {% if mapping.COLUMN_METADATA[colname]['tooltip'] %}
+          title="{{ mapping.COLUMN_METADATA[colname]['tooltip'] }}"
+          data-bs-toggle="tooltip"
+          data-bs-placement="top"
+          {% endif %}
+        >
+          {{ mapping.COLUMN_METADATA[colname]['label'] }}
+        </th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in mapping %}
+      <tr
+        {% if row['bs_class'] %}
+        class="alert-{{ row['bs_class'] }}"
+        {% endif %}
+      >
+        {% for colname in mapping.COLUMNS %}
+        <td>
+          {% if colname == 'evalue' %}
+          <span style="white-space: nowrap;">{{ row[colname] }}</span>
+          {% else %}
+          {{ row[colname] }}
+          {% endif %}
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>
+    No reference sequences available for mapping.
+  </p>
+  {% endif %}
+</div>

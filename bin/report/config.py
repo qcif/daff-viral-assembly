@@ -24,7 +24,8 @@ class Config:
     FLAGS_CSV = ROOT_DIR / 'flags.csv'
 
     class SCHEMA:
-        BLAST_HITS_FIELD_CSV = PARENT_DIR / 'schema/blast_hits_columns.csv'
+        BLAST_HITS_FIELD_CSV = PARENT_DIR / 'schema/blast_fields.csv'
+        KRAKEN_KAIJU_FIELD_CSV = PARENT_DIR / 'schema/kraken_kaiju_fields.csv'
 
     class OUTPUTS:
         REPORT_FILE_TEMPLATE = '{sample_id}_report.html'
@@ -87,10 +88,10 @@ class Config:
         return self._get_file_by_pattern("*.bai")
 
     @property
-    def consensus_fasta_path(self) -> Path:
+    def contigs_fasta_path(self) -> Path:
         # ! confirm?
         return self._get_file_by_pattern("*_masked_consensus.fasta")
-    
+
     @property
     def reference_fasta_path(self) -> Path:
         return self._get_file_by_pattern("*_ref_sequences_clustered.fasta")
@@ -100,13 +101,18 @@ class Config:
         return self._get_file_by_pattern(
             "*_megablast_top_viral_hits_with_contigs.txt")
 
-    # @property
-    # def PLACEHOLDER(self) -> Path:
-    #     return self._get_file_by_pattern("*.*")
+    @property
+    def kraken_hits_path(self) -> Path:
+        return self._get_file_by_pattern("*._kraken_summary.txt")
 
-    # @property
-    # def PLACEHOLDER(self) -> Path:
-    #     return self._get_file_by_pattern("*.*")
+    @property
+    def kaiju_hits_path(self) -> Path:
+        return self._get_file_by_pattern("*._kaiju_summary.txt")
+
+    @property
+    def ref_mapping_path(self) -> Path:
+        return self._get_file_by_pattern(
+            "*_reference_with_cov_stats_final.txt")
 
     # @property
     # def PLACEHOLDER(self) -> Path:
