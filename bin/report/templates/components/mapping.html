@@ -34,7 +34,7 @@
         {% endif %}
       >
         {% for colname in mapping.COLUMNS %}
-        <td>
+        <td class="align-middle">
           {% if colname == 'evalue' %}
           <span style="white-space: nowrap;">{{ row[colname] }}</span>
           {% elif colname == 'consensus_seq' %}
