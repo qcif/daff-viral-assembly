@@ -1,3 +1,5 @@
+{% from "macros/sequence-display.html" import render_sequence_modal %}
+
 <h2>Mapping reads to viral references</h2>
 
 <p>
@@ -25,15 +27,18 @@
     </thead>
     <tbody>
       {% for row in mapping %}
+      {% set accession = row[mapping.COLUMNS[0]] %}
       <tr
         {% if row['bs_class'] %}
-        class="alert-{{ row['bs_class'] }}"
+        class="alert-{{ row['bs_class'] }} align-middle"
         {% endif %}
       >
         {% for colname in mapping.COLUMNS %}
         <td>
           {% if colname == 'evalue' %}
           <span style="white-space: nowrap;">{{ row[colname] }}</span>
+          {% elif colname == 'consensus_seq' %}
+          {{ render_sequence_modal(accession, row[colname]) }}
           {% else %}
           {{ row[colname] }}
           {% endif %}

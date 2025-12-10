@@ -31,6 +31,8 @@ def path_safe(dirty: str):
 def get_img_src(path):
     """Return the base64 encoded image source as an HTML img src property."""
     ext = path.suffix[1:]
+    if ext.lower() == 'svg':
+        return path.read_text()
     return (
         f"data:image/{ext};base64,"
         + base64.b64encode(path.read_bytes()).decode()

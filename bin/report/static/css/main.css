@@ -78,3 +78,6 @@ td.column-red {
 td.column-flag_name {
   font-family: monospace;
 }
+.show-on-load {
+  display: none;
+}

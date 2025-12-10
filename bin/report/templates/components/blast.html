@@ -23,7 +23,7 @@
 <div class="my-3" style="overflow-x: auto;">
 
   {% if blast_hits | length %}
-  <table class="table table-lined tight text-center">
+  <table id="blastTable" class="table table-lined tight text-center">
     <thead>
       <tr>
         {% for colname in blast_hits.columns_primary_display %}
@@ -47,7 +47,7 @@
         {% endif %}
       >
         {% for colname in blast_hits.columns_primary_display %}
-        <td>
+        <td class="align-middle">
           {% if colname == 'evalue' %}
           <span style="white-space: nowrap;">{{ row[colname] }}</span>
           {% else %}
@@ -106,3 +106,7 @@
   {% include 'components/blast-modal.html' %}
   {% include 'components/flag-definitions-modal.html' %}
 {% endif %}
+
+<script>
+  $(document).ready( () => new DataTable('#blastTable') );
+</script>

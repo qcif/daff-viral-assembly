@@ -7,7 +7,7 @@
 <div class="my-3" style="overflow-x: auto;">
 
   {% if kraken | length %}
-  <table class="table table-lined tight text-center">
+  <table id="krakenTable" class="table table-lined tight text-center">
     <thead>
       <tr>
         {% for colname in kraken.COLUMNS %}
@@ -31,7 +31,7 @@
         {% endif %}
       >
         {% for colname in kraken.COLUMNS %}
-        <td>
+        <td class="align-middle">
           {% if colname == 'evalue' %}
           <span style="white-space: nowrap;">{{ row[colname] }}</span>
           {% else %}
@@ -49,3 +49,7 @@
   </p>
   {% endif %}
 </div>
+
+<script>
+  $(document).ready( () => new DataTable('#krakenTable') );
+</script>

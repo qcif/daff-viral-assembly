@@ -21,6 +21,7 @@ from .results import (
     Metadata,
     RunQC,
 )
+from .filters.css_hash import css_hash
 from .utils import get_img_src, serialize
 
 logger = logging.getLogger(__name__)
@@ -29,6 +30,9 @@ config = config.Config()
 
 TEMPLATE_DIR = Path(__file__).parent / 'templates'
 STATIC_DIR = Path(__file__).parent / 'static'
+EXCLUDE_JS = [
+    'igv-',
+]
 
 
 def render(
@@ -43,6 +47,7 @@ def render(
     """Render to HTML report to the configured output directory."""
     config.load(result_dir)
     j2 = Environment(loader=FileSystemLoader(TEMPLATE_DIR))
+    j2.filters['css_hash'] = css_hash
     template = j2.get_template('index.html')
     context = _get_report_context(
         samplesheet_file,
@@ -65,8 +70,8 @@ def render(
         f.write(rendered_html)
     logger.info(f"HTML document written to {path}")
 
-    if len(context['blast_hits']):
-        render_bam_html()
+    # if len(context['blast_hits']):
+    #     render_bam_html()
 
 
 def _get_static_file_contents():
@@ -83,6 +88,10 @@ def _get_static_file_contents():
             static_files['js'] = [
                 f'/* {f} */\n' + (root / f).read_text()
                 for f in sorted(files)
+                if not any(
+                    phrase in f
+                    for phrase in EXCLUDE_JS
+                )
             ]
         elif root.name == 'img':
             static_files['img'] = {

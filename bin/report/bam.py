@@ -39,7 +39,7 @@ def render_bam_html():
             STATIC_DIR / 'js/bootstrap.bundle.min.js'
         ).read_text(),
         'jquery_js': (
-            STATIC_DIR / 'js/jquery-3.7.1.min.js'
+            STATIC_DIR / 'js/1_jquery-3.7.1.min.js'
         ).read_text(),
         'igv_help_img': get_img_src(
             STATIC_DIR / 'img/igv-help.png'

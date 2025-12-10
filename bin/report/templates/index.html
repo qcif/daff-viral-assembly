@@ -13,6 +13,12 @@
         {{ style }}
       </style>
     {% endfor %}
+
+    {% for script in static.js %}
+      <script>
+        {{ script }}
+      </script>
+    {% endfor %}
   </head>
 
   <body>
@@ -25,38 +31,50 @@
         {% include "components/overview.html" %}
         {{ render_subjective_input(1) }}
       </section>
-      <section id="blast">
-        {% include "components/blast.html" %}
-        {{ render_subjective_input(4) }}
+      <section id="loadingSpinner">
+        {% include "components/loading.html" %}
       </section>
-      <section id="kraken">
-        {% include "components/kraken.html" %}
-        {{ render_subjective_input(2) }}
-      </section id="kaiju">
-        {% include "components/kaiju.html" %}
-        {{ render_subjective_input(3) }}
-      </section>
-      <section id="mapping">
-        {% include "components/mapping.html" %}
-        {{ render_subjective_input(5) }}
-      </section>
+      <div class="show-on-load">
+        <section id="kraken">
+          {% include "components/kraken.html" %}
+          <div class="my-5">
+            {{ render_subjective_input(2) }}
+          </div>
+        </section>
+        <section id="kaiju">
+          {% include "components/kaiju.html" %}
+          <div class="my-5">
+            {{ render_subjective_input(3) }}
+          </div>
+        </section>
+        <section id="blast">
+          {% include "components/blast.html" %}
+          <div class="my-5">
+            {{ render_subjective_input(4) }}
+          </div>
+        </section>
+        <section id="mapping">
+          {% include "components/mapping.html" %}
+          <div class="my-5">
+            {{ render_subjective_input(5) }}
+          </div>
+        </section>
+      </div>
     </div>
 
     {% include 'components/save-modal.html' %}
 
   </body>
 
-  {% for script in static.js %}
-    <script>
-      {{ script }}
-    </script>
-  {% endfor %}
-
   <script>
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
     var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
       return new bootstrap.Tooltip(tooltipTriggerEl)
     })
+    $(document).ready(function() {
+      $('.show-on-load').show();
+      $('#loadingSpinner').hide();
+    });
   </script>
 
 </html>
