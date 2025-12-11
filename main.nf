@@ -1,6 +1,8 @@
 #!/usr/bin/env nextflow
 
 nextflow.enable.dsl = 2
+include { fromSamplesheet } from 'plugin/nf-validation'
+
 
 def helpMessage () {
     log.info """
@@ -158,7 +160,7 @@ process BLASTN {
       -max_target_seqs 5
     """
 }
-
+/*
 process FASTP {
   tag "$sampleid"
   publishDir "${params.outdir}/${sampleid}/02_qtrimmed", mode: 'copy', pattern: '{*fastq.gz,*_fastp.log}'
@@ -193,11 +195,121 @@ process FASTP {
     """
 }
 //update to 2>&1 | tee ${sampleid}_fastp.log
+*/
+//Modified the nf-core module so it does not expect an adapter list. Might re-visit later to add that functionality back in.
+//Also added --detect_adapter_for_pe --cut_front --cut_tail --length_required 50 --average_qual 20, might want to make these external arguments later.
+process FASTP {
+    tag "$meta.id"
+    label "setting_4"
+    publishDir "${params.outdir}/$meta.id/02_qtrimmed", mode: 'copy', pattern: '{*fastq.gz}'
+    publishDir "${params.outdir}/$meta.id/03_fastqc_trimmed", mode: 'copy', pattern: '{*fastp.html,*fastp.json}'
 
+    conda "bioconda::fastp=0.23.4"
+    container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
+        'https://depot.galaxyproject.org/singularity/fastp:0.23.4--h5f740d0_0' :
+        'biocontainers/fastp:0.23.4--h5f740d0_0' }"
+
+    input:
+    tuple val(meta), path(reads)
+    //path  adapter_fasta
+    val   save_trimmed_fail
+    val   save_merged
+
+    output:
+    path("*.fastp.fastq.gz")
+    path("*.fastp.html")
+    path("*.fastp.json")
+    tuple val(meta), path('*.fastp.fastq.gz') , optional:true, emit: reads
+    tuple val(meta), path('*.json')           , emit: json
+    tuple val(meta), path('*.html')           , emit: html
+    tuple val(meta), path('*.log')            , emit: log
+    path "versions.yml"                       , emit: versions
+    tuple val(meta), path('*.fail.fastq.gz')  , optional:true, emit: reads_fail
+    tuple val(meta), path('*.merged.fastq.gz'), optional:true, emit: reads_merged
+
+    when:
+    task.ext.when == null || task.ext.when
+
+    script:
+    def args = task.ext.args ?: ''
+    def prefix = task.ext.prefix ?: "${meta.id}"
+    //def adapter_list = adapter_fasta ? "--adapter_fasta ${adapter_fasta}" : ""
+    def fail_fastq = save_trimmed_fail && meta.single_end ? "--failed_out ${prefix}.fail.fastq.gz" : save_trimmed_fail && !meta.single_end ? "--unpaired1 ${prefix}_1.fail.fastq.gz --unpaired2 ${prefix}_2.fail.fastq.gz" : ''
+    // Added soft-links to original fastqs for consistent naming in MultiQC
+    // Use single ended for interleaved. Add --interleaved_in in config.
+    if ( task.ext.args?.contains('--interleaved_in') ) {
+        """
+        [ ! -f  ${prefix}.fastq.gz ] && ln -sf $reads ${prefix}.fastq.gz
+
+        fastp \\
+            --stdout \\
+            --in1 ${prefix}.fastq.gz \\
+            --thread $task.cpus \\
+            --json ${prefix}.fastp.json \\
+            --html ${prefix}.fastp.html \\
+            --detect_adapter_for_pe \\
+            --cut_front \\
+            --cut_tail \\
+            --length_required 50 --average_qual 20 \\
+            $fail_fastq \\
+            $args \\
+            2> >(tee ${prefix}.fastp.log >&2) \\
+        | gzip -c > ${prefix}.fastp.fastq.gz
+
+        cat <<-END_VERSIONS > versions.yml
+        "${task.process}":
+            fastp: \$(fastp --version 2>&1 | sed -e "s/fastp //g")
+        END_VERSIONS
+        """
+    } else if (meta.single_end) {
+        """
+        [ ! -f  ${prefix}.fastq.gz ] && ln -sf $reads ${prefix}.fastq.gz
+
+        fastp \\
+            --in1 ${prefix}.fastq.gz \\
+            --out1  ${prefix}.fastp.fastq.gz \\
+            --thread $task.cpus \\
+            --json ${prefix}.fastp.json \\
+            --html ${prefix}.fastp.html \\
+            $fail_fastq \\
+            $args \\
+            2> >(tee ${prefix}.fastp.log >&2)
+
+        cat <<-END_VERSIONS > versions.yml
+        "${task.process}":
+            fastp: \$(fastp --version 2>&1 | sed -e "s/fastp //g")
+        END_VERSIONS
+        """
+    } else {
+        def merge_fastq = save_merged ? "-m --merged_out ${prefix}.merged.fastq.gz" : ''
+        """
+        [ ! -f  ${prefix}_1.fastq.gz ] && ln -sf ${reads[0]} ${prefix}_1.fastq.gz
+        [ ! -f  ${prefix}_2.fastq.gz ] && ln -sf ${reads[1]} ${prefix}_2.fastq.gz
+        fastp \\
+            --in1 ${prefix}_1.fastq.gz \\
+            --in2 ${prefix}_2.fastq.gz \\
+            --out1 ${prefix}_1.fastp.fastq.gz \\
+            --out2 ${prefix}_2.fastp.fastq.gz \\
+            --json ${prefix}.fastp.json \\
+            --html ${prefix}.fastp.html \\
+            $fail_fastq \\
+            $merge_fastq \\
+            --thread $task.cpus \\
+            --detect_adapter_for_pe \\
+            $args \\
+            2> >(tee ${prefix}.fastp.log >&2)
+
+        cat <<-END_VERSIONS > versions.yml
+        "${task.process}":
+            fastp: \$(fastp --version 2>&1 | sed -e "s/fastp //g")
+        END_VERSIONS
+        """
+    }
+}
 process COVSTATS {
   tag "$sampleid"
   label "setting_1"
-  publishDir "${params.outdir}/${sampleid}/08_mapping_to_ref", mode: 'copy'
+  publishDir "${params.outdir}/${sampleid}/09_mapping_to_ref", mode: 'copy'
 
   input:
     tuple val(sampleid), path(bed), path(blast_results), path(bbsplit_stats), path(consensus), path(coverage), path(mapping_q), path(ref)
@@ -213,6 +325,27 @@ process COVSTATS {
     derive_coverage_stats.py --sample ${sampleid} --blastn_results ${blast_results} --bbsplit_stats ${bbsplit_stats} --coverage ${coverage} --bed ${bed} --reference ${ref} --consensus ${consensus} --mapping_quality ${mapping_q}
     """
 }
+
+process CONTIG_COVSTATS {
+  tag "$sampleid"
+  label "setting_1"
+  publishDir "${params.outdir}/${sampleid}/08_mapping_to_contigs", mode: 'copy'
+
+  input:
+    tuple val(sampleid), path(bed), path(blast_results), path(bbsplit_stats), path(coverage), path(mapping_q)
+  output:
+    path("*_with_cov_stats.txt")
+    tuple val(sampleid), path("*_with_cov_stats.txt"), emit: detections_summary
+//    tuple val(sampleid), path(consensus), path("*reference_with_cov_stats.txt"), emit: detections_summary3
+//    path("*reference_with_cov_stats.txt"), emit: detections_summary2
+
+
+  script:
+    """
+    derive_contig_coverage_stats.py --sample ${sampleid} --blastn_results ${blast_results} --bbsplit_stats ${bbsplit_stats} --coverage ${coverage} --bed ${bed} --mapping_quality ${mapping_q}
+    """
+}
+
 
 process EXTRACT_BLAST_HITS {
   tag "${sampleid}"
@@ -260,7 +393,8 @@ process FASTA2TABLE {
   output:
     file("${sampleid}_megablast_top_viral_hits_with_contigs.txt")
     file("${sampleid}_megablast_top_viral_hits_filtered_with_contigs.txt")
-    tuple val(sampleid), file("${sampleid}_ids_to_retrieve.txt"), emit: ids
+    tuple val(sampleid), file("${sampleid}_ref_ids_to_retrieve.txt"), emit: ref_ids
+    tuple val(sampleid), file("${sampleid}_contig_ids_to_retrieve.txt"), emit: contig_ids
     tuple val(sampleid), file("${sampleid}_megablast_top_viral_hits_filtered_with_contigs.txt"), emit: blast_results
     tuple val(sampleid), file("${sampleid}_megablast_top_viral_hits_with_contigs.txt"), emit: blast_results2
 
@@ -268,13 +402,14 @@ process FASTA2TABLE {
   script:
     """
     fasta2table.py --fasta ${fasta} --sample ${sampleid} --tophits ${tophits}
+    cut -f2 ${sampleid}_megablast_top_viral_hits_filtered_with_contigs.txt | sed '1d' | sed 's/ //g' | sort | uniq > ${sampleid}_contig_ids_to_retrieve.txt
     """
 }
 
 process FASTA2TABLE2 {
   tag "$sampleid"
   label "setting_1"
-  publishDir "${params.outdir}/${sampleid}/08_mapping_to_ref", mode: 'copy'
+  publishDir "${params.outdir}/${sampleid}/09_mapping_to_ref", mode: 'copy'
 
   input:
     tuple val(sampleid), path(fasta), path(stats)
@@ -311,6 +446,32 @@ process MOSDEPTH {
     """
 }
 
+
+process MOSDEPTH_CONTIGS {
+  tag "$sampleid"
+  label "setting_3"
+
+  input:
+    tuple val(sampleid), path(consensus), path(bam), path(bai), path(bed)
+
+  output:
+    tuple val(sampleid), path("${sampleid}.thresholds.bed"), emit: mosdepth_results
+
+  script:
+    """
+    if [[ ! -s ${consensus} ]]; then
+      touch ${sampleid}.thresholds.bed
+
+    else
+      mosdepth --by ${bed} --thresholds 30 -t ${task.cpus} ${sampleid} ${bam}
+      gunzip *.per-base.bed.gz
+      gunzip *.thresholds.bed.gz
+    fi
+    """
+}
+
+
+
 process PYFAIDX {
   tag "$sampleid"
   label "setting_3"
@@ -327,6 +488,26 @@ process PYFAIDX {
       touch ${sampleid}.bed
     else
       faidx --transform bed ${fasta} > ${sampleid}.bed
+    fi
+    """
+}
+
+process PYFAIDX_CONTIGS {
+  tag "$sampleid"
+  label "setting_3"
+
+  input:
+    tuple val(sampleid), path(fasta)
+
+  output:
+    tuple val(sampleid), path("${sampleid}_contigs.bed"), emit: bed
+
+  script:
+    """
+    if [[ ! -s ${fasta} ]]; then
+      touch ${sampleid}.bed
+    else
+      faidx --transform bed ${fasta} > ${sampleid}_contigs.bed
     fi
     """
 }
@@ -514,9 +695,9 @@ process SUMMARISE_READ_CLASSIFICATION {
   output:
     //tuple val(sampleid), path("${sampleid}_megablast_top_viral_hits_filtered.txt"), emit: viral_blast_results
     path("${sampleid}_kaiju_summary.txt")
-    path("${sampleid}_kraken_summary.txt")
+    path("${sampleid}_bracken_summary.txt")
     tuple val(sampleid), path("${sampleid}_kaiju_summary.txt"), emit: kaiju_summary
-    tuple val(sampleid), path("${sampleid}_kraken_summary.txt"), emit: kraken_summary
+    tuple val(sampleid), path("${sampleid}_bracken_summary.txt"), emit: kraken_summary
     //path("${sampleid}_megablast_top_viral_hits.txt")
     //path("${sampleid}_megablast_top_viral_hits_filtered.txt")
 
@@ -529,7 +710,7 @@ process SUMMARISE_READ_CLASSIFICATION {
 process EXTRACT_REF_FASTA {
   tag "$sampleid"
   label "setting_1"
-  publishDir "${params.outdir}/${sampleid}/08_mapping_to_ref", mode: 'copy', pattern: '*fasta'
+  publishDir "${params.outdir}/${sampleid}/09_mapping_to_ref", mode: 'copy', pattern: '*fasta'
   containerOptions "${bindOptions}"
 
   input:
@@ -592,8 +773,26 @@ process MAPPING_BACK_TO_REF {
   """
 }
 
+process MAPPING_BACK_TO_CONTIGS {
+  tag "${sampleid}"
+  label "setting_21"
+
+  input:
+    tuple val(sampleid), path(contigs), path(fastq1), path(fastq2)
+
+  output:
+    tuple val(sampleid), path(contigs), file("${sampleid}_contig_aln.sam"), emit: contig_aligned_sam
+
+  script:
+  """
+  bowtie2-build ${contigs} ${contigs}
+  bowtie2 --threads ${task.cpus} --very-sensitive-local -k 100 --score-min L,20,1.0  -x ${contigs} \
+          -1 $fastq1 -2 $fastq2 -S ${sampleid}_contig_aln.sam 2>> ${sampleid}_mapping.log
+  """
+}
+
 process SAMTOOLS2 {
-  publishDir "${params.outdir}/${sampleid}/08_mapping_to_ref", mode: 'copy'
+  publishDir "${params.outdir}/${sampleid}/09_mapping_to_ref", mode: 'copy'
   tag "${sampleid}"
   label 'setting_21'
 
@@ -604,25 +803,51 @@ process SAMTOOLS2 {
     path "${sampleid}_ref_aln.sorted.bam"
     path "${sampleid}_ref_aln.sorted.bam.bai"
     path "${sampleid}_samtools_consensus_from_ref.fasta"
-    path "${sampleid}_coverage.txt"
+    path "${sampleid}_ref_coverage.txt"
     tuple val(sampleid), path(ref), path("${sampleid}_ref_aln.sorted.bam"), path("${sampleid}_ref_aln.sorted.bam.bai"), emit: sorted_bam
-    tuple val(sampleid), path("${sampleid}_coverage.txt"), emit: coverage
-    tuple val(sampleid), path("${sampleid}_mapq.txt"), emit: mapping_quality
+    tuple val(sampleid), path("${sampleid}_ref_coverage.txt"), emit: coverage
+    tuple val(sampleid), path("${sampleid}_ref_mapq.txt"), emit: mapping_quality
 
   script:
     """
     #filter out unmapped reads -F 4
     samtools view -@ ${task.cpus} -Sb -F 4 ${sam} | samtools sort -@ ${task.cpus} -o ${sampleid}_ref_aln.sorted.bam
     samtools index ${sampleid}_ref_aln.sorted.bam
-    samtools coverage ${sampleid}_ref_aln.sorted.bam  > ${sampleid}_coverage.txt
-    samtools view -@ ${task.cpus} ${sampleid}_ref_aln.sorted.bam | awk '{mapq[\$3]+=\$5; count[\$3]++} END {for (chr in mapq) printf "%s\\t%.2f\\n", chr, mapq[chr]/count[chr]}' > ${sampleid}_mapq.txt
+    samtools coverage ${sampleid}_ref_aln.sorted.bam  > ${sampleid}_ref_coverage.txt
+    samtools view -@ ${task.cpus} ${sampleid}_ref_aln.sorted.bam | awk '{mapq[\$3]+=\$5; count[\$3]++} END {for (chr in mapq) printf "%s\\t%.2f\\n", chr, mapq[chr]/count[chr]}' > ${sampleid}_ref_mapq.txt
     samtools consensus -@ ${task.cpus} -f fastq -a -A ${sampleid}_ref_aln.sorted.bam -o ${sampleid}_consensus.fastq 
     samtools consensus -@ ${task.cpus} -f fasta -a -A ${sampleid}_ref_aln.sorted.bam -o ${sampleid}_samtools_consensus_from_ref.fasta
     """
 }
 
+process SAMTOOLS_CONTIGS {
+  publishDir "${params.outdir}/${sampleid}/08_mapping_to_contigs", mode: 'copy'
+  tag "${sampleid}"
+  label 'setting_21'
+
+  input:
+    tuple val(sampleid), path(ref), path(sam)
+
+  output:
+    path "${sampleid}_contig_aln.sorted.bam"
+    path "${sampleid}_contig_aln.sorted.bam.bai"
+    path "${sampleid}_contig_coverage.txt"
+    tuple val(sampleid), path(ref), path("${sampleid}_contig_aln.sorted.bam"), path("${sampleid}_contig_aln.sorted.bam.bai"), emit: sorted_bam
+    tuple val(sampleid), path("${sampleid}_contig_coverage.txt"), emit: coverage
+    tuple val(sampleid), path("${sampleid}_contig_mapq.txt"), emit: mapping_quality
+
+  script:
+    """
+    #filter out unmapped reads -F 4
+    samtools view -@ ${task.cpus} -Sb -F 4 ${sam} | samtools sort -@ ${task.cpus} -o ${sampleid}_contig_aln.sorted.bam
+    samtools index ${sampleid}_contig_aln.sorted.bam
+    samtools coverage ${sampleid}_contig_aln.sorted.bam  > ${sampleid}_contig_coverage.txt
+    samtools view -@ ${task.cpus} ${sampleid}_contig_aln.sorted.bam | awk '{mapq[\$3]+=\$5; count[\$3]++} END {for (chr in mapq) printf "%s\\t%.2f\\n", chr, mapq[chr]/count[chr]}' > ${sampleid}_contig_mapq.txt
+    """
+}
+
 process BCFTOOLS {
-  publishDir "${params.outdir}/${sampleid}/08_mapping_to_ref", mode: 'copy'
+  publishDir "${params.outdir}/${sampleid}/09_mapping_to_ref", mode: 'copy'
   tag "${sampleid}"
   label 'setting_3'
   containerOptions "${bindOptions}"
@@ -658,7 +883,7 @@ process BEDTOOLS {
   tag "${sampleid}"
   label 'setting_3'
   containerOptions "${bindOptions}"
-  publishDir "${params.outdir}/${sampleid}/08_mapping_to_ref", mode: 'copy'
+  publishDir "${params.outdir}/${sampleid}/09_mapping_to_ref", mode: 'copy'
 
   input:
    tuple val(sampleid), path(ref), path(bam), path(bai), path(vcf_applied_fasta)
@@ -675,6 +900,8 @@ process BEDTOOLS {
     """
 }
 
+
+/*
 process FASTQC_RAW {
   tag "$sampleid"
   publishDir "${params.outdir}/${sampleid}/01_fastqc_raw", mode: 'copy'
@@ -691,7 +918,7 @@ process FASTQC_RAW {
     fastqc --quiet --threads ${task.cpus} ${fastq1} ${fastq2}
     """
 }
-
+*/
 process FASTQC_TRIMMED {
     tag "$sampleid"
     label "setting_10"
@@ -775,11 +1002,11 @@ process KRAKEN2 {
   input:
     tuple val(sampleid), path(fastq1), path(fastq2)
   output:
-    path("${sampleid}_kraken2.log")
-    path("${sampleid}_kraken2_report.txt")
-    path("${sampleid}_kraken2_output.txt")
-    path("${sampleid}_unclassified_1.fastq")
-    path("${sampleid}_unclassified_2.fastq")
+//    path("${sampleid}_kraken2.log")
+//    path("${sampleid}_kraken2_report.txt")
+//    path("${sampleid}_kraken2_output.txt")
+//    path("${sampleid}_unclassified_1.fastq")
+//    path("${sampleid}_unclassified_2.fastq")
     tuple val(sampleid), path("${sampleid}_kraken2_report.txt"), path("${sampleid}_kraken2_output.txt"), path(fastq1), path(fastq2), path("${sampleid}_unclassified_1.fastq"), path("${sampleid}_unclassified_2.fastq"), emit: kraken2_results
     tuple val(sampleid), path("${sampleid}_kraken2_report.txt"), emit: kraken2_results2
   script:
@@ -797,7 +1024,32 @@ process KRAKEN2 {
   
   """
 }
+//Explore downtrack downloading krona taxonomy to see if it improves the visualisation
+process KRAKEN2_TO_KRONA {
+    tag "${sampleid}"
+    label 'setting_3'
+    publishDir "${params.outdir}/${sampleid}/05_read_classification", mode: 'copy'
 
+    input:
+    tuple val(sampleid), path(kraken_report)
+
+    output:
+    file("${sampleid}_kraken_krona.html")
+    tuple val(sampleid), path("${sampleid}_kraken_krona.html")
+
+    script:
+    """
+    ktImportText \\
+        -o ${sampleid}_kraken_krona.html \\
+        ${kraken_report}
+    """
+}
+
+
+//the logic of the original est_abundance.py had to be modified as it was not working as intended for viral species 
+// only defined at S1 (strain) leevle but not S level, theu would just not appear in the bracken report. 
+// Henec the updaedd_est_abundance.py script is used here instead.
+//It will rescue the abundance estimates for such species by summing up all S1 level abundances to S level.
 process BRACKEN {
   tag "${sampleid}"
   label 'setting_2'
@@ -816,10 +1068,10 @@ process BRACKEN {
   """
   c1grep() { grep "\$@" || test \$? = 1; }
 
-  est_abundance.py -i ${kraken_report} \
+  updated_est_abundance.py -i ${kraken_report} \
                   -k ${params.kraken2_db}/database50mers.kmer_distrib \
                   -t 1 \
-                  -l S1 -o ${sampleid}_bracken_report.txt
+                  -l S -o ${sampleid}_bracken_report.txt
 
 
   c1grep  "taxonomy_id\\|virus\\|viroid" ${sampleid}_bracken_report.txt > ${sampleid}_bracken_report_viral.txt
@@ -873,6 +1125,25 @@ process KAIJU {
   c1grep "taxon_id\\|virus\\|viroid\\|viricota\\|viridae\\|viriform\\|virales\\|virinae\\|viricetes\\|virae\\|viral" ${sampleid}_kaiju_summary.tsv > ${sampleid}_kaiju_summary_viral.tsv
   awk -F'\\t' '\$2>=0.05' ${sampleid}_kaiju_summary_viral.tsv > ${sampleid}_kaiju_summary_viral_filtered.tsv
   """
+}
+
+//Explore downtrack downloading krona taxonomy to see if it improves the visualisation
+process KRONA {
+  publishDir "${params.outdir}/${sampleid}/05_read_classification", mode: 'link'
+  label 'setting_3'
+  containerOptions "${bindOptions}"
+  tag "${sampleid}"
+
+  input:
+    tuple val(sampleid), path(krona_input)
+
+  output:
+    file "${sampleid}_kaiju_krona.html"
+
+  script:
+    """
+    ktImportText -o ${sampleid}_kaiju_krona.html ${krona_input}
+    """
 }
 
 process RETRIEVE_VIRAL_READS_KRAKEN2 {
@@ -1011,7 +1282,7 @@ process HMMSCAN {
 process SUMMARISE_RESULTS {
   tag "${sampleid}"
   label "setting_2"
-  publishDir "${params.outdir}/${sampleid}/09_results_summary", mode: 'copy'
+  publishDir "${params.outdir}/${sampleid}/10_results_summary", mode: 'copy'
   containerOptions "${bindOptions}"
 
   input:
@@ -1026,10 +1297,111 @@ process SUMMARISE_RESULTS {
   """
 }
 
+process EXTRACT_CONTIGS {
+  tag "${sampleid}"
+  label "setting_2"
 
+  input:
+    tuple val(sampleid), path(contig_ids), path(contigs)
+    output:
+    tuple val(sampleid), path("${sampleid}_candidate_viral_contigs.fasta"), emit: fasta
 
+  script:
+    """
+    if [[ ! -s ${contig_ids} ]]; then
+      touch ${sampleid}_candidate_viral_contigs.fasta
+    else
+      seqtk subseq ${contigs} ${contig_ids} > ${sampleid}_candidate_viral_contigs.fasta
+    fi
+    """
+}
+
+process CAT_FASTQ {
+    tag "$meta.id"
+    label 'setting_29'
+
+    conda "conda-forge::sed=4.7"
+    container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
+        'https://depot.galaxyproject.org/singularity/ubuntu:20.04' :
+        'nf-core/ubuntu:20.04' }"
+
+    input:
+    tuple val(meta), path(reads, stageAs: "input*/*")
+
+    output:
+    tuple val(meta), path("*.merged.fastq.gz"), emit: reads
+    path "versions.yml"                       , emit: versions
+
+    when:
+    task.ext.when == null || task.ext.when
+
+    script:
+    def args = task.ext.args ?: ''
+    def prefix = task.ext.prefix ?: "${meta.id}"
+    def readList = reads instanceof List ? reads.collect{ it.toString() } : [reads.toString()]
+    if (meta.single_end) {
+        if (readList.size >= 1) {
+            """
+            cat ${readList.join(' ')} > ${prefix}.merged.fastq.gz
+
+            cat <<-END_VERSIONS > versions.yml
+            "${task.process}":
+                cat: \$(echo \$(cat --version 2>&1) | sed 's/^.*coreutils) //; s/ .*\$//')
+            END_VERSIONS
+            """
+        }
+    } else {
+        if (readList.size >= 2) {
+            def read1 = []
+            def read2 = []
+            readList.eachWithIndex{ v, ix -> ( ix & 1 ? read2 : read1 ) << v }
+            """
+            cat ${read1.join(' ')} > ${prefix}_1.merged.fastq.gz
+            cat ${read2.join(' ')} > ${prefix}_2.merged.fastq.gz
+
+            cat <<-END_VERSIONS > versions.yml
+            "${task.process}":
+                cat: \$(echo \$(cat --version 2>&1) | sed 's/^.*coreutils) //; s/ .*\$//')
+            END_VERSIONS
+            """
+        }
+    }
+
+    stub:
+    def prefix = task.ext.prefix ?: "${meta.id}"
+    def readList = reads instanceof List ? reads.collect{ it.toString() } : [reads.toString()]
+    if (meta.single_end) {
+        if (readList.size > 1) {
+            """
+            touch ${prefix}.merged.fastq.gz
+
+            cat <<-END_VERSIONS > versions.yml
+            "${task.process}":
+                cat: \$(echo \$(cat --version 2>&1) | sed 's/^.*coreutils) //; s/ .*\$//')
+            END_VERSIONS
+            """
+        }
+    } else {
+        if (readList.size > 2) {
+            """
+            touch ${prefix}_1.merged.fastq.gz
+            touch ${prefix}_2.merged.fastq.gz
+
+            cat <<-END_VERSIONS > versions.yml
+            "${task.process}":
+                cat: \$(echo \$(cat --version 2>&1) | sed 's/^.*coreutils) //; s/ .*\$//')
+            END_VERSIONS
+            """
+        }
+    }
+
+}
+include { FASTQC as FASTQC_RAW  } from './modules/fastqc/main'
+include { FASTQC as FASTQC_TRIM } from './modules/fastqc/main'
 workflow {
   TIMESTAMP_START ()
+  ch_versions = Channel.empty()
+  /*
   if (params.samplesheet) {
     Channel
       .fromPath(params.samplesheet, checkIfExists: true)
@@ -1046,20 +1418,93 @@ workflow {
         tuple((row.sampleid), file(row.fastq_1), file(row.fastq_2)) }
       .set{ ch_sample }
   } else { exit 1, "Input samplesheet file not specified!" }
+*/
+  if (params.input) {
+    Channel
+          .fromSamplesheet("input")
+          .map {
+              meta, fastq_1, fastq_2 ->
+                  if (!fastq_2) {
+                      return [ meta.id, meta + [ single_end:true ], [ fastq_1 ] ]
+                  } else {
+                      return [ meta.id, meta + [ single_end:false ], [ fastq_1, fastq_2 ] ]
+                  }
+          }
+          .groupTuple()
+          .map { sample_id, meta_list, fastq_lists ->
+              [meta_list[0], fastq_lists.flatten()]
+          }
+          .branch { meta, fastqs ->
+              single  : fastqs.size() == 1
+                  return [ meta, fastqs ]
+              multiple: fastqs.size() > 1
+                  return [ meta, fastqs ]
+          }
+          .set { ch_fastq }
+  }
+  //ch_fastq.single.view()
+  //ch_fastq.multiple.view()
+  CAT_FASTQ (
+      ch_fastq.multiple
+  )
+  .reads
+  .mix(ch_fastq.single)
+  .set { ch_cat_fastq }
+  ch_versions = ch_versions.mix(CAT_FASTQ.out.versions.first().ifEmpty(null))
+  /*
+  if (params.trimmer == 'fastp') {
+        FASTQ_FASTQC_UMITOOLS_FASTP (
+            ch_cat_fastq,
+            params.skip_fastqc || params.skip_qc,
+            params.with_umi,
+            params.skip_umi_extract,
+            params.umi_discard_read,
+            params.skip_trimming,
+            [],
+            params.save_trimmed,
+            params.save_trimmed,
+            params.min_trimmed_reads
+        )
+  */
 
-  FASTP ( ch_sample )
-  FASTQC_RAW (ch_sample )
-  FASTQC_TRIMMED (FASTP.out.trimmed_fq )
+  //FASTP ( ch_sample )
+  FASTP ( CAT_FASTQ.out.reads, params.save_trimmed_fail, params.save_merged )
+  trim_json         = FASTP.out.json
+  trim_html         = FASTP.out.html
+  trim_log          = FASTP.out.log
+  trim_reads_fail   = FASTP.out.reads_fail
+  trim_reads_merged = FASTP.out.reads_merged
+  ch_versions       = ch_versions.mix(FASTP.out.versions.first())
+  
+  FASTQC_RAW ( CAT_FASTQ.out.reads )
+  fastqc_raw_html = FASTQC_RAW.out.html
+  fastqc_raw_zip  = FASTQC_RAW.out.zip
+  ch_versions     = ch_versions.mix(FASTQC_RAW.out.versions.first())
+  
+  //incorporate a logic like in nf-cre/rnaseq where minimum reads has to be achieved to proceed?
+  FASTQC_TRIM ( FASTP.out.reads )
+  fastqc_trim_html = FASTQC_TRIM.out.html
+  fastqc_trim_zip  = FASTQC_TRIM.out.zip
+  ch_versions      = ch_versions.mix(FASTQC_TRIM.out.versions.first())
+  /*
   trial_ch = FASTP.out.trimmed_fq.map { sample_id, read1, read2 ->
     tuple(sample_id, read1, read2, file(params.sortmerna_ref), file(params.sortmerna_idx))
   }
+  
   trial_ch2 = FASTP.out.trimmed_fq.map { sample_id, read1, read2 ->
     tuple(sample_id, read1, read2, file(params.sortmerna_ref))
   }
-
+  */
+  trial_ch2 = FASTP.out.reads.map { meta, reads ->
+    def sample_id = meta.id
+    def read1 = reads[0]
+    def read2 = reads[1]
+    tuple(sample_id, read1, read2, file(params.sortmerna_ref))
+  }
   //Filtering with sortmerna takes much longer than bbduk so use bbduk for prototype
   //SORTMERNA ( trial_ch )
   BBDUK ( trial_ch2 )
+  
   //remove phiX reads
   FILTER_CONTROL ( BBDUK.out.bbduk_filtered_fq )
 
@@ -1069,6 +1514,7 @@ workflow {
   //read classification with Kraken
   KRAKEN2 ( FILTER_CONTROL.out.bbsplit_filtered_fq )
   BRACKEN ( KRAKEN2.out.kraken2_results2 )
+  KRAKEN2_TO_KRONA ( KRAKEN2.out.kraken2_results2 )
 
   //retrieve reads that were not classified and reads classified as viral
   //merge unclassified reads with viral reads from kraken2
@@ -1076,6 +1522,7 @@ workflow {
 
   //read classification with kaiju
   KAIJU ( FILTER_CONTROL.out.bbsplit_filtered_fq )
+  KRONA ( KAIJU.out.krona_results )
   read_classification_ch = KAIJU.out.kaiju_results2.join(BRACKEN.out.bracken_results2)
                                                   .join(FILTER_CONTROL.out.stats)
   SUMMARISE_READ_CLASSIFICATION ( read_classification_ch )
@@ -1102,9 +1549,20 @@ workflow {
   EXTRACT_VIRAL_BLAST_HITS ( ch_blastresults )
   //Add contig sequence to blast results summary table
   FASTA2TABLE ( EXTRACT_VIRAL_BLAST_HITS.out.viral_blast_results.join(SEQTK.out.filt_fasta) )
+  //Mapping back to contigs that had viral blast hits
+  EXTRACT_CONTIGS ( FASTA2TABLE.out.contig_ids.join(SEQTK.out.filt_fasta) )
+  MAPPING_BACK_TO_CONTIGS ( EXTRACT_CONTIGS.out.fasta.join(FILTER_CONTROL.out.bbsplit_filtered_fq) )
+  SAMTOOLS_CONTIGS ( MAPPING_BACK_TO_CONTIGS.out.contig_aligned_sam )
+  PYFAIDX_CONTIGS ( EXTRACT_CONTIGS.out.fasta )
+  MOSDEPTH_CONTIGS (SAMTOOLS_CONTIGS.out.sorted_bam.join(PYFAIDX_CONTIGS.out.bed))
 
+  contig_cov_stats_summary_ch = MOSDEPTH_CONTIGS.out.mosdepth_results.join(FASTA2TABLE.out.blast_results2)
+                                                      .join(FILTER_CONTROL.out.stats)
+                                                      .join(SAMTOOLS_CONTIGS.out.coverage)
+                                                      .join(SAMTOOLS_CONTIGS.out.mapping_quality)
+  CONTIG_COVSTATS(contig_cov_stats_summary_ch)
   //Mapping back to reference sequences retrieved from blast hits
-  EXTRACT_REF_FASTA ( FASTA2TABLE.out.ids )
+  EXTRACT_REF_FASTA ( FASTA2TABLE.out.ref_ids )
   CLUSTER ( EXTRACT_REF_FASTA.out.fasta_files )
   mapping_ch = CLUSTER.out.clusters.join(FILTER_CONTROL.out.bbsplit_filtered_fq)
   MAPPING_BACK_TO_REF ( mapping_ch )
@@ -1125,15 +1583,20 @@ workflow {
   GENOMAD ( SPADES.out.assembly )
   
   //Derive QC report
-  // Merge all the files into one channel
-  ch_multiqc_files = FASTP.out.fastp_json
-                      .mix(FILTER_CONTROL.out.stats2)
-                      .mix(BBDUK.out.bbduk_stats)
-                      .collect()
+  // Merge all the  files into one channel
+  //ch_multiqc_files = FASTP.out.fastp_json
+
+
+    ch_multiqc_files = FASTP.out.json.map { meta, json ->
+                        json
+                        }
+                        .mix(FILTER_CONTROL.out.stats2)
+                        .mix(BBDUK.out.bbduk_stats)
+                        .collect()
 
   QCREPORT(ch_multiqc_files)
   SUMMARISE_RESULTS ( SUMMARISE_READ_CLASSIFICATION.out.kraken_summary.join(SUMMARISE_READ_CLASSIFICATION.out.kaiju_summary)
-                                                                      .join(FASTA2TABLE.out.blast_results2) 
+                                                                      .join(CONTIG_COVSTATS.out.detections_summary) 
                                                                       .join(FASTA2TABLE2.out.detections_summary_final) 
                                                                       )
     

@@ -66,7 +66,8 @@ def main():
     print(summary_df)
 
     merged_df = summary_df.merge(
-        filtered_blast_df[["species", "qseqid", "qlen", "sacc", "pident", "bitscore", "evalue", "contig_seq", "ncontigs_per_spp", "total_score_spp"]],
+        filtered_blast_df[["species", "qseqid", "qlen", "sacc", "pident", "bitscore", "evalue", "contig_seq", "ncontigs_per_spp", "total_score_spp", "mapping_read_count", "pc_mapping_reads", "mean_depth", "pc_cov_30X",  
+        "mean_mapping_quality", "read_count_flag", "mean_depth_flag", "30x_cov_flag", "mean_mq_flag", "total_conf_score","normalised_conf_score"]],
         left_on="taxon",
         right_on="species",
         how="left"   # left join keeps all rows in summary_df
@@ -101,8 +102,26 @@ def main():
     # Rename the columns
     merged_df3.rename(columns={"pc_reads": "kraken_pc_reads",
                                "reads": "kraken_reads"}, inplace=True)
-    final_columns_filt = ["taxon", "taxon_in_blast", "taxon_in_kraken", "taxon_in_kaiju", "kraken_reads", "kraken_pc_reads", "kaiju_reads", "kaiju_pc_reads", "ncontigs_per_spp", "qseqid", "contig_seq", "contig_length", "pident", "bitscore", "evalue", "sacc"]
+    final_columns_filt = ["taxon", "taxon_in_blast", "taxon_in_kraken", "taxon_in_kaiju", "kraken_reads", "kraken_pc_reads", "kaiju_reads", "kaiju_pc_reads", "ncontigs_per_spp", "qseqid", "contig_seq", "contig_length", "pident", "bitscore", "evalue", "sacc", "mapping_read_count","pc_mapping_reads", "mean_depth", "pc_cov_30X",  
+        "mean_mapping_quality", "read_count_flag", "mean_depth_flag", "30x_cov_flag", "mean_mq_flag", "total_conf_score","normalised_conf_score"]
     merged_df3 = merged_df3[final_columns_filt]
+    
+    text_cols = ["qseqid", "contig_seq", "sacc", "read_count_flag", "mean_depth_flag", "30x_cov_flag", "mean_mq_flag" ]
+    num_cols = ["ncontigs_per_spp", "contig_length", "pident", "bitscore", "evalue", "mapping_read_count", "pc_mapping_reads", "mean_depth", "pc_cov_30X", "mean_mapping_quality", "total_conf_score", "normalised_conf_score" ]
+
+    # fill values
+    
+    merged_df3[text_cols] = merged_df3[text_cols].fillna("NA")
+    merged_df3[num_cols] = merged_df3[num_cols].fillna(0)
+    
+    merged_df3[num_cols] = merged_df3[num_cols].apply(pd.to_numeric, errors="coerce")
+    print(merged_df3.dtypes)
+    merged_df3.sort_values(
+        by=["mapping_read_count", "normalised_conf_score"],
+        ascending=[False, False],
+        inplace=True
+    )
+
     output_file = f"{sample_name}_summary_viral_results.tsv"
     merged_df3.to_csv(output_file, index=False, sep="\t")
     #merged_df4 = merged_df3.merge(

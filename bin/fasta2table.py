@@ -51,7 +51,7 @@ def main():
             unique_ids = list(dict.fromkeys(col4))
 
             # Save to file, one ID per line
-            with open(sample_name + "_ids_to_retrieve.txt", "w") as f:
+            with open(sample_name + "_ref_ids_to_retrieve.txt", "w") as f:
                 for uid in unique_ids:
                     f.write(f"{uid}\n")
         # Case 2: first column is "taxon_name" for reference with cov stats
