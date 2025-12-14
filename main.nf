@@ -1213,7 +1213,7 @@ process GENOMAD {
       file "*_aggregated_classification/*aggregated_classification.tsv"
       file "*_annotate/*_taxonomy.tsv"
       file "${sampleid}_genomad.log"
-      tuple val(sampleid), path("*_summary/*_virus.fna"), emit: virus_fasta
+      tuple val(sampleid), path(fasta), path("${sampleid}_scaffolds_virus_summary.tsv"), emit: virus_fasta
       
 
     script:
@@ -1227,6 +1227,7 @@ process GENOMAD {
         --min-score 0.7 \\
         --splits 1 \\
         > ${sampleid}_genomad.log 2>&1
+        cp ${sampleid}_scaffolds_summary/${sampleid}_scaffolds_virus_summary.tsv .
     """
 }
 //Derive ORFs from contig sequences using orfipy
@@ -1266,7 +1267,7 @@ process HMMSCAN {
     output:
       file "${sampleid}_orfs.fasta"
       file "${sampleid}_hmmscan*_output.txt"
-      tuple val(sampleid), path("${sampleid}_orfs.fasta"), emit: orf_fasta
+      tuple val(sampleid), path("${sampleid}_hmmscan_per_target_output.txt"), emit: hmmscan_preds
 
     script:
     """
@@ -1282,18 +1283,20 @@ process HMMSCAN {
 process SUMMARISE_RESULTS {
   tag "${sampleid}"
   label "setting_2"
-  publishDir "${params.outdir}/${sampleid}/10_results_summary", mode: 'copy'
+  publishDir "${params.outdir}/${sampleid}/10_results_summary", mode: 'copy', pattern: '{*summary_viral_results.tsv}'
+  publishDir "${params.outdir}/${sampleid}/07_annotation", mode: 'copy', pattern: '{*hmm_domain_summary_counts.tsv}'
   containerOptions "${bindOptions}"
 
   input:
-    tuple val(sampleid), path(kraken_results), path(kaiju_results), path(blast), path(map2ref)
+    tuple val(sampleid), path(kraken_results), path(kaiju_results), path(blast), path(hmmscan)
 
   output:
     path("${sampleid}_summary_viral_results.tsv")
+    path("${sampleid}_hmm_domain_summary_counts.tsv")
 
   script:
   """
-  viral_results_summary.py --kaiju ${kaiju_results} --sample_name ${sampleid} --kraken ${kraken_results} --blast ${blast} --map2ref ${map2ref}
+  viral_results_summary.py --kaiju ${kaiju_results} --sample_name ${sampleid} --kraken ${kraken_results} --blast ${blast} --hmmscan ${hmmscan}
   """
 }
 
@@ -1535,7 +1538,7 @@ workflow {
   ORFIPY ( SEQTK.out.filt_fasta )
   HMMSCAN ( ORFIPY.out.orf_fasta )
 
-
+  GENOMAD ( SPADES.out.assembly )
   //Enhancement: Option to p blastx alignment of contig ORFs?
   //DIAMOND  ( SEQTK.out.filt_fasta.splitFasta(by: 5000, file: true) )
   //DIAMOND.out.diamond_results
@@ -1580,7 +1583,7 @@ workflow {
   COVSTATS(cov_stats_summary_ch)
   FASTA2TABLE2  ( COVSTATS.out.detections_summary3)
   
-  GENOMAD ( SPADES.out.assembly )
+  
   
   //Derive QC report
   // Merge all the  files into one channel
@@ -1597,7 +1600,7 @@ workflow {
   QCREPORT(ch_multiqc_files)
   SUMMARISE_RESULTS ( SUMMARISE_READ_CLASSIFICATION.out.kraken_summary.join(SUMMARISE_READ_CLASSIFICATION.out.kaiju_summary)
                                                                       .join(CONTIG_COVSTATS.out.detections_summary) 
-                                                                      .join(FASTA2TABLE2.out.detections_summary_final) 
+                                                                      .join(HMMSCAN.out.hmmscan_preds)
                                                                       )
     
 /*
