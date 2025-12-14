@@ -40,8 +40,8 @@ class Config:
             f'{WF_NAME} NextFlow workflow</a>.')
 
     class CRITERIA:
-        MIN_RAW_READS = 2500  # ! confirm?
-        MIN_FILTERED_READS = 200  # ! confirm?
+        MIN_RAW_READS = 8000000  # ! confirm with DAFF
+        MIN_FILTERED_READS = 2500000  # ! confirm with DAFF
 
     @property
     def default_params(self) -> dict[str, str]:
