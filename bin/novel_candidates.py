@@ -79,7 +79,9 @@ def main():
 
 
     print(merged3_df_filt)
-    merged3_df_filt.to_csv("/mnt/hpccs01/work/daff_viral_rnaseq/daff-viral-assembly/" + sample_name + "_novel_virus_candidates.tsv", sep="\t", index=False)
+    #merged3_df_filt.to_csv("/mnt/hpccs01/work/daff_viral_rnaseq/daff-viral-assembly/" + sample_name + "_novel_virus_candidates.tsv", sep="\t", index=False)
+    output_file = f"{sample_name}_novel_virus_candidates.tsv"
+    merged3_df_filt.to_csv(output_file, index=False, sep="\t")
 
   
 # Function to convert FASTA file to DataFrame
