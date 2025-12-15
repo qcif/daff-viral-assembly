@@ -121,13 +121,22 @@ def summarize_domains(df_filtered):
     rename_dict = {pf: PFAM_RENAME[pf] for pf in pfams_present if pf in PFAM_RENAME}
     summary.rename(columns=rename_dict, inplace=True)
 
-    # Add total summary row
+    # Build total summary column
     pfam_cols_final = [rename_dict.get(pf, pf) for pf in pfams_present]
     total_row = summary[pfam_cols_final].sum()
-    total_row["query_name"] = "Total_counts"
-    total_row["ORFs"] = ""
-    total_row["Total"] = ""
-    summary = pd.concat([summary, total_row.to_frame().T], ignore_index=True)
+    total_row["PFAM_total"] = summary["PFAM_total"].sum()
+    #fill the column row with adequate information
+    #total_row["query_name"] = "Total_counts"
+    #total_row["ORFs"] = ""
+    total_row["Total_counts"] = ""
+    #summary = pd.concat([summary, total_row.to_frame().T], ignore_index=True)
+
+    #add column Total
+    summary = pd.concat(
+        [summary, total_row.to_frame().T],
+        ignore_index=True
+    )
+
 
     return summary
 

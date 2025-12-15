@@ -570,7 +570,9 @@ process HTML_REPORT {
     cp ${params.tool_versions} versions.yml
     cp ${params.default_params} default_params.yml
 
-    build_report.py --samplesheet ${samplesheet} --result_dir . --params_file ${configyaml} --analyst ${analyst_name} --facility ${facility} --versions versions.yml --default_params_file default_params.yml
+    #build_report.py --samplesheet ${samplesheet} --result_dir . --params_file ${configyaml} --analyst ${analyst_name} --facility ${facility} --versions versions.yml --default_params_file default_params.yml
+    build_report.py --samplesheet ${samplesheet} --result_dir . --params_file ${configyaml} --versions versions.yml --default_params_file default_params.yml
+    
     """
 }
 */
@@ -1213,7 +1215,7 @@ process GENOMAD {
       file "*_aggregated_classification/*aggregated_classification.tsv"
       file "*_annotate/*_taxonomy.tsv"
       file "${sampleid}_genomad.log"
-      tuple val(sampleid), path(fasta), path("${sampleid}_scaffolds_virus_summary.tsv"), emit: virus_fasta
+      tuple val(sampleid), path("${sampleid}_scaffolds_virus_summary.tsv"), emit: virus_preds
       
 
     script:
@@ -1293,10 +1295,30 @@ process SUMMARISE_RESULTS {
   output:
     path("${sampleid}_summary_viral_results.tsv")
     path("${sampleid}_hmm_domain_summary_counts.tsv")
+    tuple val(sampleid), path("${sampleid}_hmm_domain_summary_counts.tsv"), emit: domain_count
 
   script:
   """
   viral_results_summary.py --kaiju ${kaiju_results} --sample_name ${sampleid} --kraken ${kraken_results} --blast ${blast} --hmmscan ${hmmscan}
+  """
+}
+
+process NOVELS {
+  tag "${sampleid}"
+  label "setting_2"
+  publishDir "${params.outdir}/${sampleid}/10_results_summary", mode: 'copy'
+  containerOptions "${bindOptions}"
+
+  input:
+    tuple val(sampleid), path(contigs), path(hmmscan), path(genomad), path(blast)
+
+  output:
+    path("${sampleid}_novel_virus_candidates.tsv")
+
+
+  script:
+  """
+  novel_candidates.py --sample_name ${sampleid} --fasta ${contigs} --genomad ${genomad} --hmmscan ${hmmscan} --blast ${blast}
   """
 }
 
@@ -1539,7 +1561,7 @@ workflow {
   HMMSCAN ( ORFIPY.out.orf_fasta )
 
   GENOMAD ( SPADES.out.assembly )
-  //Enhancement: Option to p blastx alignment of contig ORFs?
+  //Enhancement: Option to perform a blastx alignment of contig ORFs?
   //DIAMOND  ( SEQTK.out.filt_fasta.splitFasta(by: 5000, file: true) )
   //DIAMOND.out.diamond_results
   //  .groupTuple()
@@ -1602,7 +1624,11 @@ workflow {
                                                                       .join(CONTIG_COVSTATS.out.detections_summary) 
                                                                       .join(HMMSCAN.out.hmmscan_preds)
                                                                       )
-    
+  NOVELS ( SEQTK.out.filt_fasta.join(SUMMARISE_RESULTS.out.domain_count)
+                    .join(GENOMAD.out.virus_preds)
+                    .join(EXTRACT_VIRAL_BLAST_HITS.out.viral_blast_results)
+         )
+     
 /*
     if (params.subsample) {
       SUBSAMPLE ( REFORMAT.out.reformatted_fq )
