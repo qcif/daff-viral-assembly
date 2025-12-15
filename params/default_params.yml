@@ -1,5 +1,4 @@
 input: index.csv
-polishing: true
 blastn_db: null
 taxdump: null
 blast_threads: 2
