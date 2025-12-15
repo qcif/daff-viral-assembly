@@ -91,7 +91,7 @@ class Config:
     @property
     def contigs_fasta_path(self) -> Path:
         # ! confirm?
-        return self._get_file_by_pattern("*_masked_consensus.fasta")
+        return self._get_file_by_pattern("*_scaffolds.fasta")
 
     @property
     def reference_fasta_path(self) -> Path:
