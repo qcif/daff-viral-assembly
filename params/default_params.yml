@@ -8,6 +8,5 @@ kraken2_db: null
 kaiju_dbname: null
 kaiju_names: null
 kaiju_nodes: null
-outdir: results
 help: false
 outdir: results
