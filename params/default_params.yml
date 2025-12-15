@@ -1,0 +1,14 @@
+input: index.csv
+polishing: true
+blastn_db: null
+taxdump: null
+blast_threads: 2
+genomad_db: null
+hmmer_db: null
+kraken2_db: null
+kaiju_dbname: null
+kaiju_names: null
+kaiju_nodes: null
+outdir: results
+help: false
+outdir: results
