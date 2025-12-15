@@ -546,7 +546,7 @@ process TIMESTAMP_START {
 }
 
 process HTML_REPORT {
-  publishDir "${params.outdir}/${sampleid}/08_report", mode: 'copy', overwrite: true
+  publishDir "${params.outdir}/${sampleid}/11_report", mode: 'copy', overwrite: true
   containerOptions "${bindOptions}"
   label 'setting_3'
 
@@ -559,8 +559,8 @@ process HTML_REPORT {
     path(samplesheet)
 
   output:
-  //  path("*"), optional: true
-  //  path("run_qc_report.html"), optional: true
+    path("*"), optional: true
+    path("run_qc_report.html"), optional: true
 
   script:
   //analyst_name = params.analyst_name.replaceAll(/ /, '_')
