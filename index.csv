@@ -1,2 +1,15 @@
-sampleid,fastq_1,fastq_2
-Ta02_sub,/work/daff_viral_rnaseq/data/SRX26197110_SRR30795872_sub1_R1.fastq.gz,/work/daff_viral_rnaseq/data/SRX26197110_SRR30795872_sub1_R2.fastq.gz
+sample,fastq_1,fastq_2,sample_information,sample_type,sample_receipt_date,storage_location
+Ta_2,/work/daff_viral_rnaseq/data/SRX26197110_SRR30795872_1.fastq.gz,/work/daff_viral_rnaseq/data/SRX26197110_SRR30795872_2.fastq.gz
+Dataset_1,/work/daff_viral_rnaseq/data/Dataset_1_R1.fastq.gz,/work/daff_viral_rnaseq/data/Dataset_1_R2.fastq.gz
+Dataset_2,/work/daff_viral_rnaseq/data/Dataset_2_R1.fastq.gz,/work/daff_viral_rnaseq/data/Dataset_2_R2.fastq.gz
+Dataset_3,/work/daff_viral_rnaseq/data/Dataset_3_R1.fastq.gz,/work/daff_viral_rnaseq/data/Dataset_3_R2.fastq.gz
+Dataset_4,/work/daff_viral_rnaseq/data/Dataset_4_R1.fastq.gz,/work/daff_viral_rnaseq/data/Dataset_4_R2.fastq.gz
+Ta_1,/work/daff_viral_rnaseq/data/SRX22565002_SRR26870435_1.fastq.gz,/work/daff_viral_rnaseq/data/SRX22565002_SRR26870435_2.fastq.gz
+GS,/work/daff_viral_rnaseq/data/SRX5294423_SRR8489848_1.fastq.gz,/work/daff_viral_rnaseq/data/SRX5294423_SRR8489848_2.fastq.gz
+IS,/work/daff_viral_rnaseq/data/SRX5296828_SRR8492259_1.fastq.gz,/work/daff_viral_rnaseq/data/SRX5296828_SRR8492259_2.fastq.gz
+G25,/work/daff_viral_rnaseq/data/SRX13449749_SRR17271995_1.fastq.gz,/work/daff_viral_rnaseq/data/SRX13449749_SRR17271995_2.fastq.gz
+M5,/work/daff_viral_rnaseq/data/SRX13449741_SRR17272003_1.fastq.gz,/work/daff_viral_rnaseq/data/SRX13449741_SRR17272003_2.fastq.gz
+LMJ1237,/work/daff_viral_rnaseq/data/LMJ1237_S30_L002_R1_001.fastq.gz,/work/daff_viral_rnaseq/data/LMJ1237_S30_L002_R2_001.fastq.gz
+LMJ1237,/work/daff_viral_rnaseq/data/LMJ1237_S30_L003_R1_001.fastq.gz,/work/daff_viral_rnaseq/data/LMJ1237_S30_L003_R2_001.fastq.gz
+LMJ845,/work/daff_viral_rnaseq/data/LMJ845_S16_L003_R1.fastq.gz,/work/daff_viral_rnaseq/data/LMJ845_S16_L003_R2.fastq.gz
+LMJ1262,/work/daff_viral_rnaseq/data/LMJ1262_S21_L003_R1.fastq.gz,/work/daff_viral_rnaseq/data/LMJ1262_S21_L003_R2.fastq.gz

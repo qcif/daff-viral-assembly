@@ -116,18 +116,18 @@ def main():
     run_data_df['percent_cleaned'] = run_data_df['percent_cleaned'].apply(lambda x: float("{:.2f}".format(x)))
     
     run_data_df = run_data_df.sort_values("Sample")
-    run_data_df['raw_reads_flag'] = np.where((run_data_df['raw_reads'] < 8000000), "Less than 10M raw reads", "")
-    run_data_df['qfiltered_reads_flag'] = np.where((run_data_df['phix_cleaned_reads'] < 2500000), "Less than 5M cleaned reads", "")
+    run_data_df['raw_reads_flag'] = np.where((run_data_df['raw_reads'] < 8000000), "Less than 8M raw reads", "") # ! confirm with DAFF
+    run_data_df['qfiltered_reads_flag'] = np.where((run_data_df['phix_cleaned_reads'] < 2500000), "Less than 2,5M cleaned reads", "") # ! confirm with DAFF
     run_data_df["QC_FLAG"] = np.where(
-        (run_data_df['phix_cleaned_reads'] < 2500000),
+        (run_data_df['phix_cleaned_reads'] < 2500000), # ! confirm with DAFF
         "RED",
         np.where(
-            ((run_data_df['raw_reads'] < 8000000) &
-            (run_data_df['phix_cleaned_reads'] >= 2500000)),
+            ((run_data_df['raw_reads'] < 8000000) & # ! confirm with DAFF
+            (run_data_df['phix_cleaned_reads'] >= 2500000)), # ! confirm with DAFF
             "ORANGE",
             np.where(
-                ((run_data_df['raw_reads'] >= 8000000) &
-                (run_data_df['phix_cleaned_reads'] >= 2500000)),
+                ((run_data_df['raw_reads'] >= 8000000) & # ! confirm with DAFF 
+                (run_data_df['phix_cleaned_reads'] >= 2500000)), # ! confirm with DAFF
                 "GREEN",
                 ""
             )
