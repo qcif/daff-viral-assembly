@@ -62,11 +62,11 @@
   {% else %}
     {% if not blast_passed %}
     <p class="alert alert-danger">
-      BLAST search against reference sequences failed . Therefore, only a limited report is available as no coverage statistics were generated. Blast homology search can fail when the consensuses generated are too short. If this is the case for this sample, consider relaxing the criteria at the quality filtering step and/or reducing the minimum read length during cluster generation.
+      No viral sequences were identified with BLAST homology search.
     </p>
     {% else %}
     <p class="alert alert-info">
-      No consensus sequences matched a reference with BLAST. This implies that the consensus sequence(s) are from novel species, or are the result of assembly artifact(s).
+      No viral sequences were identified with BLAST homology search.
       <!-- TODO: verify this -->
     </p>
     {% endif %}
