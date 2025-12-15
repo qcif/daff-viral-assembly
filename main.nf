@@ -1675,33 +1675,6 @@ workflow {
     else {
       final_fq = REFORMAT.out.reformatted_fq
     }
-
-
-
-    
-        //MAPPING BACK TO CONSENSUS
-        mapping2consensus_ch = (EXTRACT_BLAST_HITS.out.consensus_fasta_files.join(REFORMAT.out.cov_derivation_ch))
-        //Map filtered reads back to the portion of sequence which returned a blast hit
-        MINIMAP2_CONSENSUS ( mapping2consensus_ch )
-        //Derive bam file and coverage statistics
-        SAMTOOLS_CONSENSUS ( MINIMAP2_CONSENSUS.out.aligned_sample )
-        //Derive bed file for mosdepth to run coverage statistics
-        
-        files_for_report_ind_samples_ch = QC_PRE_DATA_PROCESSING.out.rawnanoplot.join((QC_POST_DATA_PROCESSING.out.filtnanoplot)
-                                                                                .join(RATTLE.out.status)
-                                                                                .join(CUTADAPT.out.trimmed)
-                                                                                .join(ch_blast_merged)
-                                                                                .join(SAMTOOLS_CONSENSUS.out.sorted_bams)
-                                                                                .join(COVSTATS.out.detections_summary))
-        files_for_report_global_ch = TIMESTAMP_START.out.timestamp
-            .concat(QCREPORT.out.qc_report_html)
-            .concat(QCREPORT.out.qc_report_txt)
-            .concat(configyaml)
-            .concat(Channel.from(params.samplesheet).map { file(it) }).toList()
-
-        HTML_REPORT(files_for_report_ind_samples_ch
-            .combine(files_for_report_global_ch))
-
       //Perform direct alignment to a reference
       else if ( params.analysis_mode == 'map2ref') {
         MINIMAP2_REF ( final_fq )
