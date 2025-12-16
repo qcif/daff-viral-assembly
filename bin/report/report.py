@@ -169,7 +169,7 @@ def _get_metadata(samplesheet_file: Path):
     with open(samplesheet_file) as f:
         reader = csv.DictReader(f)
         for row in reader:
-            if row['sampleid'] == config.sample_id:
+            if row['sample'] == config.sample_id:
                 return Metadata(row)
 
 

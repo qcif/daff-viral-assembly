@@ -10,7 +10,7 @@
   <table id="krakenTable" class="table table-lined tight text-center">
     <thead>
       <tr>
-        {% for colname in kraken.COLUMNS %}
+        {% for colname in kraken.columns_primary_display  %}
         <th
           {% if kraken.COLUMN_METADATA[colname]['tooltip'] %}
           title="{{ kraken.COLUMN_METADATA[colname]['tooltip'] }}"
@@ -30,7 +30,7 @@
         class="alert-{{ row['bs_class'] }}"
         {% endif %}
       >
-        {% for colname in kraken.COLUMNS %}
+        {% for colname in kraken.columns_primary_display  %}
         <td class="align-middle">
           {% if colname == 'evalue' %}
           <span style="white-space: nowrap;">{{ row[colname] }}</span>

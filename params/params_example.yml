@@ -1,0 +1,12 @@
+input: index.csv
+blastn_db: /full/path/to/ncbi/core_nt
+taxdump: ~/.taxonkit
+blast_threads: 2
+genomad_db: /full/path/to/genomad/genomad_db
+hmmer_db: /full/path/to/hmms/Pfam-A.hmm
+kraken2_db: /full/path/to/kraken_databases/core_nt
+kaiju_dbname: /full/path/to/kaiju_databases/kaiju_db_nr_euk.fmi
+kaiju_names: /full/path/to/kaiju_databases/names.dmp
+kaiju_nodes: /full/path/to/kaiju_databases/nodes.dmp
+help: false
+outdir: results

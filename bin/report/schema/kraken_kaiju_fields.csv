@@ -1,8 +1,8 @@
-colname,label,type,tooltip
-taxon_name,Taxon name,,
-taxon_id,Taxon ID,,
-broad_categories,Broad categories,,
-reads,Reads,int,
-pc_reads,% Reads,float,
-cov_filter,Meets min coverage,bool,
-full_lineage,Full lineage,,
+colname,label,type,primary_display,tooltip
+taxon_name,Taxon name,,Y,
+taxon_id,Taxon ID,,,
+broad_categories,Broad categories,,Y,
+reads,Reads,int,Y,
+pc_reads,% Reads,float,Y,
+cov_filter,Meets min coverage,bool,Y,
+full_lineage,Full lineage,,,

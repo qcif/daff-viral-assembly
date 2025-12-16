@@ -3,7 +3,7 @@
 <h2>Mapping reads to viral references</h2>
 
 <p>
-  This section shows [...]
+  This section shows the results of mapping the quality-filtered reads back to viral reference sequences identified using megablast homology search.
 </p>
 
 <div class="my-3" style="overflow-x: auto;">
@@ -12,7 +12,7 @@
   <table class="table table-lined tight text-center">
     <thead>
       <tr>
-        {% for colname in mapping.COLUMNS %}
+        {% for colname in mapping.columns_primary_display %}
         <th
           {% if mapping.COLUMN_METADATA[colname]['tooltip'] %}
           title="{{ mapping.COLUMN_METADATA[colname]['tooltip'] }}"
@@ -27,13 +27,13 @@
     </thead>
     <tbody>
       {% for row in mapping %}
-      {% set accession = row[mapping.COLUMNS[0]] %}
+      {% set accession = row[mapping.columns_primary_display[0]] %}
       <tr
         {% if row['bs_class'] %}
         class="alert-{{ row['bs_class'] }} align-middle"
         {% endif %}
       >
-        {% for colname in mapping.COLUMNS %}
+        {% for colname in mapping.columns_primary_display %}
         <td class="align-middle">
           {% if colname == 'evalue' %}
           <span style="white-space: nowrap;">{{ row[colname] }}</span>

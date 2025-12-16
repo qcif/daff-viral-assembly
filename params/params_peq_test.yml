@@ -1,0 +1,6 @@
+qual_filt: true
+chopper_options: -q 8 -l 100
+polishing: false
+taxdump: ~/.taxonkit
+analyst_name:  Lelwala
+facility: PEQ

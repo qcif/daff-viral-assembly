@@ -403,7 +403,7 @@ def main():
     br["pc_reads"] = (br["reads"] / filtered_read_counts) * 100
     br["cov_filter"] = br["pc_reads"].astype(float) >= 0.001
     br_subset = br[['taxon_name', 'taxon_id', 'full_lineage', 'broad_categories', 'reads', 'pc_reads', 'term_filter', 'cov_filter']]
-    br_subset.to_csv(sample_name + "_bracken_summary.txt", sep="\t", index=False)
+    br_subset.to_csv(sample_name + "_kraken_summary.txt", sep="\t", index=False)
 
 #def read_filtered_read_count(fastp_json_path):
 #    filtered_reads = 0

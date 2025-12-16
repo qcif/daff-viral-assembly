@@ -544,14 +544,14 @@ process TIMESTAMP_START {
     echo "\$START_TIMESTAMP" > "\${START_TIMESTAMP}_nextflow_start_timestamp.txt"
     """
 }
-/*
+
 process HTML_REPORT {
-  publishDir "${params.outdir}/${sampleid}/08_report", mode: 'copy', overwrite: true
+  publishDir "${params.outdir}/${sampleid}/11_report", mode: 'copy', overwrite: true
   containerOptions "${bindOptions}"
   label 'setting_3'
 
   input:
-    tuple val(sampleid), path(raw_nanoplot), path(filtered_nanoplot), path (rattle_status), path(consensus_fasta), path(top_blast_hits), path(blast_status), path(consensus_match_fasta), path(aln_sorted_bam), path(aln_sorted_bam_bai), path(blast_with_cov_stats),
+    tuple val(sampleid), path(raw_fastqc), path(filtered_fastqc), path (fastp), path(fasta), path(summary_known_viruses), path(kaiju_summary), path(kraken_summary), path(detections_summary), path(mapping_summary), path(consensus), path(bam), path(bai), path(novel_virus_summary),
     path(timestamp),
     path(qcreport_html),
     path(qcreport_txt),
@@ -563,17 +563,21 @@ process HTML_REPORT {
     path("run_qc_report.html"), optional: true
 
   script:
-  analyst_name = params.analyst_name.replaceAll(/ /, '_')
-  facility = params.facility.replaceAll(/ /, '_')
+  //analyst_name = params.analyst_name.replaceAll(/ /, '_')
+  //facility = params.facility.replaceAll(/ /, '_')
+  analyst_name = "Maely"
+  facility = "QUT"
     """
     cp ${qcreport_html} run_qc_report.html
     cp ${params.tool_versions} versions.yml
     cp ${params.default_params} default_params.yml
 
     build_report.py --samplesheet ${samplesheet} --result_dir . --params_file ${configyaml} --analyst ${analyst_name} --facility ${facility} --versions versions.yml --default_params_file default_params.yml
+    #build_report.py --samplesheet ${samplesheet} --result_dir . --params_file ${configyaml} --versions versions.yml --default_params_file default_params.yml
+    
     """
 }
-*/
+
 process SEQTK {
   tag "${sampleid}"
   label "setting_2"
@@ -590,7 +594,7 @@ process SEQTK {
   
   """
 }
-
+/*
 process SORTMERNA {
   tag "${sampleid}"
   label "setting_21"
@@ -615,7 +619,7 @@ process SORTMERNA {
     --fastx --other ${sampleid}_non_rRNA_reads --paired_in --out2 --num_alignments 1 -v --index 0
   """
 }
-
+*/
 process SPADES {
   tag "${sampleid}"
   label "setting_5"
@@ -695,9 +699,9 @@ process SUMMARISE_READ_CLASSIFICATION {
   output:
     //tuple val(sampleid), path("${sampleid}_megablast_top_viral_hits_filtered.txt"), emit: viral_blast_results
     path("${sampleid}_kaiju_summary.txt")
-    path("${sampleid}_bracken_summary.txt")
+    path("${sampleid}_kraken_summary.txt")
     tuple val(sampleid), path("${sampleid}_kaiju_summary.txt"), emit: kaiju_summary
-    tuple val(sampleid), path("${sampleid}_bracken_summary.txt"), emit: kraken_summary
+    tuple val(sampleid), path("${sampleid}_kraken_summary.txt"), emit: kraken_summary
     //path("${sampleid}_megablast_top_viral_hits.txt")
     //path("${sampleid}_megablast_top_viral_hits_filtered.txt")
 
@@ -1213,7 +1217,7 @@ process GENOMAD {
       file "*_aggregated_classification/*aggregated_classification.tsv"
       file "*_annotate/*_taxonomy.tsv"
       file "${sampleid}_genomad.log"
-      tuple val(sampleid), path(fasta), path("${sampleid}_scaffolds_virus_summary.tsv"), emit: virus_fasta
+      tuple val(sampleid), path("${sampleid}_scaffolds_virus_summary.tsv"), emit: virus_preds
       
 
     script:
@@ -1293,10 +1297,32 @@ process SUMMARISE_RESULTS {
   output:
     path("${sampleid}_summary_viral_results.tsv")
     path("${sampleid}_hmm_domain_summary_counts.tsv")
+    tuple val(sampleid), path("${sampleid}_hmm_domain_summary_counts.tsv"), emit: domain_count
+    tuple val(sampleid), path("${sampleid}_summary_viral_results.tsv"), emit: summary_known_viruses
 
   script:
   """
   viral_results_summary.py --kaiju ${kaiju_results} --sample_name ${sampleid} --kraken ${kraken_results} --blast ${blast} --hmmscan ${hmmscan}
+  """
+}
+
+process NOVELS {
+  tag "${sampleid}"
+  label "setting_2"
+  publishDir "${params.outdir}/${sampleid}/10_results_summary", mode: 'copy'
+  containerOptions "${bindOptions}"
+
+  input:
+    tuple val(sampleid), path(contigs), path(hmmscan), path(genomad), path(blast)
+
+  output:
+    path("${sampleid}_novel_virus_candidates.tsv")
+    tuple val(sampleid), path("${sampleid}_novel_virus_candidates.tsv"), emit: novel_virus_candidates
+
+
+  script:
+  """
+  novel_candidates.py --sample_name ${sampleid} --fasta ${contigs} --genomad ${genomad} --hmmscan ${hmmscan} --blast ${blast}
   """
 }
 
@@ -1469,6 +1495,7 @@ workflow {
             params.min_trimmed_reads
         )
   */
+  configyaml = Channel.fromPath(workflow.commandLine.split(" -params-file ")[1].split(" ")[0])
 
   //FASTP ( ch_sample )
   FASTP ( CAT_FASTQ.out.reads, params.save_trimmed_fail, params.save_merged )
@@ -1539,7 +1566,7 @@ workflow {
   HMMSCAN ( ORFIPY.out.orf_fasta )
 
   GENOMAD ( SPADES.out.assembly )
-  //Enhancement: Option to p blastx alignment of contig ORFs?
+  //Enhancement: Option to perform a blastx alignment of contig ORFs?
   //DIAMOND  ( SEQTK.out.filt_fasta.splitFasta(by: 5000, file: true) )
   //DIAMOND.out.diamond_results
   //  .groupTuple()
@@ -1590,19 +1617,56 @@ workflow {
   //ch_multiqc_files = FASTP.out.fastp_json
 
 
-    ch_multiqc_files = FASTP.out.json.map { meta, json ->
-                        json
-                        }
-                        .mix(FILTER_CONTROL.out.stats2)
-                        .mix(BBDUK.out.bbduk_stats)
-                        .collect()
+  ch_multiqc_files = FASTP.out.json.map { meta, json ->
+                      json
+                      }
+                      .mix(FILTER_CONTROL.out.stats2)
+                      .mix(BBDUK.out.bbduk_stats)
+                      .collect()
 
   QCREPORT(ch_multiqc_files)
   SUMMARISE_RESULTS ( SUMMARISE_READ_CLASSIFICATION.out.kraken_summary.join(SUMMARISE_READ_CLASSIFICATION.out.kaiju_summary)
                                                                       .join(CONTIG_COVSTATS.out.detections_summary) 
                                                                       .join(HMMSCAN.out.hmmscan_preds)
                                                                       )
-    
+  NOVELS ( SEQTK.out.filt_fasta.join(SUMMARISE_RESULTS.out.domain_count)
+                    .join(GENOMAD.out.virus_preds)
+                    .join(EXTRACT_VIRAL_BLAST_HITS.out.viral_blast_results)
+         )
+  fastqc_raw_html_fixed = fastqc_raw_html.map { meta, html ->
+    tuple(meta.id, html)
+  }
+
+  fastqc_trim_html_fixed = fastqc_trim_html.map { meta, html ->
+    tuple(meta.id, html)
+  }
+
+  trim_html_fixed = trim_html.map { meta, html ->
+      tuple(meta.id, html)
+  }
+
+  
+  files_for_report_ind_samples_ch = fastqc_raw_html_fixed.join(fastqc_trim_html_fixed)
+                                                    .join(trim_html_fixed)
+                                                    .join(SPADES.out.assembly)
+                                                    .join(SUMMARISE_RESULTS.out.summary_known_viruses)                                               
+                                                    .join(SUMMARISE_READ_CLASSIFICATION.out.kaiju_summary)
+                                                    .join(SUMMARISE_READ_CLASSIFICATION.out.kraken_summary)
+                                                    .join(FASTA2TABLE.out.blast_results2)
+                                                    .join(FASTA2TABLE2.out.detections_summary_final)
+                                                    .join(SAMTOOLS2.out.sorted_bam)
+                                                    .join(NOVELS.out.novel_virus_candidates)
+  
+  //files_for_report_ind_samples_ch.view()
+     
+  files_for_report_global_ch = TIMESTAMP_START.out.timestamp
+            .concat(QCREPORT.out.qc_report_html)
+            .concat(QCREPORT.out.qc_report_txt)
+            .concat(configyaml)
+            .concat(Channel.from(params.input).map { file(it) }).toList()
+  HTML_REPORT(files_for_report_ind_samples_ch
+            .combine(files_for_report_global_ch))
+  //files_for_report_global_ch.view()
 /*
     if (params.subsample) {
       SUBSAMPLE ( REFORMAT.out.reformatted_fq )
@@ -1611,33 +1675,6 @@ workflow {
     else {
       final_fq = REFORMAT.out.reformatted_fq
     }
-
-
-
-    
-        //MAPPING BACK TO CONSENSUS
-        mapping2consensus_ch = (EXTRACT_BLAST_HITS.out.consensus_fasta_files.join(REFORMAT.out.cov_derivation_ch))
-        //Map filtered reads back to the portion of sequence which returned a blast hit
-        MINIMAP2_CONSENSUS ( mapping2consensus_ch )
-        //Derive bam file and coverage statistics
-        SAMTOOLS_CONSENSUS ( MINIMAP2_CONSENSUS.out.aligned_sample )
-        //Derive bed file for mosdepth to run coverage statistics
-        
-        files_for_report_ind_samples_ch = QC_PRE_DATA_PROCESSING.out.rawnanoplot.join((QC_POST_DATA_PROCESSING.out.filtnanoplot)
-                                                                                .join(RATTLE.out.status)
-                                                                                .join(CUTADAPT.out.trimmed)
-                                                                                .join(ch_blast_merged)
-                                                                                .join(SAMTOOLS_CONSENSUS.out.sorted_bams)
-                                                                                .join(COVSTATS.out.detections_summary))
-        files_for_report_global_ch = TIMESTAMP_START.out.timestamp
-            .concat(QCREPORT.out.qc_report_html)
-            .concat(QCREPORT.out.qc_report_txt)
-            .concat(configyaml)
-            .concat(Channel.from(params.samplesheet).map { file(it) }).toList()
-
-        HTML_REPORT(files_for_report_ind_samples_ch
-            .combine(files_for_report_global_ch))
-
       //Perform direct alignment to a reference
       else if ( params.analysis_mode == 'map2ref') {
         MINIMAP2_REF ( final_fq )

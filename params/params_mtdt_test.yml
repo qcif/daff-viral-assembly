@@ -1,0 +1,5 @@
+qual_filt: true
+chopper_options: -q 8 -l 100
+taxdump: ~/.taxonkit
+analyst_name: "Sun"
+facility: MTDT
