@@ -139,8 +139,11 @@ class Config:
     @cached_property
     def start_time(self) -> str:
         """Return the timestamp of the start of the workflow."""
-        timestamp_path = self._get_file_by_pattern(self.TIMESTAMP_FILE)
-        if timestamp_path.exists():
+        timestamp_path = self._get_file_by_pattern(
+            self.TIMESTAMP_FILE,
+            ignore_missing=True,
+        )
+        if timestamp_path and timestamp_path.exists():
             return datetime.strptime(
                 timestamp_path.read_text().strip(),
                 '%Y%m%d%H%M%S',
@@ -161,10 +164,16 @@ class Config:
         """Read the results from the result directory."""
         os.environ['RESULT_DIR'] = str(result_dir)
 
-    def _get_file_by_pattern(self, file_pattern: str) -> Path:
+    def _get_file_by_pattern(
+        self,
+        file_pattern: str,
+        ignore_missing=False,
+    ) -> Path:
         paths = list(self.result_dir.glob(file_pattern, case_sensitive=False))
         if paths:
             return paths[0]
+        if ignore_missing:
+            return None
         raise FileNotFoundError(
             f'No file matching pattern: {self.result_dir / file_pattern}'
         )

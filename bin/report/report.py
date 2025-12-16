@@ -136,7 +136,11 @@ def _get_report_context(
         'kraken': KrakenResults.from_csv(config.kraken_hits_path),
         'kaiju': KaijuResults.from_csv(config.kaiju_hits_path),
         'mapping': MappingResults.from_csv(config.ref_mapping_path),
-        'kraken_taxa': parse_kraken_taxonomy(config.kraken_hits_path),
+        'kraken_taxa_ranks': parse_kraken_taxonomy(config.kraken_hits_path),
+        'kraken_taxa_by_kingdom': parse_kraken_taxonomy(
+            config.kraken_hits_path,
+            group_kingdoms=True,
+        ),
         'flags': config.flags,
         'blast_passed': config.blast_passed,
     }

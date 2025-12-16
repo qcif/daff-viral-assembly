@@ -18,34 +18,78 @@ TAXONOMIC_RANKS = [
     'Species',
 ]
 
+KINGDOM_GROUPS = ['plant', 'animal', 'bacteria', 'fungi', 'virus', 'other']
+PLANT_MARKERS = ['viridiplantae', 'plantae']
+FUNGI_MARKERS = ['fungi', 'ascomycota', 'basidiomycota']
+ANIMAL_MARKERS = ['metazoa', 'chordata', 'vertebrata']
+
 
 def parse_kraken_taxonomy(
     kraken_summary_path: Union[str, Path],
+    group_kingdoms: bool = False,
 ) -> dict[str, dict[str, dict[str, int]]]:
     """Parse Kraken summary file and enumerate taxa by rank.
 
     Args:
         kraken_summary_path: Path to the Kraken summary TSV file
+        group_kingdoms: If True, group species by kingdom categories
+                       (plant, animal, bacteria, fungi, virus, other)
+                       instead of returning all taxonomic ranks
 
     Returns:
-        A nested dictionary structure:
-        {
-            rank: {
-                taxon: {
-                    'taxon_count': <int>,  # number of rows with this taxon
-                    'read_count': <int>,   # sum of reads for this taxon
+        When group_kingdoms=False (default):
+            A nested dictionary structure:
+            {
+                rank: {
+                    taxon: {
+                        'taxon_count': <int>,  # number of rows
+                        'read_count': <int>,   # sum of reads
+                    }
                 }
             }
-        }
-        Taxa within each rank are ordered by descending read abundance.
+            Taxa within each rank are ordered by descending read abundance.
+
+        When group_kingdoms=True:
+            A dictionary structure grouping species by kingdom:
+            {
+                kingdom_group: {
+                    species_name: {
+                        'taxon_count': <int>,  # number of rows
+                        'read_count': <int>,   # sum of reads
+                    }
+                }
+            }
+            Species within each group are ordered by descending read
+            abundance.
 
     Example:
         >>> result = parse_kraken_taxonomy('kraken_summary.txt')
         >>> result['Domain']['Eukaryota']['read_count']
         12345678
+        >>> grouped = parse_kraken_taxonomy('kraken_summary.txt',
+        ...                                  group_kingdoms=True)
+        >>> grouped['plant']['Citrus limon']['read_count']
+        5180323
     """
     kraken_summary_path = Path(kraken_summary_path)
 
+    if group_kingdoms:
+        return _parse_by_kingdom_groups(kraken_summary_path)
+    else:
+        return _parse_by_taxonomic_ranks(kraken_summary_path)
+
+
+def _parse_by_taxonomic_ranks(
+    kraken_summary_path: Path,
+) -> dict[str, dict[str, dict[str, int]]]:
+    """Parse Kraken summary by all taxonomic ranks.
+
+    Args:
+        kraken_summary_path: Path to the Kraken summary TSV file
+
+    Returns:
+        Dictionary organized by taxonomic ranks
+    """
     # Initialize nested defaultdicts to accumulate data
     taxa_data = {rank: defaultdict(lambda: {'taxon_count': 0, 'read_count': 0})
                  for rank in TAXONOMIC_RANKS}
@@ -68,8 +112,6 @@ def parse_kraken_taxonomy(
             ]
 
             # Map lineage parts to ranks
-            # The first part is typically "cellular organisms" or root
-            # followed by Domain, then standard ranks
             rank_assignments = _assign_ranks_to_lineage(lineage_parts)
 
             # Accumulate counts for each rank
@@ -91,6 +133,107 @@ def parse_kraken_taxonomy(
         result[rank] = sorted_taxa
 
     return result
+
+
+def _parse_by_kingdom_groups(
+    kraken_summary_path: Path,
+) -> dict[str, dict[str, dict[str, int]]]:
+    """Parse Kraken summary grouping species by kingdom categories.
+
+    Args:
+        kraken_summary_path: Path to the Kraken summary TSV file
+
+    Returns:
+        Dictionary organized by kingdom groups (plant, animal, etc.)
+    """
+    # Initialize nested defaultdicts for kingdom groups
+    kingdom_data = {
+        group: defaultdict(lambda: {'taxon_count': 0, 'read_count': 0})
+        for group in KINGDOM_GROUPS
+    }
+
+    with kraken_summary_path.open() as f:
+        reader = csv.DictReader(f, delimiter='\t')
+
+        for row in reader:
+            full_lineage = row.get('full_lineage', '')
+            reads = int(row.get('reads', 0))
+
+            if not full_lineage:
+                continue
+
+            # Split the lineage into taxonomic levels
+            lineage_parts = [
+                part.strip()
+                for part in full_lineage.split(';')
+                if part.strip()
+            ]
+
+            # Get species name and kingdom group
+            rank_assignments = _assign_ranks_to_lineage(lineage_parts)
+            species = rank_assignments.get('Species')
+
+            if not species:
+                continue
+
+            # Determine kingdom group from lineage
+            kingdom_group = _determine_kingdom_group(lineage_parts)
+
+            # Accumulate counts for this species in its kingdom group
+            kingdom_data[kingdom_group][species]['taxon_count'] += 1
+            kingdom_data[kingdom_group][species]['read_count'] += reads
+
+    # Convert defaultdicts to regular dicts and sort by read_count (desc)
+    result = {}
+    for group in KINGDOM_GROUPS:
+        sorted_species = dict(
+            sorted(
+                kingdom_data[group].items(),
+                key=lambda x: x[1]['read_count'],
+                reverse=True
+            )
+        )
+        result[group] = sorted_species
+
+    return result
+
+
+def _determine_kingdom_group(lineage_parts: list[str]) -> str:
+    """Determine which kingdom group a lineage belongs to.
+
+    Args:
+        lineage_parts: List of taxonomic names from the lineage
+
+    Returns:
+        Kingdom group name: 'plant', 'animal', 'bacteria', 'fungi',
+        'virus', or 'other'
+    """
+    higher_taxa = [
+        part.lower() for part in lineage_parts
+    ][:4]
+    compartment, domain = higher_taxa[:2]
+
+    if compartment == 'viruses':
+        return 'virus'
+
+    if domain == 'bacteria':
+        return 'bacteria'
+
+    if domain == 'archaea':
+        return 'other'
+
+    # For eukaryotes, need to distinguish plant, animal, fungi
+    if domain == 'eukaryota':
+        if any(marker in higher_taxa for marker in PLANT_MARKERS):
+            return 'plant'
+
+        if any(marker in higher_taxa for marker in ANIMAL_MARKERS):
+            return 'animal'
+
+        if any(marker in higher_taxa for marker in FUNGI_MARKERS):
+            return 'fungi'
+
+    return 'other'
 
 
 def _assign_ranks_to_lineage(lineage_parts: list[str]) -> dict[str, str]:
