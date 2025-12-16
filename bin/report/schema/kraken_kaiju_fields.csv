@@ -1,7 +1,8 @@
 colname,label,type,primary_display,tooltip
 taxon_name,Taxon name,,Y,
+species,Species,,Y,
 taxon_id,Taxon ID,,,
-broad_categories,Broad categories,,Y,
+broad_categories,Broad categories,,,
 reads,Reads,int,Y,
 pc_reads,% Reads,float,Y,
 cov_filter,Meets min coverage,bool,Y,

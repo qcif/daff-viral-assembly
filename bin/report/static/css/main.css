@@ -81,3 +81,16 @@ td.column-flag_name {
 .show-on-load {
   display: none;
 }
+
+/* Interactive plots */
+.kraken-pie-charts-container .plotly.plot-container {
+  display: flex;
+  justify-content: center;
+}
+.kraken-pie-charts-container .surface {
+  cursor: pointer;
+}
+.kraken-pie-charts-container .surface:hover {
+  opacity: 0.9;
+  cursor: pointer;
+}

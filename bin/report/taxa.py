@@ -189,7 +189,7 @@ def _parse_by_kingdom_groups(
 
             # Get species name and kingdom group
             rank_assignments = _assign_ranks_to_lineage(lineage_parts)
-            species = rank_assignments.get('Species')
+            species = rank_assignments.get('species')
 
             if not species:
                 continue
@@ -242,9 +242,9 @@ def _determine_kingdom_group(lineage_parts: list[str]) -> str:
     higher_taxa = [
         part.lower() for part in lineage_parts
     ][:4]
-    compartment, domain = higher_taxa[:2]
+    entity, domain = higher_taxa[:2]
 
-    if compartment == 'viruses':
+    if entity == 'viruses':
         return 'virus'
 
     if domain == 'bacteria':
@@ -273,11 +273,6 @@ def _assign_ranks_to_lineage(lineage_parts: list[str]) -> dict[str, str]:
     This function attempts to map lineage parts to standard ranks.
     The mapping is based on position and known patterns in Kraken output.
 
-    Common Kraken lineage pattern:
-    0: cellular organisms (root - skip)
-    1: Domain (Eukaryota, Bacteria, Archaea, Viruses)
-    2+: Variable intermediate ranks, then standard ranks
-
     Args:
         lineage_parts: List of taxonomic names from the lineage
 
@@ -286,38 +281,14 @@ def _assign_ranks_to_lineage(lineage_parts: list[str]) -> dict[str, str]:
     """
     assignments = {}
 
-    if not lineage_parts:
+    if not lineage_parts or len(lineage_parts) == 1:
         return assignments
 
-    # Skip "cellular organisms" if it's the first element
-    start_idx = 1 if lineage_parts[0] == 'cellular organisms' else 0
-
-    if len(lineage_parts) <= start_idx:
-        return assignments
-
-    # Position 1 (or 0 if no "cellular organisms") is typically Domain
-    domain_idx = start_idx
-    assignments['Domain'] = lineage_parts[domain_idx]
-
-    # Try to identify standard ranks from the end of the lineage
-    # Species is typically the last element
-    if len(lineage_parts) > domain_idx + 1:
-        assignments['Species'] = lineage_parts[-1]
-
-    # Genus is typically second-to-last (if we have at least 2 elements)
-    if len(lineage_parts) > domain_idx + 2:
-        assignments['Genus'] = lineage_parts[-2]
-
-    # For intermediate ranks, we use heuristics based on position
-    # This is approximate since Kraken lineages can vary
-    remaining_parts = lineage_parts[domain_idx + 1:-2]
-    intermediate_ranks = ['Kingdom', 'Phylum', 'Class', 'Order', 'Family']
-
-    # Map remaining parts to intermediate ranks
-    # taking the first N parts for the first N intermediate ranks
-    for i, part in enumerate(remaining_parts):
-        if i < len(intermediate_ranks):
-            assignments[intermediate_ranks[i]] = part
+    start_ix = 0 if lineage_parts[0].lower() == 'viruses' else 1
+    assignments['domain'] = lineage_parts[start_ix]
+    assignments['kingdom'] = lineage_parts[2]
+    assignments['genus'] = lineage_parts[-3]
+    assignments['species'] = lineage_parts[-2]
 
     return assignments
 

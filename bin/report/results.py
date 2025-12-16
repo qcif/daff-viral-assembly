@@ -9,6 +9,31 @@ from .config import Config
 
 config = Config()
 
+KRAKEN_RANKS = [
+    'entity',
+    'domain',
+    'kingdom',
+    'phylum',
+    'subphylum',
+    'clade',
+    'clade',
+    'clade',
+    'clade',
+    'class',
+    'clade',
+    'clade',
+    'clade',
+    'clade',
+    'clade',
+    'clade',
+    'order',
+    'family',
+    'subfamily',
+    'genus',
+    'species',
+    'variety',
+]
+
 
 class FLAGS:
     SUCCESS = 'success'
@@ -291,6 +316,7 @@ class KrakenResults(AbstractResultRows):
 
     def __init__(self, *args):
         super().__init__(*args)
+        self.set_taxonomy_columns()
         self.columns_display = [
             c for c in self.COLUMN_METADATA
             if self.COLUMN_METADATA[c]['label']
@@ -328,6 +354,24 @@ class KrakenResults(AbstractResultRows):
             if not row['taxon_id'] or row['taxon_id'] == '0':
                 for colname in self.COLUMNS[3:]:
                     row[colname] = '-'
+
+    def set_taxonomy_columns(self):
+        """Set taxonomy columns based on full_lineage field."""
+        for row in self.rows:
+            lineage = row.get('full_lineage', '')
+            lineage_items = lineage.split(';')
+            for i, rank in enumerate(KRAKEN_RANKS[:4]):
+                if rank != 'clade':
+                    row[rank] = (
+                        lineage_items[i]
+                        if i < len(lineage_items)
+                        else '-'
+                    )
+            row['species'] = (
+                lineage_items[-2]
+                if len(lineage_items) > 10
+                else '-'
+            )
 
 
 class KaijuResults(AbstractResultRows):

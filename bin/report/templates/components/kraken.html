@@ -34,6 +34,12 @@
           <td class="align-middle">
             {% if colname == 'evalue' %}
             <span style="white-space: nowrap;">{{ row[colname] }}</span>
+            {% elif kraken.COLUMN_METADATA[colname]['type'] == 'float' %}
+              {% if row[colname] is number %}
+              {{ '%.3g' | format(row[colname]) }}
+              {% else %}
+              {{ row[colname] }}
+              {% endif %}
             {% else %}
             {{ row[colname] }}
             {% endif %}
