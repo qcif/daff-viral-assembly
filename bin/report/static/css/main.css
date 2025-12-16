@@ -28,7 +28,7 @@ code {
     sans-serif;
 }
 table.tight th, table.tight td {
-  padding: 0 3rem 0 1rem;
+  padding: 0 1rem 0 .5rem;
 }
 table.lined tr {
   border-bottom: 1px solid #e0e0e0;

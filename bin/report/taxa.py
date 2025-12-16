@@ -53,9 +53,13 @@ def parse_kraken_taxonomy(
             A dictionary structure grouping species by kingdom:
             {
                 kingdom_group: {
-                    species_name: {
-                        'taxon_count': <int>,  # number of rows
-                        'read_count': <int>,   # sum of reads
+                    'read_count': <int>,   # total reads for kingdom
+                    'taxon_count': <int>,  # total taxa for kingdom
+                    'species': {
+                        species_name: {
+                            'taxon_count': <int>,  # number of rows
+                            'read_count': <int>,   # sum of reads
+                        }
                     }
                 }
             }
@@ -68,7 +72,9 @@ def parse_kraken_taxonomy(
         12345678
         >>> grouped = parse_kraken_taxonomy('kraken_summary.txt',
         ...                                  group_kingdoms=True)
-        >>> grouped['plant']['Citrus limon']['read_count']
+        >>> grouped['plant']['read_count']
+        52345678
+        >>> grouped['plant']['species']['Citrus limon']['read_count']
         5180323
     """
     kraken_summary_path = Path(kraken_summary_path)
@@ -144,7 +150,19 @@ def _parse_by_kingdom_groups(
         kraken_summary_path: Path to the Kraken summary TSV file
 
     Returns:
-        Dictionary organized by kingdom groups (plant, animal, etc.)
+        Dictionary organized by kingdom groups with totals:
+        {
+            kingdom_group: {
+                'read_count': <int>,     # total reads for kingdom
+                'taxon_count': <int>,    # total taxa for kingdom
+                'species': {
+                    species_name: {
+                        'taxon_count': <int>,
+                        'read_count': <int>,
+                    }
+                }
+            }
+        }
     """
     # Initialize nested defaultdicts for kingdom groups
     kingdom_data = {
@@ -183,7 +201,7 @@ def _parse_by_kingdom_groups(
             kingdom_data[kingdom_group][species]['taxon_count'] += 1
             kingdom_data[kingdom_group][species]['read_count'] += reads
 
-    # Convert defaultdicts to regular dicts and sort by read_count (desc)
+    # Convert to new structure with totals and sorted species
     result = {}
     for group in KINGDOM_GROUPS:
         sorted_species = dict(
@@ -193,7 +211,20 @@ def _parse_by_kingdom_groups(
                 reverse=True
             )
         )
-        result[group] = sorted_species
+
+        # Calculate totals for the kingdom
+        total_reads = sum(
+            species['read_count'] for species in sorted_species.values()
+        )
+        total_taxa = sum(
+            species['taxon_count'] for species in sorted_species.values()
+        )
+
+        result[group] = {
+            'read_count': total_reads,
+            'taxon_count': total_taxa,
+            'species': sorted_species,
+        }
 
     return result
 

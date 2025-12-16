@@ -4,45 +4,50 @@
   This section shows [...]
 </p>
 
-<div class="my-3" style="overflow-x: auto;">
-
+<div class="row my-3">
   {% if kraken | length %}
-  <table id="krakenTable" class="table table-lined tight text-center">
-    <thead>
-      <tr>
-        {% for colname in kraken.columns_primary_display  %}
-        <th
-          {% if kraken.COLUMN_METADATA[colname]['tooltip'] %}
-          title="{{ kraken.COLUMN_METADATA[colname]['tooltip'] }}"
-          data-bs-toggle="tooltip"
-          data-bs-placement="top"
+  <div class="col-sm-6" style="overflow-x: auto;">
+    <table id="krakenTable" class="table table-lined tight text-center">
+      <thead>
+        <tr>
+          {% for colname in kraken.columns_primary_display  %}
+          <th
+            {% if kraken.COLUMN_METADATA[colname]['tooltip'] %}
+            title="{{ kraken.COLUMN_METADATA[colname]['tooltip'] }}"
+            data-bs-toggle="tooltip"
+            data-bs-placement="top"
+            {% endif %}
+          >
+            {{ kraken.COLUMN_METADATA[colname]['label'] }}
+          </th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in kraken %}
+        <tr
+          {% if row['bs_class'] %}
+          class="alert-{{ row['bs_class'] }}"
           {% endif %}
         >
-          {{ kraken.COLUMN_METADATA[colname]['label'] }}
-        </th>
+          {% for colname in kraken.columns_primary_display  %}
+          <td class="align-middle">
+            {% if colname == 'evalue' %}
+            <span style="white-space: nowrap;">{{ row[colname] }}</span>
+            {% else %}
+            {{ row[colname] }}
+            {% endif %}
+          </td>
+          {% endfor %}
+        </tr>
         {% endfor %}
-      </tr>
-    </thead>
-    <tbody>
-      {% for row in kraken %}
-      <tr
-        {% if row['bs_class'] %}
-        class="alert-{{ row['bs_class'] }}"
-        {% endif %}
-      >
-        {% for colname in kraken.columns_primary_display  %}
-        <td class="align-middle">
-          {% if colname == 'evalue' %}
-          <span style="white-space: nowrap;">{{ row[colname] }}</span>
-          {% else %}
-          {{ row[colname] }}
-          {% endif %}
-        </td>
-        {% endfor %}
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col-sm-6">
+    {% include 'components/kraken-pie-charts.html' %}
+  </div>
   {% else %}
   <p>
     No taxonomic classification results to show.
