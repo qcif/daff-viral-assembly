@@ -11,7 +11,7 @@ import yaml
 from jinja2 import Environment, FileSystemLoader
 
 from . import config
-from .bam import render_bam_html
+# from .bam import render_bam_html
 from .results import (
     BlastHits,
     ConsensusFASTA,
@@ -23,6 +23,7 @@ from .results import (
 )
 from .filters.css_hash import css_hash
 from .utils import get_img_src, serialize
+from .taxa import parse_kraken_taxonomy
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -135,6 +136,7 @@ def _get_report_context(
         'kraken': KrakenResults.from_csv(config.kraken_hits_path),
         'kaiju': KaijuResults.from_csv(config.kaiju_hits_path),
         'mapping': MappingResults.from_csv(config.ref_mapping_path),
+        'kraken_taxa': parse_kraken_taxonomy(config.kraken_hits_path),
         'flags': config.flags,
         'blast_passed': config.blast_passed,
     }
