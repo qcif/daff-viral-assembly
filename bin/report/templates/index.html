@@ -24,41 +24,11 @@
   <body>
     <div class="container">
       {% include "components/heading.html" %}
-      <div>
-        {% include "components/walltime.html" %}
-      </div>
-      <section id="overview">
-        {% include "components/overview.html" %}
-        {{ render_subjective_input(1) }}
-      </section>
       <section id="loadingSpinner">
         {% include "components/loading.html" %}
       </section>
       <div class="show-on-load">
-        <section id="kraken">
-          {% include "components/kraken.html" %}
-          <div class="my-5">
-            {{ render_subjective_input(2) }}
-          </div>
-        </section>
-        <section id="kaiju">
-          {% include "components/kaiju.html" %}
-          <div class="my-5">
-            {{ render_subjective_input(3) }}
-          </div>
-        </section>
-        <section id="blast">
-          {% include "components/blast.html" %}
-          <div class="my-5">
-            {{ render_subjective_input(4) }}
-          </div>
-        </section>
-        <section id="mapping">
-          {% include "components/mapping.html" %}
-          <div class="my-5">
-            {{ render_subjective_input(5) }}
-          </div>
-        </section>
+        {% include "components/content-tabs.html" %}
       </div>
     </div>
 

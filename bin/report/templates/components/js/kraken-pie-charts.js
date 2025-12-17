@@ -98,7 +98,7 @@
 
         const layout = {
             title: {
-                text: 'Taxa',
+                text: 'Overview',
                 font: {
                     size: 18,
                     weight: 'bold'
@@ -107,7 +107,8 @@
             height: 500,
             width: 500,
             showlegend: false,
-            automargin: true
+            automargin: true,
+            margin: { t: 100, b: 100 }
         };
 
         const config = {
@@ -203,7 +204,8 @@
             height: 500,
             width: 500,
             showlegend: false,
-            automargin: true
+            automargin: true,
+            margin: { t: 115, b: 115 }
         };
 
         const config = {

@@ -1,15 +1,20 @@
-<p>
-  This report contains tables and plots to help interpret the outcome of the sequencing run and the viral detection analyses performed.
-  Section I summarises the input data and quality control metrics.
-  Section II provides an overview of the virus detected by 1) megablast homology search using de novo assembled contigs and/or 2) direct read search (using Kraken2 and Kaiju). 
-  Section III-V show the detailed results for each of these analyses separately (Kraken, Kaiju2 and megablast).
-  Section VI shows consensus generated when mapping back to viral reference genomes detected by megablast in Section V.
-  Section VII shows potential novel viral sequences detected by de novo assembly that did not match any known viral reference sequence but have viral characteristics (based on geNomad and hmmscan).
-
-  <span class="text-danger">Lorem ipsum...</span>
-</p>
-
 <div class="row">
+  <div class="col-auto">
+    {% include "components/walltime.html" %}
+  </div>
+  <div class="col">
+    <p>
+      This report contains tables and plots to help interpret the outcome of the sequencing run and the viral detection analyses performed.
+      Section I summarises the input data and quality control metrics.
+      Section II provides an overview of the virus detected by 1) megablast homology search using de novo assembled contigs and/or 2) direct read search (using Kraken2 and Kaiju).
+      Section III-V show the detailed results for each of these analyses separately (Kraken, Kaiju2 and megablast).
+      Section VI shows consensus generated when mapping back to viral reference genomes detected by megablast in Section V.
+      Section VII shows potential novel viral sequences detected by de novo assembly that did not match any known viral reference sequence but have viral characteristics (based on geNomad and hmmscan).
+    </p>
+  </div>
+</div>
+
+<div class="row my-5">
   <div class="col mr-5">
     {% include "components/inputs.html" %}
   </div>
