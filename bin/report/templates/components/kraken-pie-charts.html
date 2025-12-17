@@ -27,17 +27,16 @@
         <div id="kraken-other-pie"></div>
       </div>
 
-      <div class="pie-container" style="height: 100%;">
-        <h3 class="text-center text-muted" style="margin-top: 30%;">
-          Select a taxon to view
-        </h3>
+      <div class="pie-container">
+        <p class="lead text-center text-muted my-5">
+          Select a taxon to view records
+        </p>
       </div>
     </div>
   </div>
 </div>
 
 <script>
-  const N_SPECIES_TO_DISPLAY = 10;
   const krakenTaxaByKingdom = {{ kraken_taxa_by_kingdom|safe }};
 
   {% include 'components/js/kraken-pie-charts.js' %}

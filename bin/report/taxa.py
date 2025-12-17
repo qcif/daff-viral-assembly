@@ -6,19 +6,25 @@ from pathlib import Path
 from typing import Union
 
 
-# Define the standard taxonomic ranks in order
+TOP_N_TAXA = 10
 TAXONOMIC_RANKS = [
-    'Domain',
-    'Kingdom',
-    'Phylum',
-    'Class',
-    'Order',
-    'Family',
-    'Genus',
-    'Species',
+    'domain',
+    'kingdom',
+    'phylum',
+    'class',
+    'order',
+    'family',
+    'genus',
+    'species',
 ]
-
-KINGDOM_GROUPS = ['plant', 'animal', 'bacteria', 'fungi', 'virus', 'other']
+KINGDOM_GROUPS = [
+    'plant',
+    'animal',
+    'bacteria',
+    'fungi',
+    'virus',
+    'other',
+]
 PLANT_MARKERS = ['viridiplantae', 'plantae']
 FUNGI_MARKERS = ['fungi', 'ascomycota', 'basidiomycota']
 ANIMAL_MARKERS = ['metazoa', 'chordata', 'vertebrata']
@@ -105,9 +111,10 @@ def _parse_by_taxonomic_ranks(
 
         for row in reader:
             full_lineage = row.get('full_lineage', '')
+            full_lineage_ranks = row.get('full_lineage_ranks', '')
             reads = int(row.get('reads', 0))
 
-            if not full_lineage:
+            if not full_lineage or not full_lineage_ranks:
                 continue
 
             # Split the lineage into taxonomic levels
@@ -116,9 +123,16 @@ def _parse_by_taxonomic_ranks(
                 for part in full_lineage.split(';')
                 if part.strip()
             ]
+            rank_parts = [
+                part.strip()
+                for part in full_lineage_ranks.split(';')
+                if part.strip()
+            ]
 
-            # Map lineage parts to ranks
-            rank_assignments = _assign_ranks_to_lineage(lineage_parts)
+            # Map lineage parts to ranks using full_lineage_ranks
+            rank_assignments = _assign_ranks_to_lineage(
+                lineage_parts, rank_parts
+            )
 
             # Accumulate counts for each rank
             for rank, taxon in rank_assignments.items():
@@ -175,9 +189,10 @@ def _parse_by_kingdom_groups(
 
         for row in reader:
             full_lineage = row.get('full_lineage', '')
+            full_lineage_ranks = row.get('full_lineage_ranks', '')
             reads = int(row.get('reads', 0))
 
-            if not full_lineage:
+            if not full_lineage or not full_lineage_ranks:
                 continue
 
             # Split the lineage into taxonomic levels
@@ -186,9 +201,16 @@ def _parse_by_kingdom_groups(
                 for part in full_lineage.split(';')
                 if part.strip()
             ]
+            rank_parts = [
+                part.strip().lower()
+                for part in full_lineage_ranks.split(';')
+                if part.strip()
+            ]
 
             # Get species name and kingdom group
-            rank_assignments = _assign_ranks_to_lineage(lineage_parts)
+            rank_assignments = _assign_ranks_to_lineage(
+                lineage_parts, rank_parts
+            )
             species = rank_assignments.get('species')
 
             if not species:
@@ -204,6 +226,10 @@ def _parse_by_kingdom_groups(
     # Convert to new structure with totals and sorted species
     result = {}
     for group in KINGDOM_GROUPS:
+        if group == 'NA':
+            result[group] = kingdom_data['NA']
+            continue
+
         sorted_species = dict(
             sorted(
                 kingdom_data[group].items(),
@@ -212,18 +238,34 @@ def _parse_by_kingdom_groups(
             )
         )
 
+        # Limit to TOP_N_TAXA and group the rest under 'other'
+        top_species = dict(list(sorted_species.items())[:TOP_N_TAXA])
+        other_species = dict(list(sorted_species.items())[TOP_N_TAXA:])
+        other_reads = sum(
+            species['read_count'] for species in other_species.values()
+        )
+        other_taxa = sum(
+            species['taxon_count'] for species in other_species.values()
+        )
+
+        if other_reads > 0:
+            top_species['other'] = {
+                'read_count': other_reads,
+                'taxon_count': other_taxa,
+            }
+
         # Calculate totals for the kingdom
         total_reads = sum(
-            species['read_count'] for species in sorted_species.values()
+            species['read_count'] for species in top_species.values()
         )
         total_taxa = sum(
-            species['taxon_count'] for species in sorted_species.values()
+            species['taxon_count'] for species in top_species.values()
         )
 
         result[group] = {
             'read_count': total_reads,
             'taxon_count': total_taxa,
-            'species': sorted_species,
+            'species': top_species,
         }
 
     return result
@@ -267,28 +309,34 @@ def _determine_kingdom_group(lineage_parts: list[str]) -> str:
     return 'other'
 
 
-def _assign_ranks_to_lineage(lineage_parts: list[str]) -> dict[str, str]:
-    """Assign taxonomic ranks to lineage parts.
+def _assign_ranks_to_lineage(
+    lineage_parts: list[str],
+    rank_parts: list[str],
+) -> dict[str, str]:
+    """Assign taxonomic ranks to lineage parts using rank labels.
 
-    This function attempts to map lineage parts to standard ranks.
-    The mapping is based on position and known patterns in Kraken output.
+    This function maps lineage parts to standard taxonomic ranks using
+    the full_lineage_ranks data from the Kraken summary file.
 
     Args:
         lineage_parts: List of taxonomic names from the lineage
+        rank_parts: List of rank labels corresponding to lineage_parts
+                   (e.g., ['domain', 'kingdom', 'phylum', ..., 'species'])
 
     Returns:
         Dictionary mapping rank names to taxon names
     """
     assignments = {}
 
-    if not lineage_parts or len(lineage_parts) == 1:
+    if not lineage_parts or not rank_parts:
         return assignments
 
-    start_ix = 0 if lineage_parts[0].lower() == 'viruses' else 1
-    assignments['domain'] = lineage_parts[start_ix]
-    assignments['kingdom'] = lineage_parts[2]
-    assignments['genus'] = lineage_parts[-3]
-    assignments['species'] = lineage_parts[-2]
+    if len(lineage_parts) != len(rank_parts):
+        return assignments
+
+    for taxon, rank in zip(lineage_parts, rank_parts):
+        if rank in TAXONOMIC_RANKS:
+            assignments[rank] = taxon
 
     return assignments
 

@@ -9,29 +9,16 @@ from .config import Config
 
 config = Config()
 
-KRAKEN_RANKS = [
-    'entity',
+COLLECT_RANKS = [
+    'acellular root',
     'domain',
     'kingdom',
     'phylum',
-    'subphylum',
-    'clade',
-    'clade',
-    'clade',
-    'clade',
     'class',
-    'clade',
-    'clade',
-    'clade',
-    'clade',
-    'clade',
-    'clade',
     'order',
     'family',
-    'subfamily',
     'genus',
     'species',
-    'variety',
 ]
 
 
@@ -311,7 +298,7 @@ class ConsensusFASTA:
 
 
 class KrakenResults(AbstractResultRows):
-    COLUMN_METADATA = _csv_to_dict(config.SCHEMA.KRAKEN_KAIJU_FIELD_CSV)
+    COLUMN_METADATA = _csv_to_dict(config.SCHEMA.KRAKEN_FIELD_CSV)
     COLUMNS = list(COLUMN_METADATA.keys())
 
     def __init__(self, *args):
@@ -358,20 +345,14 @@ class KrakenResults(AbstractResultRows):
     def set_taxonomy_columns(self):
         """Set taxonomy columns based on full_lineage field."""
         for row in self.rows:
-            lineage = row.get('full_lineage', '')
-            lineage_items = lineage.split(';')
-            for i, rank in enumerate(KRAKEN_RANKS[:4]):
-                if rank != 'clade':
-                    row[rank] = (
-                        lineage_items[i]
-                        if i < len(lineage_items)
-                        else '-'
-                    )
-            row['species'] = (
-                lineage_items[-2]
-                if len(lineage_items) > 10
-                else '-'
-            )
+            lineage = row.get('full_lineage', '').split(';')
+            ranks = [
+                rank.lower()
+                for rank in row.get('full_lineage_ranks', '').split(';')
+            ]
+            taxonomy = dict(zip(ranks, lineage))
+            for rank in COLLECT_RANKS:
+                row[rank] = taxonomy.get(rank, '-')
 
 
 class KaijuResults(AbstractResultRows):
@@ -462,4 +443,3 @@ class MappingResults(AbstractResultRows):
             if not row['sacc'] or row['sacc'] == '0':
                 for colname in self.COLUMNS[3:]:
                     row[colname] = '-'
-

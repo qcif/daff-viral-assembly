@@ -25,6 +25,7 @@ class Config:
 
     class SCHEMA:
         BLAST_HITS_FIELD_CSV = PARENT_DIR / 'schema/blast_fields.csv'
+        KRAKEN_FIELD_CSV = PARENT_DIR / 'schema/kraken_fields.csv'
         KRAKEN_KAIJU_FIELD_CSV = PARENT_DIR / 'schema/kraken_kaiju_fields.csv'
         MAPPING_FIELD_CSV = PARENT_DIR / 'schema/mapping_fields.csv'
 

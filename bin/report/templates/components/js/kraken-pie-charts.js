@@ -8,6 +8,41 @@
         'other': '#9E9E9E'
     };
 
+    const KINGDOM_FILTERS = {
+        // Define table filters for each kingdom
+        'plant': [
+            {
+                columnIx: 7,
+                value: 'viridiplantae'
+            },
+        ],
+        'animal': [
+            {
+                columnIx: 7,
+                value: 'metazoa'
+            },
+        ],
+        'bacteria':  [
+            {
+                columnIx: 6,
+                value: 'bacteria'
+            },
+        ],
+        'fungi': [
+            {
+                columnIx: 7,
+                value: 'fungi'
+            },
+        ],
+        'virus': [
+            {
+                columnIx: 5,
+                value: 'viruses'
+            },
+        ],
+        'other': []
+    }
+
     function createOverviewPieChart() {
         const kingdoms = [
             { key: 'plant', name: 'Plant' },
@@ -15,7 +50,7 @@
             { key: 'bacteria', name: 'Bacteria' },
             { key: 'fungi', name: 'Fungi' },
             { key: 'virus', name: 'Virus' },
-            { key: 'other', name: 'Other' }
+            { key: 'other', name: 'Other' },
         ];
 
         const labels = [];
@@ -47,13 +82,11 @@
             textposition: 'auto',
             hovertemplate: '<b>%{label}</b><br>' +
                           'Read Count: %{value:,}<br>' +
-                          'Percentage: %{percent}<br>' +
                           '<extra></extra>',
             marker: {
                 colors: colors,
                 line: {
-                    color: 'white',
-                    width: 2
+                    width: 0,
                 }
             },
             rotation: -20,
@@ -83,13 +116,12 @@
         Plotly.newPlot('kraken-taxa-overview-pie', data, layout, config);
 
         document.getElementById('kraken-taxa-overview-pie').on('plotly_click', function(data) {
-            console.log("Clicked overview plot");
-            console.log(data);
             const pointIndex = data.points[0].i;
-            console.log("Clicked point index:", pointIndex);
             const selectedKingdom = kingdomKeys[pointIndex];
-            console.log("Selected kingdom:", selectedKingdom);
             showKingdomChart(selectedKingdom);
+            KINGDOM_FILTERS[selectedKingdom].forEach(
+                f => filterTable(f.value, f.columnIx)
+            );
         });
     }
 
@@ -113,18 +145,8 @@
         }));
 
         speciesArray.sort((a, b) => b.read_count - a.read_count);
-
-        const topSpecies = speciesArray.slice(0, N_SPECIES_TO_DISPLAY);
-        const otherSpecies = speciesArray.slice(N_SPECIES_TO_DISPLAY);
-
-        const labels = topSpecies.map(item => item.species);
-        const values = topSpecies.map(item => item.read_count);
-
-        if (otherSpecies.length > 0) {
-            const otherReadCount = otherSpecies.reduce((sum, item) => sum + item.read_count, 0);
-            labels.push('Other (' + otherSpecies.length + ' species)');
-            values.push(otherReadCount);
-        }
+        const labels = speciesArray.map(item => item.species);
+        const values = speciesArray.map(item => item.read_count);
 
         const data = [{
             labels: labels,
@@ -138,8 +160,7 @@
                           '<extra></extra>',
             marker: {
                 line: {
-                    color: 'white',
-                    width: 2
+                    width: 0,
                 }
             },
             rotation: -30,
@@ -176,6 +197,18 @@
         };
 
         Plotly.newPlot(containerId, data, layout, config);
+
+        document.getElementById(containerId).on('plotly_click', function(data) {
+            const selectedTaxon = data.points[0].label;
+            filterTable(selectedTaxon, 4);
+        });
+    }
+
+    function filterTable(term, columnId) {
+        if (term !== 'other') {
+            krakenDataTable.search('').columns().search('').draw();
+            krakenDataTable.column(columnId).search(term).draw();
+        }
     }
 
     // Create the overview pie chart

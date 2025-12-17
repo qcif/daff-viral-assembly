@@ -4,9 +4,19 @@
   This section shows [...]
 </p>
 
-<div class="row my-3">
+<div class="row align-items-center my-3">
   {% if kraken | length %}
   <div class="col-sm-6" style="overflow-x: auto;">
+    <p class="text-end">
+      <button
+        class="btn btn-secondary btn-sm float-right"
+        onclick="clearKrakenTableFilters();"
+        role="button"
+      >
+        Clear filters
+      </button>
+    </p>
+
     <table id="krakenTable" class="table table-lined tight text-center">
       <thead>
         <tr>
@@ -31,7 +41,7 @@
           {% endif %}
         >
           {% for colname in kraken.columns_primary_display  %}
-          <td class="align-middle">
+          <td class="align-middle {% if loop.index == 1 %}text-start{% endif %}">
             {% if colname == 'evalue' %}
             <span style="white-space: nowrap;">{{ row[colname] }}</span>
             {% elif kraken.COLUMN_METADATA[colname]['type'] == 'float' %}
@@ -62,5 +72,25 @@
 </div>
 
 <script>
-  $(document).ready( () => new DataTable('#krakenTable') );
+
+  let krakenDataTable;
+
+  $(document).ready( () => {
+    krakenDataTable = new DataTable('#krakenTable', {
+      pageLength: 25,
+      order: [[1, 'desc']],
+      columnDefs: [
+        {
+          targets: [4, 5, 6, 7, 8],
+          visible: false,
+          searchable: true,
+        }
+      ]
+    });
+  });
+
+  function clearKrakenTableFilters() {
+    console.log('Clearing Kraken table filters');
+    krakenDataTable.search('').columns().search('').draw();
+  }
 </script>
