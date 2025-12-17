@@ -56,7 +56,7 @@ def parse_kraken_taxonomy(
             Taxa within each rank are ordered by descending read abundance.
 
         When group_kingdoms=True:
-            A dictionary structure grouping species by kingdom:
+            A dictionary structure grouping taxa by kingdom:
             {
                 kingdom_group: {
                     'read_count': <int>,   # total reads for kingdom
@@ -66,15 +66,27 @@ def parse_kraken_taxonomy(
                             'taxon_count': <int>,  # number of rows
                             'read_count': <int>,   # sum of reads
                         }
+                    },
+                    'genus': {
+                        genus_name: {
+                            'taxon_count': <int>,  # number of rows
+                            'read_count': <int>,   # sum of reads
+                        }
+                    },
+                    'family': {
+                        family_name: {
+                            'taxon_count': <int>,  # number of rows
+                            'read_count': <int>,   # sum of reads
+                        }
                     }
                 }
             }
-            Species within each group are ordered by descending read
-            abundance.
+            Taxa within each rank are limited to the top N (default 10) by
+            read abundance, with remaining taxa grouped under 'other'.
 
     Example:
         >>> result = parse_kraken_taxonomy('kraken_summary.txt')
-        >>> result['Domain']['Eukaryota']['read_count']
+        >>> result['domain']['Eukaryota']['read_count']
         12345678
         >>> grouped = parse_kraken_taxonomy('kraken_summary.txt',
         ...                                  group_kingdoms=True)
@@ -82,6 +94,10 @@ def parse_kraken_taxonomy(
         52345678
         >>> grouped['plant']['species']['Citrus limon']['read_count']
         5180323
+        >>> grouped['plant']['genus']['Citrus']['read_count']
+        8234567
+        >>> grouped['plant']['family']['Rutaceae']['read_count']
+        12456789
     """
     kraken_summary_path = Path(kraken_summary_path)
 
@@ -158,7 +174,7 @@ def _parse_by_taxonomic_ranks(
 def _parse_by_kingdom_groups(
     kraken_summary_path: Path,
 ) -> dict[str, dict[str, dict[str, int]]]:
-    """Parse Kraken summary grouping species by kingdom categories.
+    """Parse Kraken summary grouping taxa by kingdom categories.
 
     Args:
         kraken_summary_path: Path to the Kraken summary TSV file
@@ -174,13 +190,35 @@ def _parse_by_kingdom_groups(
                         'taxon_count': <int>,
                         'read_count': <int>,
                     }
+                },
+                'genus': {
+                    genus_name: {
+                        'taxon_count': <int>,
+                        'read_count': <int>,
+                    }
+                },
+                'family': {
+                    family_name: {
+                        'taxon_count': <int>,
+                        'read_count': <int>,
+                    }
                 }
             }
         }
     """
-    # Initialize nested defaultdicts for kingdom groups
+    # Initialize nested defaultdicts for kingdom groups and ranks
     kingdom_data = {
-        group: defaultdict(lambda: {'taxon_count': 0, 'read_count': 0})
+        group: {
+            'species': defaultdict(
+                lambda: {'taxon_count': 0, 'read_count': 0}
+            ),
+            'genus': defaultdict(
+                lambda: {'taxon_count': 0, 'read_count': 0}
+            ),
+            'family': defaultdict(
+                lambda: {'taxon_count': 0, 'read_count': 0}
+            ),
+        }
         for group in KINGDOM_GROUPS
     }
 
@@ -207,65 +245,79 @@ def _parse_by_kingdom_groups(
                 if part.strip()
             ]
 
-            # Get species name and kingdom group
+            # Get taxonomic assignments
             rank_assignments = _assign_ranks_to_lineage(
                 lineage_parts, rank_parts
             )
-            species = rank_assignments.get('species')
-
-            if not species:
-                continue
 
             # Determine kingdom group from lineage
             kingdom_group = _determine_kingdom_group(lineage_parts)
 
-            # Accumulate counts for this species in its kingdom group
-            kingdom_data[kingdom_group][species]['taxon_count'] += 1
-            kingdom_data[kingdom_group][species]['read_count'] += reads
+            if kingdom_group == 'na':
+                kingdom_data[kingdom_group] = {
+                    'read_count': reads,
+                    'taxon_count': 1,
+                }
 
-    # Convert to new structure with totals and sorted species
+            # Accumulate counts for species, genus, and family
+            for rank in ['species', 'genus', 'family']:
+                taxon = rank_assignments.get(rank)
+                if taxon:
+                    taxon_data = kingdom_data[kingdom_group][rank][taxon]
+                    taxon_data['taxon_count'] += 1
+                    taxon_data['read_count'] += reads
+
+    # Convert to final structure with totals and top N for each rank
     result = {}
     for group in KINGDOM_GROUPS:
-        if group == 'NA':
-            result[group] = kingdom_data['NA']
+        if group == 'na':
+            result[group] = kingdom_data[group]
             continue
 
-        sorted_species = dict(
-            sorted(
-                kingdom_data[group].items(),
-                key=lambda x: x[1]['read_count'],
-                reverse=True
+        group_result = {}
+
+        # Process each rank (species, genus, family)
+        for rank in ['species', 'genus', 'family']:
+            sorted_taxa = dict(
+                sorted(
+                    kingdom_data[group][rank].items(),
+                    key=lambda x: x[1]['read_count'],
+                    reverse=True
+                )
             )
-        )
 
-        # Limit to TOP_N_TAXA and group the rest under 'other'
-        top_species = dict(list(sorted_species.items())[:TOP_N_TAXA])
-        other_species = dict(list(sorted_species.items())[TOP_N_TAXA:])
-        other_reads = sum(
-            species['read_count'] for species in other_species.values()
-        )
-        other_taxa = sum(
-            species['taxon_count'] for species in other_species.values()
-        )
+            # Limit to TOP_N_TAXA and group the rest under 'other'
+            top_taxa = dict(list(sorted_taxa.items())[:TOP_N_TAXA])
+            other_taxa = dict(list(sorted_taxa.items())[TOP_N_TAXA:])
+            other_reads = sum(
+                taxon['read_count'] for taxon in other_taxa.values()
+            )
+            other_taxa_count = sum(
+                taxon['taxon_count'] for taxon in other_taxa.values()
+            )
 
-        if other_reads > 0:
-            top_species['other'] = {
-                'read_count': other_reads,
-                'taxon_count': other_taxa,
-            }
+            if other_reads > 0:
+                top_taxa['other'] = {
+                    'read_count': other_reads,
+                    'taxon_count': other_taxa_count,
+                }
 
-        # Calculate totals for the kingdom
+            group_result[rank] = top_taxa
+
+        # Calculate totals for the kingdom (based on species data)
         total_reads = sum(
-            species['read_count'] for species in top_species.values()
+            taxon['read_count']
+            for taxon in group_result['species'].values()
         )
         total_taxa = sum(
-            species['taxon_count'] for species in top_species.values()
+            taxon['taxon_count']
+            for taxon in group_result['species'].values()
         )
 
         result[group] = {
             'read_count': total_reads,
             'taxon_count': total_taxa,
-            'species': top_species,
+            **group_result
         }
 
     return result
@@ -279,8 +331,11 @@ def _determine_kingdom_group(lineage_parts: list[str]) -> str:
 
     Returns:
         Kingdom group name: 'plant', 'animal', 'bacteria', 'fungi',
-        'virus', or 'other'
+        'virus', 'other' or 'na' if not classified.
     """
+    if lineage_parts[0] == 'NA':
+        return 'na'
+
     higher_taxa = [
         part.lower() for part in lineage_parts
     ][:4]

@@ -3,31 +3,43 @@
     <div class="col">
       <div id="kraken-taxa-overview-pie"></div>
 
-      <div class="pie-container" id="kraken-plant-container" style="display: none;">
-        <div id="kraken-plant-pie"></div>
+      <div id="kraken-kingdom-chart-wrapper" style="display: none;">
+        <div class="d-flex align-items-start">
+          <div id="kraken-kingdom-chart-container" style="flex: 1;">
+            <div class="pie-container" id="kraken-plant-container" style="display: none;">
+              <div id="kraken-plant-pie"></div>
+            </div>
+
+            <div class="pie-container" id="kraken-animal-container" style="display: none;">
+              <div id="kraken-animal-pie"></div>
+            </div>
+
+            <div class="pie-container" id="kraken-bacteria-container" style="display: none;">
+              <div id="kraken-bacteria-pie"></div>
+            </div>
+
+            <div class="pie-container" id="kraken-fungi-container" style="display: none;">
+              <div id="kraken-fungi-pie"></div>
+            </div>
+
+            <div class="pie-container" id="kraken-virus-container" style="display: none;">
+              <div id="kraken-virus-pie"></div>
+            </div>
+
+            <div class="pie-container" id="kraken-other-container" style="display: none;">
+              <div id="kraken-other-pie"></div>
+            </div>
+          </div>
+
+          <div class="btn-group-vertical ms-2 rank-toggle-buttons" role="group" aria-label="Taxonomic rank selector">
+            <button type="button" class="btn btn-sm btn-outline-primary rank-btn active" data-rank="family">Family</button>
+            <button type="button" class="btn btn-sm btn-outline-primary rank-btn" data-rank="genus">Genus</button>
+            <button type="button" class="btn btn-sm btn-outline-primary rank-btn" data-rank="species">Species</button>
+          </div>
+        </div>
       </div>
 
-      <div class="pie-container" id="kraken-animal-container" style="display: none;">
-        <div id="kraken-animal-pie"></div>
-      </div>
-
-      <div class="pie-container" id="kraken-bacteria-container" style="display: none;">
-        <div id="kraken-bacteria-pie"></div>
-      </div>
-
-      <div class="pie-container" id="kraken-fungi-container" style="display: none;">
-        <div id="kraken-fungi-pie"></div>
-      </div>
-
-      <div class="pie-container" id="kraken-virus-container" style="display: none;">
-        <div id="kraken-virus-pie"></div>
-      </div>
-
-      <div class="pie-container" id="kraken-other-container" style="display: none;">
-        <div id="kraken-other-pie"></div>
-      </div>
-
-      <div class="pie-container">
+      <div class="pie-container" id="kraken-default-message">
         <p class="lead text-center text-muted my-5">
           Select a taxon to view records
         </p>

@@ -41,7 +41,11 @@
             },
         ],
         'other': []
-    }
+    };
+
+    // Track current state
+    let currentKingdom = null;
+    let currentRank = 'family';
 
     function createOverviewPieChart() {
         const kingdoms = [
@@ -125,28 +129,41 @@
         });
     }
 
-    function showKingdomChart(kingdomKey) {
-        $('.pie-container').hide();
+    function showKingdomChart(kingdomKey, rank = 'family') {
+        currentKingdom = kingdomKey;
+        currentRank = rank;
+
+        // Hide default message and show kingdom chart wrapper
+        $('#kraken-default-message').hide();
+        $('#kraken-kingdom-chart-wrapper').show();
+
+        // Hide all kingdom containers, then show the selected one
+        $('#kraken-kingdom-chart-container .pie-container').hide();
         $(`#kraken-${kingdomKey}-container`).show();
+
+        updatePieChart(kingdomKey, rank);
     }
 
-    function createPieChart(containerId, kingdomData, kingdomName) {
-        if (!kingdomData || !kingdomData.species || Object.keys(kingdomData.species).length === 0) {
-            const capitalizedName = kingdomName.charAt(0).toUpperCase() + kingdomName.slice(1);
+    function updatePieChart(kingdomKey, rank) {
+        const containerId = `kraken-${kingdomKey}-pie`;
+        const kingdomData = krakenTaxaByKingdom[kingdomKey];
+        const capitalizedKingdom = kingdomKey.charAt(0).toUpperCase() + kingdomKey.slice(1);
+
+        if (!kingdomData || !kingdomData[rank] || Object.keys(kingdomData[rank]).length === 0) {
             document.getElementById(containerId).innerHTML =
-                '<div class="alert alert-info">No data available for ' + capitalizedName + '</div>';
+                '<div class="alert alert-info">No ' + rank + ' data available for ' + capitalizedKingdom + '</div>';
             return;
         }
 
-        const speciesArray = Object.entries(kingdomData.species).map(([species, data]) => ({
-            species: species,
+        const taxaArray = Object.entries(kingdomData[rank]).map(([taxon, data]) => ({
+            taxon: taxon,
             read_count: data.read_count,
             taxon_count: data.taxon_count
         }));
 
-        speciesArray.sort((a, b) => b.read_count - a.read_count);
-        const labels = speciesArray.map(item => item.species);
-        const values = speciesArray.map(item => item.read_count);
+        taxaArray.sort((a, b) => b.read_count - a.read_count);
+        const labels = taxaArray.map(item => item.taxon);
+        const values = taxaArray.map(item => item.read_count);
 
         const data = [{
             labels: labels,
@@ -168,7 +185,7 @@
 
         const layout = {
             title: {
-                text: kingdomName.charAt(0).toUpperCase() + kingdomName.slice(1) + ' species',
+                text: capitalizedKingdom + ' ' + rank,
                 font: {
                     size: 16,
                     weight: 'bold'
@@ -214,17 +231,18 @@
     // Create the overview pie chart
     createOverviewPieChart();
 
-    // Create individual kingdom pie charts
-    const kingdoms = [
-        { id: 'kraken-plant-pie', key: 'plant', name: 'Plant' },
-        { id: 'kraken-animal-pie', key: 'animal', name: 'Animal' },
-        { id: 'kraken-bacteria-pie', key: 'bacteria', name: 'Bacteria' },
-        { id: 'kraken-fungi-pie', key: 'fungi', name: 'Fungi' },
-        { id: 'kraken-virus-pie', key: 'virus', name: 'Virus' },
-        { id: 'kraken-other-pie', key: 'other', name: 'Other' }
-    ];
+    // Set up rank toggle button event listeners
+    $('.rank-btn').on('click', function() {
+        const rank = $(this).data('rank');
 
-    kingdoms.forEach(kingdom => {
-        createPieChart(kingdom.id, krakenTaxaByKingdom[kingdom.key], kingdom.name);
+        // Update button active state
+        $('.rank-btn').removeClass('active');
+        $(this).addClass('active');
+
+        // Update current rank and refresh the chart
+        currentRank = rank;
+        if (currentKingdom) {
+            updatePieChart(currentKingdom, rank);
+        }
     });
 })();
