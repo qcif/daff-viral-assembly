@@ -1,4 +1,10 @@
 <div class="kraken-pie-charts-container">
+
+  <p class="alert alert-info">
+    {{ (100 - kraken_taxa_by_kingdom.na.read_percent) | round(1) }}% of reads were taxonomically classified.
+    The remaining {{ kraken_taxa_by_kingdom.na.read_percent }}% of reads were not identifiable against reference sequences.
+  </p>
+
   <div class="row">
     <div class="col">
       <div id="kraken-taxa-overview-pie"></div>

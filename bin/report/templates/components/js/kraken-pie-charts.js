@@ -86,6 +86,7 @@
             textposition: 'auto',
             hovertemplate: '<b>%{label}</b><br>' +
                           'Read Count: %{value:,}<br>' +
+                          'Percentage: %{percent}<br>' +
                           '<extra></extra>',
             marker: {
                 colors: colors,
@@ -98,7 +99,7 @@
 
         const layout = {
             title: {
-                text: 'Overview',
+                text: 'Classified taxa',
                 font: {
                     size: 18,
                     weight: 'bold'
@@ -195,7 +196,7 @@
             annotations: [{
               text: `${kingdomData.read_count.toLocaleString()} reads<br>${kingdomData.taxon_count.toLocaleString()} taxa`,
               x: 0.5,
-              y: 1.15,
+              y: 1.2,
               xref: 'paper',
               yref: 'paper',
               showarrow: false,

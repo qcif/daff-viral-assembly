@@ -269,11 +269,8 @@ def _parse_by_kingdom_groups(
 
     # Convert to final structure with totals and top N for each rank
     result = {}
-    for group in KINGDOM_GROUPS:
-        if group == 'na':
-            result[group] = kingdom_data[group]
-            continue
 
+    for group in KINGDOM_GROUPS:
         group_result = {}
 
         # Process each rank (species, genus, family)
@@ -319,6 +316,19 @@ def _parse_by_kingdom_groups(
             'taxon_count': total_taxa,
             **group_result
         }
+
+    na_read_percent = round(
+        kingdom_data['na']['read_count']
+        / sum([
+            taxon['read_count']
+            for taxon in result.values()
+        ] + [kingdom_data['na']['read_count']])
+        * 100, 2
+    )
+    result['na'] = {
+        **kingdom_data['na'],
+        'read_percent': na_read_percent,
+    }
 
     return result
 
