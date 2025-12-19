@@ -1,6 +1,40 @@
+/*
+process FASTP {
+  tag "$sampleid"
+  publishDir "${params.outdir}/${sampleid}/02_qtrimmed", mode: 'copy', pattern: '{*fastq.gz,*_fastp.log}'
+  publishDir "${params.outdir}/${sampleid}/03_fastqc_trimmed", mode: 'copy', pattern: '{*html,*json}'
+  label "setting_4"
+
+  input:
+    tuple val(sampleid), path(fastq1), path(fastq2)
+
+  output:
+    path("${sampleid}.fastp.html")
+    path("${sampleid}.fastp.json")
+    path("${sampleid}_fastp.log")
+    tuple val(sampleid), path("${sampleid}_1_qtrimmed.fastq.gz"), path("${sampleid}_2_qtrimmed.fastq.gz"), emit: trimmed_fq
+    path("${sampleid}.fastp.json"), emit: fastp_json
+
+  script:
+    """
+    fastp \
+    --in1 ${fastq1} \
+    --in2 ${fastq2} \
+    --out1 ${sampleid}_1_qtrimmed.fastq.gz \
+    --out2 ${sampleid}_2_qtrimmed.fastq.gz \
+    --cut_front \
+    --cut_tail \
+    --json ${sampleid}.fastp.json \
+    --html ${sampleid}.fastp.html \
+    --thread 6 \
+    --detect_adapter_for_pe \
+    --length_required 50 --average_qual 20
+    2>&1 | tee ${sampleid}_fastp.log
+    """
+}
 //Modified the nf-core module so it does not expect an adapter list. Might re-visit later to add that functionality back in.
 //Also added --detect_adapter_for_pe --cut_front --cut_tail --length_required 50 --average_qual 20, might want to make these external arguments later.
-
+*/
 process FASTP {
     tag "$meta.id"
     label "setting_4"
