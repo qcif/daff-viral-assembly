@@ -32,7 +32,7 @@ def load_blast_results(path):
         "bitscore", "qcovhsp", "stitle", "staxids", "qseq", "sseq", "sseqid",
         "qcovs", "qframe", "sframe"
     ]
- 
+
     df = pd.read_csv(path, sep="\t", header=None, dtype=str)
     if df.shape[1] != len(columns):
         raise ValueError(
@@ -43,9 +43,9 @@ def load_blast_results(path):
     # Define columns and dtypes
     dtype = {
         "qseqid": 'str', "sgi": 'str', "sacc": 'str', "alignment_length": 'int64', "pident": 'float64', "mismatch": 'int64',
-        "gapopen": 'int64', "qstart": 'int64', "qend": 'int64', "qlen": 'int64', "sstart": 'int64', 
-        "send": 'int64', "slen": 'int64', "sstrand": 'str', "evalue": 'float64', "bitscore": 'float64', 
-        "qcovhsp": 'int64', "stitle": 'str', "staxids": 'str', "qseq": 'str', "sseq": 'str', "sseqid": 'str', 
+        "gapopen": 'int64', "qstart": 'int64', "qend": 'int64', "qlen": 'int64', "sstart": 'int64',
+        "send": 'int64', "slen": 'int64', "sstrand": 'str', "evalue": 'float64', "bitscore": 'float64',
+        "qcovhsp": 'int64', "stitle": 'str', "staxids": 'str', "qseq": 'str', "sseq": 'str', "sseqid": 'str',
         "qcovs": 'int64', "qframe": 'int64', "sframe": 'int64'
     }
     # Load DataFrame
@@ -96,7 +96,7 @@ def filter_and_format(df, sample_name, filter_file):
     # Then drop duplicates — keep first valid hit per qseqid
     df = df.sort_values(by=["qseqid", "bitscore"], ascending=[True, False])  # Optional: Sort by best score
     df = df.drop_duplicates(subset=["qseqid"], keep="first").copy()
-    
+
 
     # Filter only viral entries
     df = df[
@@ -104,7 +104,7 @@ def filter_and_format(df, sample_name, filter_file):
         & (df["broad_taxonomic_category"].str.strip() != "")
     ].copy()
     df = df[df["broad_taxonomic_category"] == "virus"].copy()
-    
+
 
     df["RNA_type"] = np.where(
         df.stitle.str.contains("RNA1|RNA 1|segment 1|polyprotein P1", case=False, na=False), "RNA1",
@@ -134,7 +134,7 @@ def filter_and_format(df, sample_name, filter_file):
 
     df["evalue"] = df["evalue"].astype(float)
     df["evalue_score"] = df.groupby("species_updated")["evalue"].transform(min_evalue)
-    
+
     # Extract cov value using regex and convert to float
     df["assembly_kmer_cov"] = df["qseqid"].str.extract(r'_cov_([0-9.]+)').astype(float)
     df["assembly_kmer_cov_score"] = df.groupby("species_updated")["assembly_kmer_cov"].transform(max_assembly_kmer_cov)
@@ -187,15 +187,15 @@ def filter_and_format(df, sample_name, filter_file):
         )
 
 
-    
+
     final_columns_filt = ["sample_name", "qseqid", "sacc", "alignment_length", "evalue", "bitscore", "pident", "mismatch",
                      "gapopen", "qstart", "qend", "qlen", "sstart", "send", "slen", "sstrand",
-                     "qcovhsp", "staxids", "qseq", "sseq", "qcovs", 
+                     "qcovhsp", "staxids", "qseq", "sseq", "qcovs",
                      "species_updated", "RNA_type", "stitle", "full_lineage", "ncontigs", "total_score", "term_filter", "cov_filter", "best_contig_per_sp_filter"]
 
     return df[final_columns_filt]
-    
-def parse_bbsplit_log(logfile):   
+
+def parse_bbsplit_log(logfile):
     total_reads = None
     r1_mapped = r2_mapped = 0
 
@@ -233,7 +233,7 @@ def parse_bbsplit_log(logfile):
     total_mapped_reads = r1_mapped + r2_mapped
     clean_reads = total_reads - total_mapped_reads
 
-  
+
 
     return clean_reads
 
@@ -247,16 +247,29 @@ def is_viral(tid, taxid_to_lineage):
     return ("10239" in lineage_ids) or ("12884" in lineage_ids)
 
 def categorize(row, taxid_to_lineage):
-    tid = row["taxon_id"]
-    name = str(row.get("taxon_name", "")).lower()  # in case it's NaN
-    if "unclassified" in name and "virus" in name:
+    name = str(row.get("taxon_name", "") or "").lower()
+    lineage = str(row.get("full_lineage", "") or "").lower()
+
+    # Generalized unclassified virus check
+    if "unclassified" in name and ("virus" in name or "virinae" in name):
         return "unclassified virus"
+
+    # Split lineage into parts
+    lineage_parts = [x.strip() for x in lineage.split(";") if x.strip()]
+    last_part = lineage_parts[-1] if lineage_parts else ""
+
+    # Check if lineage contains 'viruses' to identify virus clade
+    is_viral_lineage = "viruses" in lineage_parts[0] if lineage_parts else False
+
+    # Categorize
+    if is_viral_lineage and last_part.startswith("unclassified"):
+        return "unclassified virus"
+    elif is_viral_lineage:
+        return "viral"
     elif "unclassified" in name:
         return "unclassified"
-    elif is_viral(tid, taxid_to_lineage):
-        return "viral"
-    if "cannot be assigned to a (non-viral) species" in name:
-        return "Higher viral, cannot be classified at spp level"
+    elif "cannot be assigned to a (non-viral) species" in name:
+        return "unclassified virus"
     else:
         return "other non-viral"
 
@@ -266,7 +279,11 @@ def categorize_bracken(row, taxid_to_lineage):
         return "viral"
     else:
         return "other non-viral"
-    
+def chunked(iterable, size=500):
+    """Yield successive chunks from a list."""
+    for i in range(0, len(iterable), size):
+        yield iterable[i:i + size]
+
 def main():
     args = parse_arguments()
     kaiju_path = args.kaiju
@@ -295,12 +312,20 @@ def main():
     # ------------------------------------
 
     # Convert taxon_id safely
-    os.environ["TAXONKIT_DB"] = tk_db_dir
+    #os.environ["TAXONKIT_DB"] = tk_db_dir
     # Get lineage only for non-zero taxids
     unique_taxids = df.loc[df["taxon_id"] != 0, "taxon_id"].unique().tolist()
+    print(f"Unique taxids in Kaiju results: {len(unique_taxids)}")
 
     # Query lineage (just pass taxid list)
-    lin = lineage(unique_taxids)  # no 'format' keyword
+    #lin = lineage(unique_taxids)  # no 'format' keyw0iord
+    lin = lineage(unique_taxids, data_dir=tk_db_dir)
+    #lin_dfs = []
+    #for chunk in chunked(unique_taxids, size=500):
+    #    lin_chunk = lineage(chunk, data_dir=tk_db_dir)
+    #    lin_dfs.append(pd.DataFrame(lin_chunk))
+
+    #lin_df = pd.concat(lin_dfs, ignore_index=True)
     # Convert to DataFrame
     lin_df = pd.DataFrame(lin)
     print(lin_df.columns)
@@ -310,14 +335,15 @@ def main():
         "TaxID": "taxid",
         "FullLineageTaxIDs": "full_lineage_taxids",
         "FullLineage": "full_lineage_names",
+        "FullLineageRanks": "full_lineage_ranks",
         "Name": "name"
     })
-
+    lin_df["full_lineage_names"] = lin_df["full_lineage_names"].fillna("NA").astype(str)
+    lin_df["full_lineage_ranks"] = lin_df["full_lineage_ranks"].fillna("NA").astype(str)
     # Fill NaNs with 0 and convert to int
     lin_df["taxid"] = pd.to_numeric(lin_df["taxid"], errors="coerce").fillna(0).astype(int)
 
-    # Make sure full_lineage_taxids is string
-    lin_df["full_lineage_taxids"] = lin_df["full_lineage_taxids"].fillna("NA")
+
 
     # Build mapping
     taxid_to_lineage = {int(k): str(v) for k, v in zip(lin_df["taxid"], lin_df["full_lineage_taxids"])}
@@ -326,24 +352,36 @@ def main():
         lin_df["taxid"],
         lin_df["full_lineage_names"]
     ))
-    
+    taxid_to_lineage_ranks = dict(zip(
+        lin_df["taxid"],
+        lin_df["full_lineage_ranks"]
+    ))
+
     # Viral check
     df["taxon_id"] = pd.to_numeric(df["taxon_id"], errors="coerce").fillna(0).astype(int)
 
     df["full_lineage"] = df["taxon_id"].apply(lambda x: taxid_to_lineage_names.get(int(x), ""))
+    df["full_lineage_ranks"] = df["taxon_id"].apply(
+        lambda x: taxid_to_lineage_ranks.get(int(x), "")
+    )
     df["broad_categories"] = df.apply(
         lambda row: categorize(row, taxid_to_lineage),
         axis=1
     )
-    
+    df.loc[df["taxon_name"] == "cannot be assigned to a (non-viral) species",
+       ["full_lineage", "full_lineage_ranks"]] = "NA"
+    df.loc[df["taxon_name"] == "unclassified",
+       ["full_lineage", "full_lineage_ranks"]] = "NA"
+
     df["term_filter"] = ~(
         df["taxon_name"].str.contains(pattern, case=False, na=False)
         )
+
     df = df.rename(columns={
         "percent": "pc_reads"
     })
     df["cov_filter"] = df["pc_reads"].astype(float) >= 0.002
-    df_subset = df[['taxon_name', 'taxon_id', 'full_lineage', 'broad_categories', 'reads', 'pc_reads', 'term_filter', 'cov_filter']]
+    df_subset = df[['taxon_name', 'taxon_id', 'full_lineage', 'full_lineage_ranks', 'broad_categories', 'reads', 'pc_reads', 'term_filter', 'cov_filter']]
     df_subset.to_csv(sample_name + "_kaiju_summary.txt", sep="\t", index=False)
 
     # ------------------------------------
@@ -353,14 +391,26 @@ def main():
     br = br.rename(columns={
         "taxonomy_id": "taxon_id"})
     unique_taxids_br = br.loc[br["taxon_id"] != 0, "taxon_id"].unique().tolist()
-    lin2 = lineage(unique_taxids_br)  # no 'format' keyword
+    #lin2 = lineage(unique_taxids_br)  # no 'format' keyword
+    lin2 = lineage(unique_taxids_br, data_dir=tk_db_dir)
+
+    #lin2_dfs = []
+    #for chunk in chunked(unique_taxids, size=500):
+    #    lin2_chunk = lineage(chunk, data_dir=tk_db_dir)
+    #    lin2_dfs.append(pd.DataFrame(lin_chunk))
+
+    #lin2_df = pd.concat(lin2_dfs, ignore_index=True)
+
+
     lin2_df = pd.DataFrame(lin2)
     lin2_df = lin2_df.rename(columns={
         "TaxID": "taxid",
         "FullLineageTaxIDs": "full_lineage_taxids",
         "FullLineage": "full_lineage_names",
+        "FullLineageRanks": "full_lineage_ranks",
         "Name": "name"
     })
+    lin2_df["full_lineage_ranks"] = lin2_df["full_lineage_ranks"].fillna("").astype(str)
     lin2_df["taxid"] = pd.to_numeric(lin2_df["taxid"], errors="coerce").fillna(0).astype(int)
     lin2_df["full_lineage_taxids"] = lin2_df["full_lineage_taxids"].fillna("")
     taxid_to_lineage = {int(k): str(v) for k, v in zip(lin2_df["taxid"], lin2_df["full_lineage_taxids"])}
@@ -368,13 +418,20 @@ def main():
         lin2_df["taxid"],
         lin2_df["full_lineage_names"]
     ))
+    taxid_to_lineage_ranks = dict(zip(
+        lin2_df["taxid"],
+        lin2_df["full_lineage_ranks"]
+    ))
     br["taxon_id"] = pd.to_numeric(br["taxon_id"], errors="coerce").fillna(0).astype(int)
     br["full_lineage"] = br["taxon_id"].apply(lambda x: taxid_to_lineage_names.get(int(x), ""))
+    br["full_lineage_ranks"] = br["taxon_id"].apply(
+        lambda x: taxid_to_lineage_ranks.get(int(x), "")
+    )
     br["broad_categories"] = br.apply(
         lambda row: categorize_bracken(row, taxid_to_lineage),
         axis=1
     )
-    
+
     filtered_read_counts = parse_bbsplit_log(log)
     br["new_est_reads"] = pd.to_numeric(br["new_est_reads"], errors="coerce")
     br = br.rename(columns={
@@ -394,6 +451,7 @@ def main():
         "taxon_name": "unclassified",
         "taxon_id": 0,
         "full_lineage": "NA",
+        "full_lineage_ranks": "NA",
         "broad_categories": "unclassified",
         "reads": unclassified_reads,
         "term_filter": True
@@ -402,7 +460,7 @@ def main():
     br = pd.concat([br, pd.DataFrame([unclassified_row])], ignore_index=True)
     br["pc_reads"] = (br["reads"] / filtered_read_counts) * 100
     br["cov_filter"] = br["pc_reads"].astype(float) >= 0.001
-    br_subset = br[['taxon_name', 'taxon_id', 'full_lineage', 'broad_categories', 'reads', 'pc_reads', 'term_filter', 'cov_filter']]
+    br_subset = br[['taxon_name', 'taxon_id', 'full_lineage', 'full_lineage_ranks', 'broad_categories', 'reads', 'pc_reads', 'term_filter', 'cov_filter']]
     br_subset.to_csv(sample_name + "_kraken_summary.txt", sep="\t", index=False)
 
 #def read_filtered_read_count(fastp_json_path):
@@ -418,3 +476,7 @@ if __name__ == "__main__":
     main()
 
 #singularity exec  -B /work/daff_viral_rnaseq/rnaspades/BR_Guar_18 docker://quay.io/biocontainers/pytaxonkit:0.9.1--pyhdfd78af_1 /work/daff_viral_rnaseq/rnaspades/BR_Guar_18/filter_blast.py --blastn_results BR_Guar_18_blastn_header.txt --sample_name BR_Guar_18 --mode ncbi --taxonkit_database_dir ~/.taxonkit
+
+
+
+#--sample_name Dataset_1 --bracken /work/Dataset_1_bracken_report.txt --kaiju /work/Dataset_1_kaiju_summary.tsv --taxonkit_database_dir ~/.taxonkit --stats /work/Dataset_1_bbsplit_stats.txt --filter /work/bin/filterKeyWords.txt
