@@ -198,7 +198,7 @@ process FASTP {
 */
 //Modified the nf-core module so it does not expect an adapter list. Might re-visit later to add that functionality back in.
 //Also added --detect_adapter_for_pe --cut_front --cut_tail --length_required 50 --average_qual 20, might want to make these external arguments later.
-process FASTP {
+/*process FASTP {
     tag "$meta.id"
     label "setting_4"
     publishDir "${params.outdir}/$meta.id/02_qtrimmed", mode: 'copy', pattern: '{*fastq.gz}'
@@ -306,6 +306,7 @@ process FASTP {
         """
     }
 }
+*/
 process COVSTATS {
   tag "$sampleid"
   label "setting_1"
@@ -1344,89 +1345,11 @@ process EXTRACT_CONTIGS {
     fi
     """
 }
-
-process CAT_FASTQ {
-    tag "$meta.id"
-    label 'setting_29'
-
-    conda "conda-forge::sed=4.7"
-    container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
-        'https://depot.galaxyproject.org/singularity/ubuntu:20.04' :
-        'nf-core/ubuntu:20.04' }"
-
-    input:
-    tuple val(meta), path(reads, stageAs: "input*/*")
-
-    output:
-    tuple val(meta), path("*.merged.fastq.gz"), emit: reads
-    path "versions.yml"                       , emit: versions
-
-    when:
-    task.ext.when == null || task.ext.when
-
-    script:
-    def args = task.ext.args ?: ''
-    def prefix = task.ext.prefix ?: "${meta.id}"
-    def readList = reads instanceof List ? reads.collect{ it.toString() } : [reads.toString()]
-    if (meta.single_end) {
-        if (readList.size >= 1) {
-            """
-            cat ${readList.join(' ')} > ${prefix}.merged.fastq.gz
-
-            cat <<-END_VERSIONS > versions.yml
-            "${task.process}":
-                cat: \$(echo \$(cat --version 2>&1) | sed 's/^.*coreutils) //; s/ .*\$//')
-            END_VERSIONS
-            """
-        }
-    } else {
-        if (readList.size >= 2) {
-            def read1 = []
-            def read2 = []
-            readList.eachWithIndex{ v, ix -> ( ix & 1 ? read2 : read1 ) << v }
-            """
-            cat ${read1.join(' ')} > ${prefix}_1.merged.fastq.gz
-            cat ${read2.join(' ')} > ${prefix}_2.merged.fastq.gz
-
-            cat <<-END_VERSIONS > versions.yml
-            "${task.process}":
-                cat: \$(echo \$(cat --version 2>&1) | sed 's/^.*coreutils) //; s/ .*\$//')
-            END_VERSIONS
-            """
-        }
-    }
-
-    stub:
-    def prefix = task.ext.prefix ?: "${meta.id}"
-    def readList = reads instanceof List ? reads.collect{ it.toString() } : [reads.toString()]
-    if (meta.single_end) {
-        if (readList.size > 1) {
-            """
-            touch ${prefix}.merged.fastq.gz
-
-            cat <<-END_VERSIONS > versions.yml
-            "${task.process}":
-                cat: \$(echo \$(cat --version 2>&1) | sed 's/^.*coreutils) //; s/ .*\$//')
-            END_VERSIONS
-            """
-        }
-    } else {
-        if (readList.size > 2) {
-            """
-            touch ${prefix}_1.merged.fastq.gz
-            touch ${prefix}_2.merged.fastq.gz
-
-            cat <<-END_VERSIONS > versions.yml
-            "${task.process}":
-                cat: \$(echo \$(cat --version 2>&1) | sed 's/^.*coreutils) //; s/ .*\$//')
-            END_VERSIONS
-            """
-        }
-    }
-
-}
+include { CAT_FASTQ } from './modules/cat_fastq/main'
 include { FASTQC as FASTQC_RAW  } from './modules/fastqc/main'
 include { FASTQC as FASTQC_TRIM } from './modules/fastqc/main'
+include { FASTP } from './modules/fastp/main'
+
 workflow {
   TIMESTAMP_START ()
   ch_versions = Channel.empty()
