@@ -1367,21 +1367,7 @@ workflow {
   .mix(ch_fastq.single)
   .set { ch_cat_fastq }
   ch_versions = ch_versions.mix(CAT_FASTQ.out.versions.first().ifEmpty(null))
-  /*
-  if (params.trimmer == 'fastp') {
-        FASTQ_FASTQC_UMITOOLS_FASTP (
-            ch_cat_fastq,
-            params.skip_fastqc || params.skip_qc,
-            params.with_umi,
-            params.skip_umi_extract,
-            params.umi_discard_read,
-            params.skip_trimming,
-            [],
-            params.save_trimmed,
-            params.save_trimmed,
-            params.min_trimmed_reads
-        )
-  */
+
   configyaml = Channel.fromPath(workflow.commandLine.split(" -params-file ")[1].split(" ")[0])
 
   //FASTP ( ch_sample )
