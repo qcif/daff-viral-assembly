@@ -905,42 +905,6 @@ process BEDTOOLS {
     """
 }
 
-
-/*
-process FASTQC_RAW {
-  tag "$sampleid"
-  publishDir "${params.outdir}/${sampleid}/01_fastqc_raw", mode: 'copy'
-  label "setting_10"
-
-  input:
-    tuple val(sampleid), path(fastq1), path(fastq2)
-
-  output:
-    path("*_fastqc.{zip,html}")
-
-  script:
-    """
-    fastqc --quiet --threads ${task.cpus} ${fastq1} ${fastq2}
-    """
-}
-*/
-process FASTQC_TRIMMED {
-    tag "$sampleid"
-    label "setting_10"
-    publishDir "${params.outdir}/${sampleid}/03_fastqc_trimmed", mode: 'copy'
-
-    input:
-      tuple val(sampleid), path(fastq1), path(fastq2)
-    
-    output:
-      path("*_fastqc.{zip,html}")
-
-    script:
-    """
-    fastqc --quiet --threads ${task.cpus} ${fastq1} ${fastq2}
-    """
-}
-
 process BBDUK { 
   tag "${sampleid}"
   label "setting_22"
@@ -1533,12 +1497,9 @@ workflow {
   COVSTATS(cov_stats_summary_ch)
   FASTA2TABLE2  ( COVSTATS.out.detections_summary3)
   
-  
-  
   //Derive QC report
   // Merge all the  files into one channel
   //ch_multiqc_files = FASTP.out.fastp_json
-
 
   ch_multiqc_files = FASTP.out.json.map { meta, json ->
                       json
