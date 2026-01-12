@@ -816,37 +816,9 @@ process FILTER_CONTROL {
   """
 }
 */
-process KRAKEN2 {
-  tag "${sampleid}"
-  label "setting_23"
-  containerOptions "${bindOptions}"
-  publishDir "${params.outdir}/${sampleid}/05_read_classification", mode: 'copy'
+/*
 
-  input:
-    tuple val(sampleid), path(fastq1), path(fastq2)
-  output:
-//    path("${sampleid}_kraken2.log")
-//    path("${sampleid}_kraken2_report.txt")
-//    path("${sampleid}_kraken2_output.txt")
-//    path("${sampleid}_unclassified_1.fastq")
-//    path("${sampleid}_unclassified_2.fastq")
-    tuple val(sampleid), path("${sampleid}_kraken2_report.txt"), path("${sampleid}_kraken2_output.txt"), path(fastq1), path(fastq2), path("${sampleid}_unclassified_1.fastq"), path("${sampleid}_unclassified_2.fastq"), emit: kraken2_results
-    tuple val(sampleid), path("${sampleid}_kraken2_report.txt"), emit: kraken2_results2
-  script:
-  """
-  kraken2 --db ${params.kraken2_db} --use-names \
-          --paired --threads ${task.cpus} \
-          --gzip-compressed \
-          --confidence 0.05 \
-          --report ${sampleid}_kraken2_report.txt \
-          --output ${sampleid}_kraken2_output.txt \
-          --unclassified-out ${sampleid}_unclassified#.fastq \
-          --report-minimizer-data \
-          --minimum-hit-groups 3 \
-          ${fastq1} ${fastq2} > ${sampleid}_kraken2.log
-  
-  """
-}
+*/
 //Explore downtrack downloading krona taxonomy to see if it improves the visualisation
 process KRAKEN2_TO_KRONA {
     tag "${sampleid}"
@@ -870,8 +842,8 @@ process KRAKEN2_TO_KRONA {
 
 
 //the logic of the original est_abundance.py had to be modified as it was not working as intended for viral species 
-// only defined at S1 (strain) leevle but not S level, theu would just not appear in the bracken report. 
-// Henec the updaedd_est_abundance.py script is used here instead.
+// only defined at S1 (strain) level but not S level, these would just not appear in the bracken report. 
+// Hence the updated_est_abundance.py script is used here instead.
 //It will rescue the abundance estimates for such species by summing up all S1 level abundances to S level.
 process BRACKEN {
   tag "${sampleid}"
@@ -978,7 +950,7 @@ process RETRIEVE_VIRAL_READS_KRAKEN2 {
   input:
     tuple val(sampleid), path(kraken_report), path(kraken_output), path(fastq1), path(fastq2), path(unc_fastq1), path(unc_fastq2)
   output:
-    tuple val(sampleid), path("${sampleid}_cand_path_R1.fastq"), path("${sampleid}_cand_path_R2.fastq"), emit: fastq
+    tuple val(sampleid), path("${sampleid}_cand_path_R1.fastq.gz"), path("${sampleid}_cand_path_R2.fastq.gz"), emit: fastq
 
   script:
   """
@@ -986,9 +958,11 @@ process RETRIEVE_VIRAL_READS_KRAKEN2 {
                           -t 10239 --include-children \
                           -s1 ${fastq1} -s2 ${fastq2} \
                           --fastq-output \
-                          -o ${sampleid}_extracted_reads1.fq -o2 ${sampleid}_extracted_reads2.fq
-  cat ${unc_fastq1} ${sampleid}_extracted_reads1.fq > ${sampleid}_cand_path_R1.fastq
-  cat ${unc_fastq2} ${sampleid}_extracted_reads2.fq >  ${sampleid}_cand_path_R2.fastq
+                          -o ${sampleid}_extracted_reads1.fastq -o2 ${sampleid}_extracted_reads2.fastq
+  gzip ${sampleid}_extracted_reads1.fastq
+  gzip ${sampleid}_extracted_reads2.fastq
+  cat ${unc_fastq1} ${sampleid}_extracted_reads1.fastq.gz > ${sampleid}_cand_path_R1.fastq.gz
+  cat ${unc_fastq2} ${sampleid}_extracted_reads2.fastq.gz >  ${sampleid}_cand_path_R2.fastq.gz
   """
 }
 /*
@@ -1169,6 +1143,7 @@ include { FASTQC as FASTQC_TRIM } from './modules/fastqc/main'
 include { FASTP } from './modules/fastp/main'
 include { BBMAP_BBDUK } from './modules/bbmap/bbduk/main'
 include { BBMAP_BBSPLIT } from './modules/bbmap/bbsplit/main'
+include { KRAKEN2_KRAKEN2 } from './modules/kraken2/main'
 
 workflow {
   TIMESTAMP_START ()
@@ -1302,13 +1277,23 @@ workflow {
   }
 
 
-  KRAKEN2 ( trial_ch)
-  BRACKEN ( KRAKEN2.out.kraken2_results2 )
-  KRAKEN2_TO_KRONA ( KRAKEN2.out.kraken2_results2 )
+  //KRAKEN2 ( trial_ch)
+  KRAKEN2_KRAKEN2(BBMAP_BBSPLIT.out.all_fastq, params.kraken2_db, params.kraken2_save_classified_reads, params.kraken2_save_unclassified_reads, params.kraken2_save_readclassifications)
+  //BRACKEN ( KRAKEN2_KRAKEN2.out.kraken2_results2 )
+  BRACKEN ( KRAKEN2_KRAKEN2.out.report )
+  //KRAKEN2_TO_KRONA ( KRAKEN2_KRAKEN2.out.kraken2_results2 )
 
-  //retrieve reads that were not classified and reads classified as viral
-  //merge unclassified reads with viral reads from kraken2
-  RETRIEVE_VIRAL_READS_KRAKEN2 ( KRAKEN2.out.kraken2_results )
+  //retrieve reads that were not classified and reads classified as viral by kraken2
+  //merge
+  kraken_ch = KRAKEN2_KRAKEN2.out.results.map { meta, report, output, raw_reads, unclassified ->
+    def sample_id = meta.id
+    def read1 = raw_reads[0]
+    def read2 = raw_reads[1]
+    def unclassified1 = unclassified[0]
+    def unclassified2 = unclassified[1]
+    tuple(sample_id, report, output, read1, read2, unclassified1, unclassified2)
+  }
+  RETRIEVE_VIRAL_READS_KRAKEN2 ( kraken_ch )
 
   //read classification with kaiju
   //KAIJU ( FILTER_CONTROL.out.bbsplit_filtered_fq )
