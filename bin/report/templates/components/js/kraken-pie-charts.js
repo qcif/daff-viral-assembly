@@ -131,9 +131,9 @@
         });
     }
 
-    function showKingdomChart(kingdomKey, rank = 'family') {
+    function showKingdomChart(kingdomKey, rank = null) {
         currentKingdom = kingdomKey;
-        currentRank = rank;
+        currentRank = rank || currentRank;
 
         // Hide default message and show kingdom chart wrapper
         $('#kraken-default-message').hide();
@@ -146,7 +146,8 @@
         updatePieChart(kingdomKey, rank);
     }
 
-    function updatePieChart(kingdomKey, rank) {
+    function updatePieChart(kingdomKey, rank = null) {
+        rank = rank || currentRank;
         const containerId = `kraken-${kingdomKey}-pie`;
         const kingdomData = krakenTaxaByKingdom[kingdomKey];
         const capitalizedKingdom = kingdomKey.charAt(0).toUpperCase() + kingdomKey.slice(1);
