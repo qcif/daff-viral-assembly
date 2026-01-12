@@ -160,152 +160,7 @@ process BLASTN {
       -max_target_seqs 5
     """
 }
-/*
-process FASTP {
-  tag "$sampleid"
-  publishDir "${params.outdir}/${sampleid}/02_qtrimmed", mode: 'copy', pattern: '{*fastq.gz,*_fastp.log}'
-  publishDir "${params.outdir}/${sampleid}/03_fastqc_trimmed", mode: 'copy', pattern: '{*html,*json}'
-  label "setting_4"
 
-  input:
-    tuple val(sampleid), path(fastq1), path(fastq2)
-
-  output:
-    path("${sampleid}.fastp.html")
-    path("${sampleid}.fastp.json")
-    path("${sampleid}_fastp.log")
-    tuple val(sampleid), path("${sampleid}_1_qtrimmed.fastq.gz"), path("${sampleid}_2_qtrimmed.fastq.gz"), emit: trimmed_fq
-    path("${sampleid}.fastp.json"), emit: fastp_json
-
-  script:
-    """
-    fastp \
-    --in1 ${fastq1} \
-    --in2 ${fastq2} \
-    --out1 ${sampleid}_1_qtrimmed.fastq.gz \
-    --out2 ${sampleid}_2_qtrimmed.fastq.gz \
-    --cut_front \
-    --cut_tail \
-    --json ${sampleid}.fastp.json \
-    --html ${sampleid}.fastp.html \
-    --thread 6 \
-    --detect_adapter_for_pe \
-    --length_required 50 --average_qual 20
-    2>&1 | tee ${sampleid}_fastp.log
-    """
-}
-//update to 2>&1 | tee ${sampleid}_fastp.log
-*/
-//Modified the nf-core module so it does not expect an adapter list. Might re-visit later to add that functionality back in.
-//Also added --detect_adapter_for_pe --cut_front --cut_tail --length_required 50 --average_qual 20, might want to make these external arguments later.
-process FASTP {
-    tag "$meta.id"
-    label "setting_4"
-    publishDir "${params.outdir}/$meta.id/02_qtrimmed", mode: 'copy', pattern: '{*fastq.gz}'
-    publishDir "${params.outdir}/$meta.id/03_fastqc_trimmed", mode: 'copy', pattern: '{*fastp.html,*fastp.json}'
-
-    conda "bioconda::fastp=0.23.4"
-    container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
-        'https://depot.galaxyproject.org/singularity/fastp:0.23.4--h5f740d0_0' :
-        'biocontainers/fastp:0.23.4--h5f740d0_0' }"
-
-    input:
-    tuple val(meta), path(reads)
-    //path  adapter_fasta
-    val   save_trimmed_fail
-    val   save_merged
-
-    output:
-    path("*.fastp.fastq.gz")
-    path("*.fastp.html")
-    path("*.fastp.json")
-    tuple val(meta), path('*.fastp.fastq.gz') , optional:true, emit: reads
-    tuple val(meta), path('*.json')           , emit: json
-    tuple val(meta), path('*.html')           , emit: html
-    tuple val(meta), path('*.log')            , emit: log
-    path "versions.yml"                       , emit: versions
-    tuple val(meta), path('*.fail.fastq.gz')  , optional:true, emit: reads_fail
-    tuple val(meta), path('*.merged.fastq.gz'), optional:true, emit: reads_merged
-
-    when:
-    task.ext.when == null || task.ext.when
-
-    script:
-    def args = task.ext.args ?: ''
-    def prefix = task.ext.prefix ?: "${meta.id}"
-    //def adapter_list = adapter_fasta ? "--adapter_fasta ${adapter_fasta}" : ""
-    def fail_fastq = save_trimmed_fail && meta.single_end ? "--failed_out ${prefix}.fail.fastq.gz" : save_trimmed_fail && !meta.single_end ? "--unpaired1 ${prefix}_1.fail.fastq.gz --unpaired2 ${prefix}_2.fail.fastq.gz" : ''
-    // Added soft-links to original fastqs for consistent naming in MultiQC
-    // Use single ended for interleaved. Add --interleaved_in in config.
-    if ( task.ext.args?.contains('--interleaved_in') ) {
-        """
-        [ ! -f  ${prefix}.fastq.gz ] && ln -sf $reads ${prefix}.fastq.gz
-
-        fastp \\
-            --stdout \\
-            --in1 ${prefix}.fastq.gz \\
-            --thread $task.cpus \\
-            --json ${prefix}.fastp.json \\
-            --html ${prefix}.fastp.html \\
-            --detect_adapter_for_pe \\
-            --cut_front \\
-            --cut_tail \\
-            --length_required 50 --average_qual 20 \\
-            $fail_fastq \\
-            $args \\
-            2> >(tee ${prefix}.fastp.log >&2) \\
-        | gzip -c > ${prefix}.fastp.fastq.gz
-
-        cat <<-END_VERSIONS > versions.yml
-        "${task.process}":
-            fastp: \$(fastp --version 2>&1 | sed -e "s/fastp //g")
-        END_VERSIONS
-        """
-    } else if (meta.single_end) {
-        """
-        [ ! -f  ${prefix}.fastq.gz ] && ln -sf $reads ${prefix}.fastq.gz
-
-        fastp \\
-            --in1 ${prefix}.fastq.gz \\
-            --out1  ${prefix}.fastp.fastq.gz \\
-            --thread $task.cpus \\
-            --json ${prefix}.fastp.json \\
-            --html ${prefix}.fastp.html \\
-            $fail_fastq \\
-            $args \\
-            2> >(tee ${prefix}.fastp.log >&2)
-
-        cat <<-END_VERSIONS > versions.yml
-        "${task.process}":
-            fastp: \$(fastp --version 2>&1 | sed -e "s/fastp //g")
-        END_VERSIONS
-        """
-    } else {
-        def merge_fastq = save_merged ? "-m --merged_out ${prefix}.merged.fastq.gz" : ''
-        """
-        [ ! -f  ${prefix}_1.fastq.gz ] && ln -sf ${reads[0]} ${prefix}_1.fastq.gz
-        [ ! -f  ${prefix}_2.fastq.gz ] && ln -sf ${reads[1]} ${prefix}_2.fastq.gz
-        fastp \\
-            --in1 ${prefix}_1.fastq.gz \\
-            --in2 ${prefix}_2.fastq.gz \\
-            --out1 ${prefix}_1.fastp.fastq.gz \\
-            --out2 ${prefix}_2.fastp.fastq.gz \\
-            --json ${prefix}.fastp.json \\
-            --html ${prefix}.fastp.html \\
-            $fail_fastq \\
-            $merge_fastq \\
-            --thread $task.cpus \\
-            --detect_adapter_for_pe \\
-            $args \\
-            2> >(tee ${prefix}.fastp.log >&2)
-
-        cat <<-END_VERSIONS > versions.yml
-        "${task.process}":
-            fastp: \$(fastp --version 2>&1 | sed -e "s/fastp //g")
-        END_VERSIONS
-        """
-    }
-}
 process COVSTATS {
   tag "$sampleid"
   label "setting_1"
@@ -903,43 +758,7 @@ process BEDTOOLS {
     bedtools maskfasta -fi ${vcf_applied_fasta} -bed ${sampleid}_zero_coverage.bed -fo ${sampleid}_bcftools_masked_consensus.fasta
     """
 }
-
-
 /*
-process FASTQC_RAW {
-  tag "$sampleid"
-  publishDir "${params.outdir}/${sampleid}/01_fastqc_raw", mode: 'copy'
-  label "setting_10"
-
-  input:
-    tuple val(sampleid), path(fastq1), path(fastq2)
-
-  output:
-    path("*_fastqc.{zip,html}")
-
-  script:
-    """
-    fastqc --quiet --threads ${task.cpus} ${fastq1} ${fastq2}
-    """
-}
-*/
-process FASTQC_TRIMMED {
-    tag "$sampleid"
-    label "setting_10"
-    publishDir "${params.outdir}/${sampleid}/03_fastqc_trimmed", mode: 'copy'
-
-    input:
-      tuple val(sampleid), path(fastq1), path(fastq2)
-    
-    output:
-      path("*_fastqc.{zip,html}")
-
-    script:
-    """
-    fastqc --quiet --threads ${task.cpus} ${fastq1} ${fastq2}
-    """
-}
-
 process BBDUK { 
   tag "${sampleid}"
   label "setting_22"
@@ -996,7 +815,7 @@ process FILTER_CONTROL {
              statsfile=${sampleid}_bbsplit_stats.txt
   """
 }
-
+*/
 process KRAKEN2 {
   tag "${sampleid}"
   label "setting_23"
@@ -1344,89 +1163,13 @@ process EXTRACT_CONTIGS {
     fi
     """
 }
-
-process CAT_FASTQ {
-    tag "$meta.id"
-    label 'setting_29'
-
-    conda "conda-forge::sed=4.7"
-    container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
-        'https://depot.galaxyproject.org/singularity/ubuntu:20.04' :
-        'nf-core/ubuntu:20.04' }"
-
-    input:
-    tuple val(meta), path(reads, stageAs: "input*/*")
-
-    output:
-    tuple val(meta), path("*.merged.fastq.gz"), emit: reads
-    path "versions.yml"                       , emit: versions
-
-    when:
-    task.ext.when == null || task.ext.when
-
-    script:
-    def args = task.ext.args ?: ''
-    def prefix = task.ext.prefix ?: "${meta.id}"
-    def readList = reads instanceof List ? reads.collect{ it.toString() } : [reads.toString()]
-    if (meta.single_end) {
-        if (readList.size >= 1) {
-            """
-            cat ${readList.join(' ')} > ${prefix}.merged.fastq.gz
-
-            cat <<-END_VERSIONS > versions.yml
-            "${task.process}":
-                cat: \$(echo \$(cat --version 2>&1) | sed 's/^.*coreutils) //; s/ .*\$//')
-            END_VERSIONS
-            """
-        }
-    } else {
-        if (readList.size >= 2) {
-            def read1 = []
-            def read2 = []
-            readList.eachWithIndex{ v, ix -> ( ix & 1 ? read2 : read1 ) << v }
-            """
-            cat ${read1.join(' ')} > ${prefix}_1.merged.fastq.gz
-            cat ${read2.join(' ')} > ${prefix}_2.merged.fastq.gz
-
-            cat <<-END_VERSIONS > versions.yml
-            "${task.process}":
-                cat: \$(echo \$(cat --version 2>&1) | sed 's/^.*coreutils) //; s/ .*\$//')
-            END_VERSIONS
-            """
-        }
-    }
-
-    stub:
-    def prefix = task.ext.prefix ?: "${meta.id}"
-    def readList = reads instanceof List ? reads.collect{ it.toString() } : [reads.toString()]
-    if (meta.single_end) {
-        if (readList.size > 1) {
-            """
-            touch ${prefix}.merged.fastq.gz
-
-            cat <<-END_VERSIONS > versions.yml
-            "${task.process}":
-                cat: \$(echo \$(cat --version 2>&1) | sed 's/^.*coreutils) //; s/ .*\$//')
-            END_VERSIONS
-            """
-        }
-    } else {
-        if (readList.size > 2) {
-            """
-            touch ${prefix}_1.merged.fastq.gz
-            touch ${prefix}_2.merged.fastq.gz
-
-            cat <<-END_VERSIONS > versions.yml
-            "${task.process}":
-                cat: \$(echo \$(cat --version 2>&1) | sed 's/^.*coreutils) //; s/ .*\$//')
-            END_VERSIONS
-            """
-        }
-    }
-
-}
+include { CAT_FASTQ } from './modules/cat_fastq/main'
 include { FASTQC as FASTQC_RAW  } from './modules/fastqc/main'
 include { FASTQC as FASTQC_TRIM } from './modules/fastqc/main'
+include { FASTP } from './modules/fastp/main'
+include { BBMAP_BBDUK } from './modules/bbmap/bbduk/main'
+include { BBMAP_BBSPLIT } from './modules/bbmap/bbsplit/main'
+
 workflow {
   TIMESTAMP_START ()
   ch_versions = Channel.empty()
@@ -1480,21 +1223,7 @@ workflow {
   .mix(ch_fastq.single)
   .set { ch_cat_fastq }
   ch_versions = ch_versions.mix(CAT_FASTQ.out.versions.first().ifEmpty(null))
-  /*
-  if (params.trimmer == 'fastp') {
-        FASTQ_FASTQC_UMITOOLS_FASTP (
-            ch_cat_fastq,
-            params.skip_fastqc || params.skip_qc,
-            params.with_umi,
-            params.skip_umi_extract,
-            params.umi_discard_read,
-            params.skip_trimming,
-            [],
-            params.save_trimmed,
-            params.save_trimmed,
-            params.min_trimmed_reads
-        )
-  */
+
   configyaml = Channel.fromPath(workflow.commandLine.split(" -params-file ")[1].split(" ")[0])
 
   //FASTP ( ch_sample )
@@ -1511,7 +1240,7 @@ workflow {
   fastqc_raw_zip  = FASTQC_RAW.out.zip
   ch_versions     = ch_versions.mix(FASTQC_RAW.out.versions.first())
   
-  //incorporate a logic like in nf-cre/rnaseq where minimum reads has to be achieved to proceed?
+  //incorporate a logic like in nf-core/rnaseq where minimum reads has to be achieved to proceed?
   FASTQC_TRIM ( FASTP.out.reads )
   fastqc_trim_html = FASTQC_TRIM.out.html
   fastqc_trim_zip  = FASTQC_TRIM.out.zip
@@ -1525,24 +1254,55 @@ workflow {
     tuple(sample_id, read1, read2, file(params.sortmerna_ref))
   }
   */
+
+
+  /*this was for original bbduk process
   trial_ch2 = FASTP.out.reads.map { meta, reads ->
     def sample_id = meta.id
     def read1 = reads[0]
     def read2 = reads[1]
     tuple(sample_id, read1, read2, file(params.sortmerna_ref))
   }
+*/
+/*
+  trial_ch2 = FASTP.out.reads.map { meta, reads ->
+    tuple(meta, reads, file(params.contaminants))
+  }
+  trial_ch2.view()
+
+
+
   //Filtering with sortmerna takes much longer than bbduk so use bbduk for prototype
   //SORTMERNA ( trial_ch )
-  BBDUK ( trial_ch2 )
-  
+  */
+  ch_rrna = Channel.fromPath(params.rrna_ref)
+  BBMAP_BBDUK ( FASTP.out.reads, ch_rrna)
   //remove phiX reads
-  FILTER_CONTROL ( BBDUK.out.bbduk_filtered_fq )
+  bbmaplit_primary_ref_ch = Channel.fromPath(params.phix)
+  empty_refs_ch = Channel.value( tuple([], []) )
+  empty_index_ch         = Channel.empty()
+
+  BBMAP_BBSPLIT ( BBMAP_BBDUK.out.reads, [], bbmaplit_primary_ref_ch, empty_refs_ch, false ) 
+  //FILTER_CONTROL ( BBMAP_BBDUK.out.reads )
 
   //provide option to filter host?
   //filter host by default?
 
   //read classification with Kraken
-  KRAKEN2 ( FILTER_CONTROL.out.bbsplit_filtered_fq )
+  trial_ch = BBMAP_BBSPLIT.out.all_fastq.map { meta, reads ->
+    def sample_id = meta.id
+    def read1 = reads[0]
+    def read2 = reads[1]
+    tuple(sample_id, read1, read2)
+  }
+  stats_ch = BBMAP_BBSPLIT.out.stats.map { meta, stats ->
+    def sample_id = meta.id
+    def stats1 = stats
+    tuple(sample_id, stats1)
+  }
+
+
+  KRAKEN2 ( trial_ch)
   BRACKEN ( KRAKEN2.out.kraken2_results2 )
   KRAKEN2_TO_KRONA ( KRAKEN2.out.kraken2_results2 )
 
@@ -1551,10 +1311,13 @@ workflow {
   RETRIEVE_VIRAL_READS_KRAKEN2 ( KRAKEN2.out.kraken2_results )
 
   //read classification with kaiju
-  KAIJU ( FILTER_CONTROL.out.bbsplit_filtered_fq )
+  //KAIJU ( FILTER_CONTROL.out.bbsplit_filtered_fq )
+  KAIJU (trial_ch)
   KRONA ( KAIJU.out.krona_results )
   read_classification_ch = KAIJU.out.kaiju_results2.join(BRACKEN.out.bracken_results2)
-                                                  .join(FILTER_CONTROL.out.stats)
+                                                    .join(stats_ch)
+  //                                                .join(FILTER_CONTROL.out.stats)
+
   SUMMARISE_READ_CLASSIFICATION ( read_classification_ch )
 
   //perform de novo assembly with spades using rnaspades
@@ -1581,20 +1344,22 @@ workflow {
   FASTA2TABLE ( EXTRACT_VIRAL_BLAST_HITS.out.viral_blast_results.join(SEQTK.out.filt_fasta) )
   //Mapping back to contigs that had viral blast hits
   EXTRACT_CONTIGS ( FASTA2TABLE.out.contig_ids.join(SEQTK.out.filt_fasta) )
-  MAPPING_BACK_TO_CONTIGS ( EXTRACT_CONTIGS.out.fasta.join(FILTER_CONTROL.out.bbsplit_filtered_fq) )
+  //MAPPING_BACK_TO_CONTIGS ( EXTRACT_CONTIGS.out.fasta.join(FILTER_CONTROL.out.bbsplit_filtered_fq) )
+  MAPPING_BACK_TO_CONTIGS ( EXTRACT_CONTIGS.out.fasta.join(trial_ch) )
   SAMTOOLS_CONTIGS ( MAPPING_BACK_TO_CONTIGS.out.contig_aligned_sam )
   PYFAIDX_CONTIGS ( EXTRACT_CONTIGS.out.fasta )
   MOSDEPTH_CONTIGS (SAMTOOLS_CONTIGS.out.sorted_bam.join(PYFAIDX_CONTIGS.out.bed))
 
   contig_cov_stats_summary_ch = MOSDEPTH_CONTIGS.out.mosdepth_results.join(FASTA2TABLE.out.blast_results2)
-                                                      .join(FILTER_CONTROL.out.stats)
+                                                      .join(stats_ch)
                                                       .join(SAMTOOLS_CONTIGS.out.coverage)
                                                       .join(SAMTOOLS_CONTIGS.out.mapping_quality)
   CONTIG_COVSTATS(contig_cov_stats_summary_ch)
   //Mapping back to reference sequences retrieved from blast hits
   EXTRACT_REF_FASTA ( FASTA2TABLE.out.ref_ids )
   CLUSTER ( EXTRACT_REF_FASTA.out.fasta_files )
-  mapping_ch = CLUSTER.out.clusters.join(FILTER_CONTROL.out.bbsplit_filtered_fq)
+  //mapping_ch = CLUSTER.out.clusters.join(FILTER_CONTROL.out.bbsplit_filtered_fq)
+  mapping_ch = CLUSTER.out.clusters.join(trial_ch)
   MAPPING_BACK_TO_REF ( mapping_ch )
   SAMTOOLS2 ( MAPPING_BACK_TO_REF.out.aligned_sam )
   BCFTOOLS ( SAMTOOLS2.out.sorted_bam )
@@ -1602,7 +1367,7 @@ workflow {
   PYFAIDX ( EXTRACT_REF_FASTA.out.fasta_files )
   MOSDEPTH (SAMTOOLS2.out.sorted_bam.join(PYFAIDX.out.bed))
   cov_stats_summary_ch = MOSDEPTH.out.mosdepth_results.join(FASTA2TABLE.out.blast_results)
-                                                      .join(FILTER_CONTROL.out.stats)
+                                                      .join(stats_ch)
                                                       .join(BEDTOOLS.out.bcftools_masked_consensus_fasta)
                                                       .join(SAMTOOLS2.out.coverage)
                                                       .join(SAMTOOLS2.out.mapping_quality)
@@ -1610,18 +1375,18 @@ workflow {
   COVSTATS(cov_stats_summary_ch)
   FASTA2TABLE2  ( COVSTATS.out.detections_summary3)
   
-  
-  
   //Derive QC report
   // Merge all the  files into one channel
   //ch_multiqc_files = FASTP.out.fastp_json
 
 
+
+
   ch_multiqc_files = FASTP.out.json.map { meta, json ->
                       json
                       }
-                      .mix(FILTER_CONTROL.out.stats2)
-                      .mix(BBDUK.out.bbduk_stats)
+                      .mix(BBMAP_BBSPLIT.out.stats2)
+                      .mix(BBMAP_BBDUK.out.log2)
                       .collect()
 
   QCREPORT(ch_multiqc_files)

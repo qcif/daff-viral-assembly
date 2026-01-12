@@ -10,4 +10,4 @@ kaiju_names: null
 kaiju_nodes: null
 help: false
 outdir: results
-sortmerna_ref: null
+rrna_ref: null

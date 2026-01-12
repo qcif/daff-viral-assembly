@@ -51,9 +51,9 @@ def main():
     print(summary_dict)
         
 
-    for rRNA_clean_read_out in glob.glob("*_rRNA_reads.log"):
+    for rRNA_clean_read_out in glob.glob("*_bbduk.log"):
         rRNA_cleaned_reads = ()
-        sample = (os.path.basename(rRNA_clean_read_out).replace('_rRNA_reads.log', ''))
+        sample = (os.path.basename(rRNA_clean_read_out).replace('_bbduk.log', ''))
         with open(rRNA_clean_read_out, 'r') as f:
             for line in f:
                 if line.strip().startswith("Result:"):
