@@ -8,3 +8,4 @@ kaiju_dbname: /work/eresearch/databases/kaiju_databases/kaiju_db_nr_euk.fmi
 kaiju_names: /work/eresearch/databases/kaiju_databases/names.dmp
 kaiju_nodes : /work/eresearch/databases/kaiju_databases/nodes.dmp
 rrna_ref: /work/daff_viral_rnaseq/sortmerna/rrna_dbs/smr_v4.3_sensitive_db_DNA.fasta
+kaiju_db_path: /work/eresearch/databases/kaiju_databases

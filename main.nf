@@ -68,9 +68,14 @@ if (params.blastn_db != null) {
 if (params.kraken2_db != null) {
     krkdb_dir = file(params.kraken2_db).parent
 }
-if (params.kaiju_nodes != null & params.kaiju_dbname != null & params.kaiju_names != null) {
+//if (params.kaiju_nodes != null & params.kaiju_dbname != null & params.kaiju_names != null) {
+//    kaiju_dbs_dir = file(params.kaiju_nodes).parent
+//}
+/*
+if (params.kaiju_db_path != null ) {
     kaiju_dbs_dir = file(params.kaiju_nodes).parent
 }
+*/
 //if (params.diamond_db != null) {
 //    diamond_db_dir = file(params.diamond_db).parent
 //}
@@ -106,6 +111,10 @@ switch (workflow.containerEngine) {
     if (params.taxdump != null) {
       bindbuild = (bindbuild + "-B ${params.taxdump} ")
     }
+
+    if (params.kaiju_db_path != null) {
+      bindbuild = (bindbuild + "-B ${params.kaiju_db_path} ")
+    }
 //    if (params.diamond_db != null) {
 //      bindbuild = (bindbuild + "-B ${diamond_db_dir} ")
 //    }
@@ -113,12 +122,15 @@ switch (workflow.containerEngine) {
 //    if (params.sortmerna_ref != null) {
 //      bindbuild = (bindbuild + "-B ${sortmerna_ref_dir} ")
 //    }
+
     if (params.kraken2_db != null) {
       bindbuild = (bindbuild + "-B ${krkdb_dir} ")
     }
-    if (params.kaiju_nodes != null & params.kaiju_dbname != null & params.kaiju_names != null) {
-      bindbuild = (bindbuild + "-B ${kaiju_dbs_dir} ")
-    }
+    
+    //if (params.kaiju_nodes != null & params.kaiju_dbname != null & params.kaiju_names != null) {
+    //  bindbuild = (bindbuild + "-B ${kaiju_dbs_dir} ")
+    //}
+    
     if (params.genomad_db != null ) {
       bindbuild = (bindbuild + "-B ${genomad_db_dir} ")
     }
@@ -874,54 +886,6 @@ process BRACKEN {
   """
 }
 
-process KAIJU {
-  tag "${sampleid}"
-  label "setting_28"
-  containerOptions "${bindOptions}"
-  publishDir "${params.outdir}/${sampleid}/05_read_classification", mode: 'copy'
-
-  input:
-    tuple val(sampleid), path(fastq1), path(fastq2)
-  output:
-    file "${sampleid}_kaiju_*name.tsv"
-    file "${sampleid}_kaiju_summary*.tsv"
-    file "${sampleid}_kaiju.krona"
-    tuple val(sampleid), path("${sampleid}_kaiju_summary_viral.tsv"), emit: kaiju_results
-    tuple val(sampleid), path ("${sampleid}_kaiju_summary.tsv"), emit: kaiju_results2
-    tuple val(sampleid), path("*kaiju.krona"), emit: krona_results
-
-
-  script:
-  """
-  c1grep() { grep "\$@" || test \$? = 1; }
-
-  kaiju \
-      -z ${task.cpus} \
-      -t ${params.kaiju_nodes}  \
-      -f ${params.kaiju_dbname} \
-      -o ${sampleid}_kaiju.tsv \
-      -i ${fastq1} \
-      -j ${fastq2} \
-      -v
-
-  kaiju-addTaxonNames -t ${params.kaiju_nodes} -n ${params.kaiju_names} -i ${sampleid}_kaiju.tsv -o ${sampleid}_kaiju_name.tsv
-  
-  kaiju-addTaxonNames \
-  -t ${params.kaiju_nodes} \
-  -n ${params.kaiju_names} \
-  -i ${sampleid}_kaiju.tsv \
-  -o ${sampleid}_kaiju_full_lineage_name.tsv \
-  -r superkingdom,phylum,class,order,family,genus,species
-  
-  
-  kaiju2table -e -t ${params.kaiju_nodes} -r species -n ${params.kaiju_names} -o ${sampleid}_kaiju_summary.tsv ${sampleid}_kaiju.tsv
-  kaiju2krona -t ${params.kaiju_nodes} -n ${params.kaiju_names} -i ${sampleid}_kaiju.tsv -o ${sampleid}_kaiju.krona
-
-  c1grep "taxon_id\\|virus\\|viroid\\|viricota\\|viridae\\|viriform\\|virales\\|virinae\\|viricetes\\|virae\\|viral" ${sampleid}_kaiju_summary.tsv > ${sampleid}_kaiju_summary_viral.tsv
-  awk -F'\\t' '\$2>=0.05' ${sampleid}_kaiju_summary_viral.tsv > ${sampleid}_kaiju_summary_viral_filtered.tsv
-  """
-}
-
 //Explore downtrack downloading krona taxonomy to see if it improves the visualisation
 process KRONA {
   publishDir "${params.outdir}/${sampleid}/05_read_classification", mode: 'link'
@@ -1144,6 +1108,7 @@ include { FASTP } from './modules/fastp/main'
 include { BBMAP_BBDUK } from './modules/bbmap/bbduk/main'
 include { BBMAP_BBSPLIT } from './modules/bbmap/bbsplit/main'
 include { KRAKEN2_KRAKEN2 } from './modules/kraken2/main'
+include { KAIJU_KAIJU } from './modules/kaiju/main'
 
 workflow {
   TIMESTAMP_START ()
@@ -1215,41 +1180,13 @@ workflow {
   fastqc_raw_zip  = FASTQC_RAW.out.zip
   ch_versions     = ch_versions.mix(FASTQC_RAW.out.versions.first())
   
-  //incorporate a logic like in nf-core/rnaseq where minimum reads has to be achieved to proceed?
+  //Incorporate a logic like in nf-core/rnaseq where minimum reads has to be achieved to proceed?
   FASTQC_TRIM ( FASTP.out.reads )
   fastqc_trim_html = FASTQC_TRIM.out.html
   fastqc_trim_zip  = FASTQC_TRIM.out.zip
   ch_versions      = ch_versions.mix(FASTQC_TRIM.out.versions.first())
-  /*
-  trial_ch = FASTP.out.trimmed_fq.map { sample_id, read1, read2 ->
-    tuple(sample_id, read1, read2, file(params.sortmerna_ref), file(params.sortmerna_idx))
-  }
   
-  trial_ch2 = FASTP.out.trimmed_fq.map { sample_id, read1, read2 ->
-    tuple(sample_id, read1, read2, file(params.sortmerna_ref))
-  }
-  */
-
-
-  /*this was for original bbduk process
-  trial_ch2 = FASTP.out.reads.map { meta, reads ->
-    def sample_id = meta.id
-    def read1 = reads[0]
-    def read2 = reads[1]
-    tuple(sample_id, read1, read2, file(params.sortmerna_ref))
-  }
-*/
-/*
-  trial_ch2 = FASTP.out.reads.map { meta, reads ->
-    tuple(meta, reads, file(params.contaminants))
-  }
-  trial_ch2.view()
-
-
-
   //Filtering with sortmerna takes much longer than bbduk so use bbduk for prototype
-  //SORTMERNA ( trial_ch )
-  */
   ch_rrna = Channel.fromPath(params.rrna_ref)
   BBMAP_BBDUK ( FASTP.out.reads, ch_rrna)
   //remove phiX reads
@@ -1258,10 +1195,8 @@ workflow {
   empty_index_ch         = Channel.empty()
 
   BBMAP_BBSPLIT ( BBMAP_BBDUK.out.reads, [], bbmaplit_primary_ref_ch, empty_refs_ch, false ) 
-  //FILTER_CONTROL ( BBMAP_BBDUK.out.reads )
-
-  //provide option to filter host?
-  //filter host by default?
+  
+  //provide option to filter host or filter a plant host by default?
 
   //read classification with Kraken
   trial_ch = BBMAP_BBSPLIT.out.all_fastq.map { meta, reads ->
@@ -1276,10 +1211,7 @@ workflow {
     tuple(sample_id, stats1)
   }
 
-
-  //KRAKEN2 ( trial_ch)
   KRAKEN2_KRAKEN2(BBMAP_BBSPLIT.out.all_fastq, params.kraken2_db, params.kraken2_save_classified_reads, params.kraken2_save_unclassified_reads, params.kraken2_save_readclassifications)
-  //BRACKEN ( KRAKEN2_KRAKEN2.out.kraken2_results2 )
   BRACKEN ( KRAKEN2_KRAKEN2.out.report )
   //KRAKEN2_TO_KRONA ( KRAKEN2_KRAKEN2.out.kraken2_results2 )
 
@@ -1297,9 +1229,12 @@ workflow {
 
   //read classification with kaiju
   //KAIJU ( FILTER_CONTROL.out.bbsplit_filtered_fq )
-  KAIJU (trial_ch)
-  KRONA ( KAIJU.out.krona_results )
-  read_classification_ch = KAIJU.out.kaiju_results2.join(BRACKEN.out.bracken_results2)
+  ch_kaijudb = Channel.fromPath(params.kaiju_db_path)
+  //incorporate a separate module for kaiju2krona and kaiju2table
+  KAIJU_KAIJU (BBMAP_BBSPLIT.out.all_fastq, ch_kaijudb)
+  //KAIJU_KAIJU (BBMAP_BBSPLIT.out.all_fastq)
+  KRONA ( KAIJU_KAIJU.out.krona_results )
+  read_classification_ch = KAIJU_KAIJU.out.kaiju_results.join(BRACKEN.out.bracken_results2)
                                                     .join(stats_ch)
   //                                                .join(FILTER_CONTROL.out.stats)
 
