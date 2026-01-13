@@ -1,0 +1,11 @@
+input: index_test.csv
+blastn_db: /scratch/datasets/blast_db/20250929/core_nt
+taxdump:  ~/.taxonkit
+genomad_db: /work/daff_viral_rnaseq/genomad/genomad_db
+hmmer_db: /work/daff_viral_rnaseq/daff-viral-assembly/hmms/Pfam-A.hmm
+kraken2_db: /work/eresearch/databases/kraken_databases/core_nt
+kaiju_dbname: /work/eresearch/databases/kaiju_databases/kaiju_db_nr_euk.fmi
+kaiju_names: /work/eresearch/databases/kaiju_databases/names.dmp
+kaiju_nodes : /work/eresearch/databases/kaiju_databases/nodes.dmp
+rrna_ref: /work/daff_viral_rnaseq/sortmerna/rrna_dbs/smr_v4.3_sensitive_db_DNA.fasta
+kaiju_db_path: /work/eresearch/databases/kaiju_databases
