@@ -1,0 +1,66 @@
+{% from "macros/sequence-display.html" import render_sequence_modal %}
+
+<h2>Detection of novel viruses</h2>
+
+<p class="text-danger">
+  This section shows ...
+</p>
+
+<div class="my-3" style="overflow-x: auto;">
+
+  {% if novel_viruses | length %}
+  <table class="table table-lined tight text-center">
+    <thead>
+      <tr>
+        {% for colname in novel_viruses.columns_primary_display %}
+        <th
+          {% if novel_viruses.COLUMN_METADATA[colname]['tooltip'] %}
+          title="{{ novel_viruses.COLUMN_METADATA[colname]['tooltip'] }}"
+          data-bs-toggle="tooltip"
+          data-bs-placement="top"
+          {% endif %}
+        >
+          {{ novel_viruses.COLUMN_METADATA[colname]['label'] }}
+        </th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in novel_viruses %}
+      {% set sequence_name = row[novel_viruses.columns_primary_display[0]] %}
+      <tr
+        {% if row['bs_class'] %}
+        class="alert-{{ row['bs_class'] }} align-middle"
+        {% endif %}
+      >
+        {% for colname in novel_viruses.columns_primary_display %}
+        <td
+          class="align-middle"
+          {% if colname == 'seq_name' %}
+          title="{{ novel_viruses.taxonomy_html_for_row(loop.index0) | safe }}"
+          data-bs-toggle="tooltip"
+          data-bs-html="true"
+          data-bs-placement="top"
+          {% endif %}
+        >
+          {% if colname == 'contig_seq' %}
+          {{ render_sequence_modal(sequence_name, row[colname]) }}
+          {% elif colname == 'taxonomy' %}
+          {{ row[colname][-1] }}
+          {% elif colname == 'ORFs' %}
+          {{ row[colname] or 0 }}
+          {% else %}
+          {{ row[colname] }}
+          {% endif %}
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>
+    No novel virus data available.
+  </p>
+  {% endif %}
+</div>

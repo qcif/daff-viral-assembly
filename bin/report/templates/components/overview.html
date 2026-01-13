@@ -3,7 +3,7 @@
     {% include "components/walltime.html" %}
   </div>
   <div class="col">
-    <p>
+    <p class="small">
       This report contains tables and plots to help interpret the outcome of the sequencing run and the viral detection analyses performed.
       Section I summarises the input data and quality control metrics.
       Section II provides an overview of the virus detected by 1) megablast homology search using de novo assembled contigs and/or 2) direct read search (using Kraken2 and Kaiju).
@@ -22,3 +22,5 @@
     {% include "components/qc.html" %}
   </div>
 </div>
+
+{% include "components/summary.html" %}

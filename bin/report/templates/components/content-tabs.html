@@ -26,6 +26,11 @@
       5. Reference mapping
     </button>
   </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="novel-virus-tab" data-bs-toggle="tab" data-bs-target="#novel-virus" type="button" role="tab" aria-controls="novel-virus" aria-selected="false">
+      6. Novel virus detection
+    </button>
+  </li>
 </ul>
 
 <div class="tab-content my-3 py-3" id="mainTabsContent">
@@ -59,6 +64,13 @@
     {% include "components/mapping.html" %}
     <div class="my-5">
       {{ render_subjective_input(5) }}
+    </div>
+  </div>
+
+  <div class="tab-pane fade" id="novel-virus" role="tabpanel" aria-labelledby="novel-virus-tab">
+    {% include "components/novel-virus.html" %}
+    <div class="my-5">
+      {{ render_subjective_input(6) }}
     </div>
   </div>
 </div>

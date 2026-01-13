@@ -198,18 +198,23 @@ class AbstractResultRows:
         ]
 
     def _cast(self, value, type_str):
-        if not type_str:
-            return value
-        if type_str == 'int':
-            num = int(float(value))
-            return f"{num:,}"
-        if type_str == 'float':
-            return float(value)
-        if type_str == 'scientific' and 'e' in value:
-            num = float(value)
-            return f"{num:.2e}"
-        if type_str == 'bool':
-            return value.lower() in ['true', '1', 'yes']
+        try:
+            if not type_str:
+                return value
+            if type_str == 'int':
+                num = int(float(value))
+                return f"{num:,}"
+            if type_str == 'float':
+                if value.lower() in ('na', 'nan', 'n/a'):
+                    return None
+                return float(value)
+            if type_str == 'scientific' and 'e' in value:
+                num = float(value)
+                return f"{num:.2e}"
+            if type_str == 'bool':
+                return value.lower() in ['true', '1', 'yes', 'y']
+        except ValueError:
+            return None
         return value
 
     def to_json(self):
@@ -443,3 +448,47 @@ class MappingResults(AbstractResultRows):
             if not row['sacc'] or row['sacc'] == '0':
                 for colname in self.COLUMNS[3:]:
                     row[colname] = '-'
+
+
+class SummaryResults(AbstractResultRows):
+    COLUMN_METADATA = _csv_to_dict(config.SCHEMA.SUMMARY_FIELD_CSV)
+    COLUMNS = list(COLUMN_METADATA.keys())
+
+    def __init__(self, *args):
+        super().__init__(*args)
+        self.columns_display = [
+            c for c in self.COLUMN_METADATA
+            if self.COLUMN_METADATA[c]['label']
+        ]
+        self.columns_primary_display = [
+            c for c in self.columns_display
+            if self.COLUMN_METADATA[c]['primary_display']
+        ]
+
+
+class NovelVirusResults(AbstractResultRows):
+    COLUMN_METADATA = _csv_to_dict(config.SCHEMA.NOVEL_VIRUS_FIELD_CSV)
+    COLUMNS = list(COLUMN_METADATA.keys())
+
+    def __init__(self, *args):
+        super().__init__(*args)
+        self.columns_display = [
+            c for c in self.COLUMN_METADATA
+            if self.COLUMN_METADATA[c]['label']
+        ]
+        self.columns_primary_display = [
+            c for c in self.columns_display
+            if self.COLUMN_METADATA[c]['primary_display']
+        ]
+        for row in self.rows:
+            if row.get('taxonomy'):
+                row['taxonomy'] = [
+                    taxon.strip()
+                    for taxon in row.get('taxonomy', '').split(';')
+                    if taxon.strip()
+                ]
+
+    def taxonomy_html_for_row(self, row_ix):
+        """Return the taxonomy as multiline HTML string."""
+        row = self.rows[row_ix]
+        return '<br>'.join(row.get('taxonomy', []))

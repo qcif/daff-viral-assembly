@@ -20,6 +20,8 @@ from .results import (
     MappingResults,
     Metadata,
     RunQC,
+    SummaryResults,
+    NovelVirusResults,
 )
 from .filters.css_hash import css_hash
 from .utils import get_img_src, serialize
@@ -136,7 +138,8 @@ def _get_report_context(
         'kraken': KrakenResults.from_csv(config.kraken_hits_path),
         'kaiju': KaijuResults.from_csv(config.kaiju_hits_path),
         'mapping': MappingResults.from_csv(config.ref_mapping_path),
-        # 'kraken_taxa_ranks': parse_kraken_taxonomy(config.kraken_hits_path),
+        'summary': SummaryResults.from_csv(config.summary_path),
+        'novel_viruses': NovelVirusResults.from_csv(config.novel_viruses_path),
         'kraken_taxa_by_kingdom': parse_kraken_taxonomy(
             config.kraken_hits_path,
             group_kingdoms=True,

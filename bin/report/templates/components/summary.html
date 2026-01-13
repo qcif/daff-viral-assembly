@@ -1,0 +1,78 @@
+{% from "macros/sequence-display.html" import render_sequence_modal %}
+{% from "macros/bool-icon.html" import render_bool_icon %}
+
+<h3>Summary of results</h3>
+
+<p>
+  The table below shows a brief summary of the viral detection results from all analyses performed. Please see individual sections for more detailed results and visualisations.
+</p>
+
+<p class="text-danger text-emphasis">
+  Cam - more columns could be displayed here, but not sure what constitues a good "overview" for the reader? Maybe we should be showing just a tick/cross for kraken/kaiju reads over a certain count?
+</p>
+
+<div class="my-3" style="overflow-x: auto;">
+
+  {% if summary | length %}
+  <table id="summaryTable" class="table table-lined tight small">
+    <thead>
+      <tr>
+        {% for colname in summary.columns_primary_display %}
+        <th
+          {% if summary.COLUMN_METADATA[colname]['tooltip'] %}
+          title="{{ summary.COLUMN_METADATA[colname]['tooltip'] }}"
+          data-bs-toggle="tooltip"
+          data-bs-placement="top"
+          {% endif %}
+        >
+          {{ summary.COLUMN_METADATA[colname]['label'] }}
+        </th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in summary %}
+      {% set contig_id = row['qseqid'] %}
+      <tr
+        {% if row['bs_class'] %}
+        class="alert-{{ row['bs_class'] }} align-middle"
+        {% endif %}
+      >
+        {% for colname in summary.columns_primary_display %}
+        <td class="align-middle">
+          {% if colname == 'taxon' %}
+            <span style="white-space: nowrap;">{{ row[colname] }}</span>
+          {% elif colname == 'evalue' %}
+            <span style="white-space: nowrap;">{{ row[colname] }}</span>
+          {% elif colname == 'contig_seq' %}
+            {% if row[colname].lower() != 'na' %}
+            {{ render_sequence_modal(contig_id, row[colname]) }}
+            {% else %}
+            N/A
+            {% endif %}
+          {% elif row[colname] is boolean %}
+            {{ render_bool_icon(row[colname]) }}
+          {% else %}
+            {{ row[colname] }}
+          {% endif %}
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>
+    <!-- Unlikely, but... -->
+    No summary data is available.
+  </p>
+  {% endif %}
+</div>
+
+<script>
+  $(document).ready( () => new DataTable('#summaryTable', {
+    order: [
+      [ 4, 'desc' ],
+    ],
+  }) );
+</script>

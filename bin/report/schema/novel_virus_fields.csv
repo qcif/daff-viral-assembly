@@ -1,0 +1,13 @@
+colname,label,type,primary_display,tooltip
+seq_name,Sequence name,,Y,
+contig_seq,Sequence,,Y,
+length,Length (nt),int,Y,
+n_genes,Gene count,int,Y,
+genetic_code,Genetic code,int,Y,
+virus_score,Virus score,float,Y,
+n_hallmarks,Number of hallmarks,int,Y,
+marker_enrichment,Marker enrichment,float,Y,
+taxonomy,Taxonomy,,Y,
+ORFs,ORFs,int,Y,
+RdRp,RdRp,int,Y,
+PFAM_total,Total PFAM,int,Y,

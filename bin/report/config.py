@@ -28,6 +28,8 @@ class Config:
         KRAKEN_FIELD_CSV = PARENT_DIR / 'schema/kraken_fields.csv'
         KRAKEN_KAIJU_FIELD_CSV = PARENT_DIR / 'schema/kraken_kaiju_fields.csv'
         MAPPING_FIELD_CSV = PARENT_DIR / 'schema/mapping_fields.csv'
+        SUMMARY_FIELD_CSV = PARENT_DIR / 'schema/summary_fields.csv'
+        NOVEL_VIRUS_FIELD_CSV = PARENT_DIR / 'schema/novel_virus_fields.csv'
 
     class OUTPUTS:
         REPORT_FILE_TEMPLATE = '{sample_id}_report.html'
@@ -115,6 +117,14 @@ class Config:
     def ref_mapping_path(self) -> Path:
         return self._get_file_by_pattern(
             "*_reference_with_cov_stats_final.txt")
+
+    @property
+    def summary_path(self) -> Path:
+        return self._get_file_by_pattern("*_summary_viral_results.tsv")
+
+    @property
+    def novel_viruses_path(self) -> Path:
+        return self._get_file_by_pattern("*_novel_virus_candidates.tsv")
 
     # @property
     # def PLACEHOLDER(self) -> Path:
