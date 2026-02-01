@@ -1011,6 +1011,7 @@ process ORFIPY {
     """
       orfipy ${fasta} \\
         --outdir . \\
+        --chunk-size 100000 \\
         --pep ${sampleid}_orfs.fasta \\
         --min 300 \\
         --procs ${task.cpus}
@@ -1167,35 +1168,76 @@ workflow {
   configyaml = Channel.fromPath(workflow.commandLine.split(" -params-file ")[1].split(" ")[0])
 
   //FASTP ( ch_sample )
-  FASTP ( CAT_FASTQ.out.reads, params.save_trimmed_fail, params.save_merged )
+  merged_reads_for_fastp = CAT_FASTQ.out.reads
+  merged_reads_for_fastqc = CAT_FASTQ.out.reads
+
+  FASTP ( merged_reads_for_fastp, params.save_trimmed_fail, params.save_merged )
   trim_json         = FASTP.out.json
   trim_html         = FASTP.out.html
   trim_log          = FASTP.out.log
   trim_reads_fail   = FASTP.out.reads_fail
+  trim_reads_for_fastqc   = FASTP.out.reads
+  trim_reads_for_bbduk   = FASTP.out.reads
+  trim_reads_fail   = FASTP.out.reads_fail
   trim_reads_merged = FASTP.out.reads_merged
   ch_versions       = ch_versions.mix(FASTP.out.versions.first())
   
-  FASTQC_RAW ( CAT_FASTQ.out.reads )
+  FASTQC_RAW ( merged_reads_for_fastqc )
   fastqc_raw_html = FASTQC_RAW.out.html
   fastqc_raw_zip  = FASTQC_RAW.out.zip
   ch_versions     = ch_versions.mix(FASTQC_RAW.out.versions.first())
   
   //Incorporate a logic like in nf-core/rnaseq where minimum reads has to be achieved to proceed?
-  FASTQC_TRIM ( FASTP.out.reads )
+  FASTQC_TRIM ( trim_reads_for_fastqc )
+  //trim_reads_for_fastqc.view()
+  //trim_reads_for_bbduk.view()
   fastqc_trim_html = FASTQC_TRIM.out.html
   fastqc_trim_zip  = FASTQC_TRIM.out.zip
   ch_versions      = ch_versions.mix(FASTQC_TRIM.out.versions.first())
   
   //Filtering with sortmerna takes much longer than bbduk so use bbduk for prototype
+  //ch_rrna = Channel.fromPath(params.rrna_ref)
   ch_rrna = Channel.fromPath(params.rrna_ref)
-  BBMAP_BBDUK ( FASTP.out.reads, ch_rrna)
+  
+
+  //Nextflow zips channels together by default:
+  //Task receives one item from trim_reads_for_bbduk + one item from ch_rrna
+  //When ch_rrna has only one item, it stops pairing after the first sample, only one task runs
+  //This is why only the first sample is processed.
+  BBMAP_BBDUK ( trim_reads_for_bbduk, file(params.rrna_ref))
+
+  //ch_bbduk_input = trim_reads_for_bbduk.map { meta, reads ->
+  //  tuple(meta, reads, file(params.rrna_ref))
+  //}
+  //BBMAP_BBDUK ( ch_bbduk_input )
+
+  
   //remove phiX reads
   bbmaplit_primary_ref_ch = Channel.fromPath(params.phix)
   empty_refs_ch = Channel.value( tuple([], []) )
   empty_index_ch         = Channel.empty()
 
-  BBMAP_BBSPLIT ( BBMAP_BBDUK.out.reads, [], bbmaplit_primary_ref_ch, empty_refs_ch, false ) 
-  
+  //BBMAP_BBSPLIT ( BBMAP_BBDUK.out.reads, [], bbmaplit_primary_ref_ch, empty_refs_ch, false ) 
+  //ch_bbsplit_input = BBMAP_BBDUK.out.reads .map { meta, reads -> tuple(meta.id, meta, reads) }
+  //  tuple(
+  //      meta,
+  //      reads,
+  //      empty_index_ch,              // path(index)
+  //      bbmaplit_primary_ref_ch,    // path(primary_ref)
+  //      empty_refs_ch, // nested tuple wrapped in val()
+  //      false                               // val(only_build_index)
+  //  )
+ // }
+
+  BBMAP_BBSPLIT (
+            BBMAP_BBDUK.out.reads,
+            [],
+            file(params.phix),
+            [ [], [] ],
+            false
+  )
+
+  //BBMAP_BBSPLIT ( ch_bbsplit_input )
   //provide option to filter host or filter a plant host by default?
 
   //read classification with Kraken
@@ -1231,7 +1273,8 @@ workflow {
   //KAIJU ( FILTER_CONTROL.out.bbsplit_filtered_fq )
   ch_kaijudb = Channel.fromPath(params.kaiju_db_path)
   //incorporate a separate module for kaiju2krona and kaiju2table
-  KAIJU_KAIJU (BBMAP_BBSPLIT.out.all_fastq, ch_kaijudb)
+  //KAIJU_KAIJU (BBMAP_BBSPLIT.out.all_fastq, ch_kaijudb)
+  KAIJU_KAIJU ( BBMAP_BBSPLIT.out.all_fastq, params.kaiju_db_path )
   //KAIJU_KAIJU (BBMAP_BBSPLIT.out.all_fastq)
   KRONA ( KAIJU_KAIJU.out.krona_results )
   read_classification_ch = KAIJU_KAIJU.out.kaiju_results.join(BRACKEN.out.bracken_results2)

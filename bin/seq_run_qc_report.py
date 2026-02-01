@@ -52,14 +52,14 @@ def main():
         
 
     for rRNA_clean_read_out in glob.glob("*_bbduk.log"):
-        rRNA_cleaned_reads = ()
+        rRNA_cleaned_reads = 0
         sample = (os.path.basename(rRNA_clean_read_out).replace('_bbduk.log', ''))
         with open(rRNA_clean_read_out, 'r') as f:
             for line in f:
                 if line.strip().startswith("Result:"):
                     m = re.search(r'Result:\s+(\d+)\s+reads', line)
                     if m:
-                        rRNA_cleaned_reads = int(m.group(1))
+                        rRNA_cleaned_reads = int(float(m.group(1)))
                         break
             #first_line = next(f)
             #qt_reads = int(first_line[0].strip())
@@ -114,6 +114,16 @@ def main():
     run_data_df['percent_qfiltered'] = run_data_df['percent_qfiltered'].apply(lambda x: float("{:.2f}".format(x)))
     run_data_df['percent_cleaned'] = run_data_df['phix_cleaned_reads'] / run_data_df['raw_reads'] * 100
     run_data_df['percent_cleaned'] = run_data_df['percent_cleaned'].apply(lambda x: float("{:.2f}".format(x)))
+    int_cols = [
+        'raw_reads',
+        'quality_filtered_reads',
+        'rRNA_cleaned_reads',
+        'phix_cleaned_reads'
+    ]
+
+    run_data_df[int_cols] = run_data_df[int_cols].apply(
+        pd.to_numeric, errors='coerce'
+    ).astype('Int64')   # pandas nullable integer
     
     run_data_df = run_data_df.sort_values("Sample")
     run_data_df['raw_reads_flag'] = np.where((run_data_df['raw_reads'] < 8000000), "Less than 8M raw reads", "") # ! confirm with DAFF

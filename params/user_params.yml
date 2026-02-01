@@ -1,4 +1,4 @@
-input: index_test.csv
+input: index.csv
 blastn_db: /scratch/datasets/blast_db/20250929/core_nt
 taxdump:  ~/.taxonkit
 genomad_db: /work/daff_viral_rnaseq/genomad/genomad_db
