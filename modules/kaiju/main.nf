@@ -52,6 +52,24 @@ process KAIJU {
   """
 }
 
+//Explore downtrack downloading krona taxonomy to see if it improves the visualisation
+process KRONA {
+  publishDir "${params.outdir}/${sampleid}/05_read_classification", mode: 'link'
+  label 'setting_3'
+  containerOptions "${bindOptions}"
+  tag "${sampleid}"
+
+  input:
+    tuple val(sampleid), path(krona_input)
+
+  output:
+    file "${sampleid}_kaiju_krona.html"
+
+  script:
+    """
+    ktImportText -o ${sampleid}_kaiju_krona.html ${krona_input}
+    """
+}
 */
 process KAIJU_KAIJU {
     tag "$meta.id"

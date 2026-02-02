@@ -35,6 +35,7 @@ process FASTP {
 //Modified the nf-core module so it does not expect an adapter list. Might re-visit later to add that functionality back in.
 //Also added --detect_adapter_for_pe --cut_front --cut_tail --length_required 50 --average_qual 20, might want to make these external arguments later.
 */
+
 process FASTP {
     tag "$meta.id"
     label "setting_4"

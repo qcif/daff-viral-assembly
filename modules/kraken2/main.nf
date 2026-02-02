@@ -53,7 +53,7 @@ process KRAKEN2_KRAKEN2 {
     tuple val(meta), path('*.unclassified{.,_}*')   , optional:true, emit: unclassified_reads_fastq
     tuple val(meta), path('*_kraken2_classified_reads.txt')   , optional:true, emit: classified_reads_assignment
     //tuple val(meta), path('*report.txt')                           , emit: report
-    tuple val(meta.id), path('*report.txt')                           , emit: report
+    tuple val(meta), path('*report.txt')                           , emit: report
     path "versions.yml"                                            , emit: versions
     tuple val(meta), path('*report.txt'), path('*_kraken2_classified_reads.txt'), path(reads), path('*.unclassified{.,_}*'), emit: results
 

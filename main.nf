@@ -486,28 +486,8 @@ process SORTMERNA {
     --fastx --other ${sampleid}_non_rRNA_reads --paired_in --out2 --num_alignments 1 -v --index 0
   """
 }
+
 */
-process SPADES {
-  tag "${sampleid}"
-  label "setting_5"
-  containerOptions "${bindOptions}"
-  publishDir "${params.outdir}/${sampleid}/06_assembly", mode: 'copy'
-
-  input:
-    tuple val(sampleid), path(fastq1), path(fastq2)
-  output:
-    path("${sampleid}_scaffolds.fasta")
-    tuple val(sampleid), path("${sampleid}_scaffolds.fasta"), emit: assembly
-
-  script:
-  """
-  rnaviralspades.py -1 ${fastq1} \
-               -2 ${fastq2} \
-               -m 60 -t ${task.cpus} -o ${sampleid}
-  cp ${sampleid}/scaffolds.fasta ${sampleid}_scaffolds.fasta
-  """
-}
-
 process EXTRACT_VIRAL_CLASSIFICATION_HITS {
   tag "${sampleid}"
   label "setting_2"
@@ -770,67 +750,7 @@ process BEDTOOLS {
     bedtools maskfasta -fi ${vcf_applied_fasta} -bed ${sampleid}_zero_coverage.bed -fo ${sampleid}_bcftools_masked_consensus.fasta
     """
 }
-/*
-process BBDUK { 
-  tag "${sampleid}"
-  label "setting_22"
-  containerOptions "${bindOptions}"
-  publishDir "${params.outdir}/${sampleid}/04_cleaned", mode: 'copy'
 
-  input:
-    tuple val(sampleid), path(fastq1), path(fastq2), path(ref)
-  output:
-    path("${sampleid}_rRNA_reads.log")
-    path("${sampleid}_non_rRNA_fwd.fastq.gz")
-    path("${sampleid}_non_rRNA_rev.fastq.gz")
-    path("${sampleid}_rRNA_reads.log"), emit: bbduk_stats
-    tuple val(sampleid), path("${sampleid}_non_rRNA_fwd.fastq.gz"), path("${sampleid}_non_rRNA_rev.fastq.gz"), emit: bbduk_filtered_fq
-
-  script:
-  """
-  bbduk.sh -Xmx10g in=${fastq1} \
-                   in2=${fastq2} \
-                   out=${sampleid}_non_rRNA_fwd.fastq.gz \
-                   out2=${sampleid}_non_rRNA_rev.fastq.gz \
-                   outm=${sampleid}_rRNA_fwd.fastq.gz \
-                   outm2=${sampleid}_rRNA_rev.fastq.gz \
-                   k=31 ref=${ref} \
-                   2>${sampleid}_rRNA_reads.log
-  """
-}
-
-process FILTER_CONTROL { 
-  tag "${sampleid}"
-  label "setting_22"
-  containerOptions "${bindOptions}"
-  publishDir "${params.outdir}/${sampleid}/04_cleaned", mode: 'copy'
-
-  input:
-    tuple val(sampleid), path(fastq1), path(fastq2)
-  output:
-    path("${sampleid}_bbsplit_stats.txt")
-    path("${sampleid}_cleaned_fwd.fastq.gz")
-    path("${sampleid}_cleaned_rev.fastq.gz")
-    path("${sampleid}_phyX_removed.fastq.gz")
-    tuple val(sampleid), path("${sampleid}_bbsplit_stats.txt"), emit: stats
-    path("${sampleid}_bbsplit_stats.txt"), emit: stats2
-    tuple val(sampleid), path("${sampleid}_cleaned_fwd.fastq.gz"), path("${sampleid}_cleaned_rev.fastq.gz"), emit: bbsplit_filtered_fq
-
-  script:
-  """
-  bbsplit.sh -Xmx10g ref=${params.phix} \
-             in=${fastq1} \
-             in2=${fastq2} \
-             out_phiX174=${sampleid}_phyX_removed.fastq.gz \
-             outu=${sampleid}_cleaned_fwd.fastq.gz \
-             outu2=${sampleid}_cleaned_rev.fastq.gz \
-             statsfile=${sampleid}_bbsplit_stats.txt
-  """
-}
-*/
-/*
-
-*/
 //Explore downtrack downloading krona taxonomy to see if it improves the visualisation
 process KRAKEN2_TO_KRONA {
     tag "${sampleid}"
@@ -858,31 +778,35 @@ process KRAKEN2_TO_KRONA {
 // Hence the updated_est_abundance.py script is used here instead.
 //It will rescue the abundance estimates for such species by summing up all S1 level abundances to S level.
 process BRACKEN {
-  tag "${sampleid}"
+  tag "$meta.id"
   label 'setting_2'
-  publishDir "$params.outdir/$sampleid/05_read_classification",  mode: 'copy'
+  publishDir "${params.outdir}/${meta.id}/05_read_classification",  mode: 'copy'
   containerOptions "${bindOptions}"
 
   input:
-    tuple val(sampleid), path(kraken_report)
+    tuple val(meta), path(kraken_report)
 
   output:
-    file("${sampleid}_bracken_report*.txt")
-    tuple val(sampleid), path("${sampleid}_bracken_report.txt"), emit: bracken_results2
-    tuple val(sampleid), path("${sampleid}_bracken_report_viral.txt"), emit: bracken_results
+    file("*_bracken_report*.txt")
+    tuple val(meta), path("*_bracken_report.txt"), emit: bracken_results
+    //tuple val(prefix), path("${prefix}_bracken_report_viral.txt"), emit: bracken_results
 
+  when:
+    task.ext.when == null || task.ext.when
+  
   script:
+  def prefix = task.ext.prefix ?: "${meta.id}"
   """
   c1grep() { grep "\$@" || test \$? = 1; }
 
   updated_est_abundance.py -i ${kraken_report} \
                   -k ${params.kraken2_db}/database50mers.kmer_distrib \
                   -t 1 \
-                  -l S -o ${sampleid}_bracken_report.txt
+                  -l S -o ${prefix}_bracken_report.txt
 
 
-  c1grep  "taxonomy_id\\|virus\\|viroid" ${sampleid}_bracken_report.txt > ${sampleid}_bracken_report_viral.txt
-  awk -F'\\t'  '\$7>=0.0001'  ${sampleid}_bracken_report_viral.txt > ${sampleid}_bracken_report_viral_filtered.txt
+  c1grep  "taxonomy_id\\|virus\\|viroid" ${prefix}_bracken_report.txt > ${prefix}_bracken_report_viral.txt
+  awk -F'\\t'  '\$7>=0.0001'  ${prefix}_bracken_report_viral.txt > ${prefix}_bracken_report_viral_filtered.txt
   """
 }
 
@@ -906,27 +830,28 @@ process KRONA {
 }
 
 process RETRIEVE_VIRAL_READS_KRAKEN2 {
-  tag "${sampleid}"
+  tag "$meta.id"
   label "setting_10"
   containerOptions "${bindOptions}"
-  publishDir "${params.outdir}/${sampleid}/05_read_classification", mode: 'copy'
+  publishDir "${params.outdir}/${meta.id}/05_read_classification", mode: 'copy'
 
   input:
-    tuple val(sampleid), path(kraken_report), path(kraken_output), path(fastq1), path(fastq2), path(unc_fastq1), path(unc_fastq2)
+    tuple val(meta), path(kraken_report), path(kraken_output), path(fastq1), path(fastq2), path(unc_fastq1), path(unc_fastq2)
   output:
-    tuple val(sampleid), path("${sampleid}_cand_path_R1.fastq.gz"), path("${sampleid}_cand_path_R2.fastq.gz"), emit: fastq
+    tuple val(meta), path("*_cand_path_R*.fastq.gz"), emit: fastq
 
   script:
+  def prefix = task.ext.prefix ?: "${meta.id}"
   """
   extract_kraken_reads.py -k ${kraken_output} -r ${kraken_report} \
                           -t 10239 --include-children \
                           -s1 ${fastq1} -s2 ${fastq2} \
                           --fastq-output \
-                          -o ${sampleid}_extracted_reads1.fastq -o2 ${sampleid}_extracted_reads2.fastq
-  gzip ${sampleid}_extracted_reads1.fastq
-  gzip ${sampleid}_extracted_reads2.fastq
-  cat ${unc_fastq1} ${sampleid}_extracted_reads1.fastq.gz > ${sampleid}_cand_path_R1.fastq.gz
-  cat ${unc_fastq2} ${sampleid}_extracted_reads2.fastq.gz >  ${sampleid}_cand_path_R2.fastq.gz
+                          -o ${prefix}_extracted_reads1.fastq -o2 ${prefix}_extracted_reads2.fastq
+  gzip ${prefix}_extracted_reads1.fastq
+  gzip ${prefix}_extracted_reads2.fastq
+  cat ${unc_fastq1} ${prefix}_extracted_reads1.fastq.gz > ${prefix}_cand_path_R1.fastq.gz
+  cat ${unc_fastq2} ${prefix}_extracted_reads2.fastq.gz >  ${prefix}_cand_path_R2.fastq.gz
   """
 }
 /*
@@ -976,7 +901,6 @@ process GENOMAD {
       file "${sampleid}_genomad.log"
       tuple val(sampleid), path("${sampleid}_scaffolds_virus_summary.tsv"), emit: virus_preds
       
-
     script:
     """
       genomad \\
@@ -1110,28 +1034,13 @@ include { BBMAP_BBDUK } from './modules/bbmap/bbduk/main'
 include { BBMAP_BBSPLIT } from './modules/bbmap/bbsplit/main'
 include { KRAKEN2_KRAKEN2 } from './modules/kraken2/main'
 include { KAIJU_KAIJU } from './modules/kaiju/main'
+include { SPADES} from './modules/spades/main'
+include { FQ_SUBSAMPLE } from './modules/fq/subsample/main'
 
 workflow {
   TIMESTAMP_START ()
   ch_versions = Channel.empty()
-  /*
-  if (params.samplesheet) {
-    Channel
-      .fromPath(params.samplesheet, checkIfExists: true)
-      .splitCsv(header:true)
-      .map { row ->
-        // Check required fields
-        if (!row.sampleid )  {
-          exit 1, "ERROR: samplesheet is missing required fields for sample_id."
-        }
-        else if (!row.fastq_1 || !row.fastq_2) {
-          exit 1, "ERROR: samplesheet is missing required field for one or both of the fastq files."
-        }
-        // Return parsed row
-        tuple((row.sampleid), file(row.fastq_1), file(row.fastq_2)) }
-      .set{ ch_sample }
-  } else { exit 1, "Input samplesheet file not specified!" }
-*/
+  
   if (params.input) {
     Channel
           .fromSamplesheet("input")
@@ -1155,8 +1064,6 @@ workflow {
           }
           .set { ch_fastq }
   }
-  //ch_fastq.single.view()
-  //ch_fastq.multiple.view()
   CAT_FASTQ (
       ch_fastq.multiple
   )
@@ -1167,19 +1074,13 @@ workflow {
 
   configyaml = Channel.fromPath(workflow.commandLine.split(" -params-file ")[1].split(" ")[0])
 
-  //FASTP ( ch_sample )
   merged_reads_for_fastp = CAT_FASTQ.out.reads
   merged_reads_for_fastqc = CAT_FASTQ.out.reads
 
   FASTP ( merged_reads_for_fastp, params.save_trimmed_fail, params.save_merged )
-  trim_json         = FASTP.out.json
   trim_html         = FASTP.out.html
-  trim_log          = FASTP.out.log
-  trim_reads_fail   = FASTP.out.reads_fail
   trim_reads_for_fastqc   = FASTP.out.reads
   trim_reads_for_bbduk   = FASTP.out.reads
-  trim_reads_fail   = FASTP.out.reads_fail
-  trim_reads_merged = FASTP.out.reads_merged
   ch_versions       = ch_versions.mix(FASTP.out.versions.first())
   
   FASTQC_RAW ( merged_reads_for_fastqc )
@@ -1189,46 +1090,18 @@ workflow {
   
   //Incorporate a logic like in nf-core/rnaseq where minimum reads has to be achieved to proceed?
   FASTQC_TRIM ( trim_reads_for_fastqc )
-  //trim_reads_for_fastqc.view()
-  //trim_reads_for_bbduk.view()
   fastqc_trim_html = FASTQC_TRIM.out.html
-  fastqc_trim_zip  = FASTQC_TRIM.out.zip
   ch_versions      = ch_versions.mix(FASTQC_TRIM.out.versions.first())
   
   //Filtering with sortmerna takes much longer than bbduk so use bbduk for prototype
-  //ch_rrna = Channel.fromPath(params.rrna_ref)
-  ch_rrna = Channel.fromPath(params.rrna_ref)
-  
-
   //Nextflow zips channels together by default:
   //Task receives one item from trim_reads_for_bbduk + one item from ch_rrna
-  //When ch_rrna has only one item, it stops pairing after the first sample, only one task runs
+  //When using a chanmnel, fio ex. ch_rrna, it has only one item, it stops pairing after the first sample, only one task runs
   //This is why only the first sample is processed.
+  //Provide the rrna ref as a file parameter instead
   BBMAP_BBDUK ( trim_reads_for_bbduk, file(params.rrna_ref))
 
-  //ch_bbduk_input = trim_reads_for_bbduk.map { meta, reads ->
-  //  tuple(meta, reads, file(params.rrna_ref))
-  //}
-  //BBMAP_BBDUK ( ch_bbduk_input )
-
-  
   //remove phiX reads
-  bbmaplit_primary_ref_ch = Channel.fromPath(params.phix)
-  empty_refs_ch = Channel.value( tuple([], []) )
-  empty_index_ch         = Channel.empty()
-
-  //BBMAP_BBSPLIT ( BBMAP_BBDUK.out.reads, [], bbmaplit_primary_ref_ch, empty_refs_ch, false ) 
-  //ch_bbsplit_input = BBMAP_BBDUK.out.reads .map { meta, reads -> tuple(meta.id, meta, reads) }
-  //  tuple(
-  //      meta,
-  //      reads,
-  //      empty_index_ch,              // path(index)
-  //      bbmaplit_primary_ref_ch,    // path(primary_ref)
-  //      empty_refs_ch, // nested tuple wrapped in val()
-  //      false                               // val(only_build_index)
-  //  )
- // }
-
   BBMAP_BBSPLIT (
             BBMAP_BBDUK.out.reads,
             [],
@@ -1237,49 +1110,59 @@ workflow {
             false
   )
 
-  //BBMAP_BBSPLIT ( ch_bbsplit_input )
+  //Subsampleing reads uisng the nf-core subsample module is slow.
+  // More than 20 minutes for Ta_1 and Ta2 samples
+  //Explore other options like seqtk smaple
+  if ( params.subsample_enabled ) {
+    FQ_SUBSAMPLE ( BBMAP_BBSPLIT.out.all_fastq )
+    ch_versions = ch_versions.mix(FQ_SUBSAMPLE.out.versions.first())
+    processed_fastq = FQ_SUBSAMPLE.out.fastq
+  } else {
+    processed_fastq = BBMAP_BBSPLIT.out.all_fastq
+  }
+  //FQ_SUBSAMPLE ( BBMAP_BBSPLIT.out.all_fastq )
+  
+
   //provide option to filter host or filter a plant host by default?
 
   //read classification with Kraken
-  trial_ch = BBMAP_BBSPLIT.out.all_fastq.map { meta, reads ->
+  //trial_ch = BBMAP_BBSPLIT.out.all_fastq.map { meta, reads ->
+  trial_ch = processed_fastq.map { meta, reads ->
     def sample_id = meta.id
     def read1 = reads[0]
     def read2 = reads[1]
     tuple(sample_id, read1, read2)
   }
-  stats_ch = BBMAP_BBSPLIT.out.stats.map { meta, stats ->
+  //stats_ch = BBMAP_BBSPLIT.out.stats.map { meta, stats ->
+  stats_ch = processed_fastq.map { meta, stats ->
     def sample_id = meta.id
     def stats1 = stats
     tuple(sample_id, stats1)
   }
-
-  KRAKEN2_KRAKEN2(BBMAP_BBSPLIT.out.all_fastq, params.kraken2_db, params.kraken2_save_classified_reads, params.kraken2_save_unclassified_reads, params.kraken2_save_readclassifications)
+  KRAKEN2_KRAKEN2(processed_fastq, params.kraken2_db, params.kraken2_save_classified_reads, params.kraken2_save_unclassified_reads, params.kraken2_save_readclassifications)
+  //KRAKEN2_KRAKEN2(BBMAP_BBSPLIT.out.all_fastq, params.kraken2_db, params.kraken2_save_classified_reads, params.kraken2_save_unclassified_reads, params.kraken2_save_readclassifications)
   BRACKEN ( KRAKEN2_KRAKEN2.out.report )
   //KRAKEN2_TO_KRONA ( KRAKEN2_KRAKEN2.out.kraken2_results2 )
 
   //retrieve reads that were not classified and reads classified as viral by kraken2
   //merge
   kraken_ch = KRAKEN2_KRAKEN2.out.results.map { meta, report, output, raw_reads, unclassified ->
-    def sample_id = meta.id
     def read1 = raw_reads[0]
     def read2 = raw_reads[1]
     def unclassified1 = unclassified[0]
     def unclassified2 = unclassified[1]
-    tuple(sample_id, report, output, read1, read2, unclassified1, unclassified2)
+    tuple(meta, report, output, read1, read2, unclassified1, unclassified2)
   }
   RETRIEVE_VIRAL_READS_KRAKEN2 ( kraken_ch )
 
   //read classification with kaiju
-  //KAIJU ( FILTER_CONTROL.out.bbsplit_filtered_fq )
-  ch_kaijudb = Channel.fromPath(params.kaiju_db_path)
   //incorporate a separate module for kaiju2krona and kaiju2table
-  //KAIJU_KAIJU (BBMAP_BBSPLIT.out.all_fastq, ch_kaijudb)
-  KAIJU_KAIJU ( BBMAP_BBSPLIT.out.all_fastq, params.kaiju_db_path )
-  //KAIJU_KAIJU (BBMAP_BBSPLIT.out.all_fastq)
+  //KAIJU_KAIJU ( BBMAP_BBSPLIT.out.all_fastq, params.kaiju_db_path )
+  KAIJU_KAIJU ( processed_fastq, params.kaiju_db_path )
   KRONA ( KAIJU_KAIJU.out.krona_results )
-  read_classification_ch = KAIJU_KAIJU.out.kaiju_results.join(BRACKEN.out.bracken_results2)
+  
+  read_classification_ch = KAIJU_KAIJU.out.kaiju_results.join(BRACKEN.out.bracken_results)
                                                     .join(stats_ch)
-  //                                                .join(FILTER_CONTROL.out.stats)
 
   SUMMARISE_READ_CLASSIFICATION ( read_classification_ch )
 
@@ -1341,9 +1224,6 @@ workflow {
   //Derive QC report
   // Merge all the  files into one channel
   //ch_multiqc_files = FASTP.out.fastp_json
-
-
-
 
   ch_multiqc_files = FASTP.out.json.map { meta, json ->
                       json
