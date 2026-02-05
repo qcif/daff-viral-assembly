@@ -1094,11 +1094,6 @@ workflow {
 
   configyaml = Channel.fromPath(workflow.commandLine.split(" -params-file ")[1].split(" ")[0])
 
-  //merged_reads_for_fastp = CAT_FASTQ.out.reads
-  //merged_reads_for_fastqc = CAT_FASTQ.out.reads
-  //merged_reads_for_subsampling = CAT_FASTQ.out.reads
-
-
   //Probably best place to perform subsampling
   //Subsampling reads using the nf-core subsample module is slow.
   // More than 40 minutes for Ta2 samples
@@ -1159,7 +1154,6 @@ workflow {
   //Provide option to filter host or filter a plant host by default?
 
   //read classification with Kraken
-  //trial_ch = processed_fastq.map { meta, reads ->
   trial_ch = BBMAP_BBSPLIT.out.all_fastq.map { meta, reads ->
     def sample_id = meta.id
     def read1 = reads[0]
@@ -1167,15 +1161,12 @@ workflow {
     tuple(sample_id, read1, read2)
   }
   stats_ch = BBMAP_BBSPLIT.out.stats.map { meta, stats ->
-  //stats_ch = processed_fastq.map { meta, stats ->
     def sample_id = meta.id
     def stats1 = stats
     tuple(sample_id, stats1)
   }
-  //KRAKEN2_KRAKEN2(processed_fastq, params.kraken2_db, params.kraken2_save_classified_reads, params.kraken2_save_unclassified_reads, params.kraken2_save_readclassifications)
   KRAKEN2_KRAKEN2(BBMAP_BBSPLIT.out.all_fastq, params.kraken2_db, params.kraken2_save_classified_reads, params.kraken2_save_unclassified_reads, params.kraken2_save_readclassifications)
   BRACKEN ( KRAKEN2_KRAKEN2.out.report )
-  //KRAKEN2_TO_KRONA ( KRAKEN2_KRAKEN2.out.kraken2_results2 )
 
   //retrieve reads that were not classified and reads classified as viral by kraken2
   //merge
@@ -1191,7 +1182,6 @@ workflow {
   //read classification with kaiju
   //incorporate a separate module for kaiju2krona and kaiju2table
   KAIJU_KAIJU ( BBMAP_BBSPLIT.out.all_fastq, params.kaiju_db_path )
-  //KAIJU_KAIJU ( processed_fastq, params.kaiju_db_path )
   KRONA ( KAIJU_KAIJU.out.krona_results )
   
   read_classification_ch = KAIJU_KAIJU.out.kaiju_results.join(BRACKEN.out.bracken_results)
@@ -1223,7 +1213,6 @@ workflow {
   FASTA2TABLE ( EXTRACT_VIRAL_BLAST_HITS.out.viral_blast_results.join(SEQTK.out.filt_fasta) )
   //Mapping back to contigs that had viral blast hits
   EXTRACT_CONTIGS ( FASTA2TABLE.out.contig_ids.join(SEQTK.out.filt_fasta) )
-  //MAPPING_BACK_TO_CONTIGS ( EXTRACT_CONTIGS.out.fasta.join(FILTER_CONTROL.out.bbsplit_filtered_fq) )
   MAPPING_BACK_TO_CONTIGS ( EXTRACT_CONTIGS.out.fasta.join(trial_ch) )
   SAMTOOLS_CONTIGS ( MAPPING_BACK_TO_CONTIGS.out.contig_aligned_sam )
   PYFAIDX_CONTIGS ( EXTRACT_CONTIGS.out.fasta )
@@ -1237,7 +1226,6 @@ workflow {
   //Mapping back to reference sequences retrieved from blast hits
   EXTRACT_REF_FASTA ( FASTA2TABLE.out.ref_ids )
   CLUSTER ( EXTRACT_REF_FASTA.out.fasta_files )
-  //mapping_ch = CLUSTER.out.clusters.join(FILTER_CONTROL.out.bbsplit_filtered_fq)
   mapping_ch = CLUSTER.out.clusters.join(trial_ch)
   MAPPING_BACK_TO_REF ( mapping_ch )
   SAMTOOLS2 ( MAPPING_BACK_TO_REF.out.aligned_sam )
@@ -1256,7 +1244,6 @@ workflow {
   
   //Derive QC report
   // Merge all the  files into one channel
-  //ch_multiqc_files = FASTP.out.fastp_json
 
   ch_multiqc_files = FASTP.out.json.map { meta, json ->
                       json
