@@ -1026,6 +1026,25 @@ process EXTRACT_CONTIGS {
     fi
     """
 }
+process COUNT_FASTQ_READS {
+
+    tag "$meta.id"
+    label 'setting_30'
+
+    input:
+    tuple val(meta), path(reads)
+
+    output:
+    tuple val(meta), path(reads), path("*read_count.txt")
+
+    script:
+    """
+    FWD=\$(ls ${reads} | grep '_1.merged.fastq.gz')
+
+    zgrep -c '^@' "\$FWD" > ${meta.id}_read_count.txt
+    """
+}
+
 include { CAT_FASTQ } from './modules/cat_fastq/main'
 include { FASTQC as FASTQC_RAW  } from './modules/fastqc/main'
 include { FASTQC as FASTQC_TRIM } from './modules/fastqc/main'
@@ -1036,6 +1055,7 @@ include { KRAKEN2_KRAKEN2 } from './modules/kraken2/main'
 include { KAIJU_KAIJU } from './modules/kaiju/main'
 include { SPADES} from './modules/spades/main'
 include { FQ_SUBSAMPLE } from './modules/fq/subsample/main'
+include { SEQTK_SAMPLE } from './modules/seqtk/sample/main'
 
 workflow {
   TIMESTAMP_START ()
@@ -1074,16 +1094,42 @@ workflow {
 
   configyaml = Channel.fromPath(workflow.commandLine.split(" -params-file ")[1].split(" ")[0])
 
-  merged_reads_for_fastp = CAT_FASTQ.out.reads
-  merged_reads_for_fastqc = CAT_FASTQ.out.reads
+  //merged_reads_for_fastp = CAT_FASTQ.out.reads
+  //merged_reads_for_fastqc = CAT_FASTQ.out.reads
+  //merged_reads_for_subsampling = CAT_FASTQ.out.reads
 
-  FASTP ( merged_reads_for_fastp, params.save_trimmed_fail, params.save_merged )
+
+  //Probably best place to perform subsampling
+  //Subsampling reads using the nf-core subsample module is slow.
+  // More than 40 minutes for Ta2 samples
+  //Explore other options like seqtk sample
+  //Same with seqtk
+  if ( params.subsample_enabled ) {
+      //Check size of fastq file first before subsampling!
+      //FQ_SUBSAMPLE ( BBMAP_BBSPLIT.out.all_fastq )
+      ch_with_counts = CAT_FASTQ.out.reads \
+          | COUNT_FASTQ_READS
+
+      SEQTK_SAMPLE(
+          ch_with_counts,
+          params.subsample_size
+      )
+
+      ch_versions = ch_versions.mix( SEQTK_SAMPLE.out.versions.first() )
+      merged_fastq = SEQTK_SAMPLE.out.reads.ifEmpty {
+          CAT_FASTQ.out.reads
+      }
+  } else {
+    merged_fastq = CAT_FASTQ.out.reads
+  }
+
+  FASTP ( merged_fastq, params.save_trimmed_fail, params.save_merged )
   trim_html         = FASTP.out.html
   trim_reads_for_fastqc   = FASTP.out.reads
   trim_reads_for_bbduk   = FASTP.out.reads
   ch_versions       = ch_versions.mix(FASTP.out.versions.first())
   
-  FASTQC_RAW ( merged_reads_for_fastqc )
+  FASTQC_RAW ( merged_fastq )
   fastqc_raw_html = FASTQC_RAW.out.html
   fastqc_raw_zip  = FASTQC_RAW.out.zip
   ch_versions     = ch_versions.mix(FASTQC_RAW.out.versions.first())
@@ -1096,7 +1142,7 @@ workflow {
   //Filtering with sortmerna takes much longer than bbduk so use bbduk for prototype
   //Nextflow zips channels together by default:
   //Task receives one item from trim_reads_for_bbduk + one item from ch_rrna
-  //When using a chanmnel, fio ex. ch_rrna, it has only one item, it stops pairing after the first sample, only one task runs
+  //When using a chanmnel, for ex. ch_rrna, it has only one item, it stops pairing after the first sample, only one task runs
   //This is why only the first sample is processed.
   //Provide the rrna ref as a file parameter instead
   BBMAP_BBDUK ( trim_reads_for_bbduk, file(params.rrna_ref))
@@ -1110,37 +1156,24 @@ workflow {
             false
   )
 
-  //Subsampleing reads uisng the nf-core subsample module is slow.
-  // More than 20 minutes for Ta_1 and Ta2 samples
-  //Explore other options like seqtk smaple
-  if ( params.subsample_enabled ) {
-    FQ_SUBSAMPLE ( BBMAP_BBSPLIT.out.all_fastq )
-    ch_versions = ch_versions.mix(FQ_SUBSAMPLE.out.versions.first())
-    processed_fastq = FQ_SUBSAMPLE.out.fastq
-  } else {
-    processed_fastq = BBMAP_BBSPLIT.out.all_fastq
-  }
-  //FQ_SUBSAMPLE ( BBMAP_BBSPLIT.out.all_fastq )
-  
-
-  //provide option to filter host or filter a plant host by default?
+  //Provide option to filter host or filter a plant host by default?
 
   //read classification with Kraken
-  //trial_ch = BBMAP_BBSPLIT.out.all_fastq.map { meta, reads ->
-  trial_ch = processed_fastq.map { meta, reads ->
+  //trial_ch = processed_fastq.map { meta, reads ->
+  trial_ch = BBMAP_BBSPLIT.out.all_fastq.map { meta, reads ->
     def sample_id = meta.id
     def read1 = reads[0]
     def read2 = reads[1]
     tuple(sample_id, read1, read2)
   }
-  //stats_ch = BBMAP_BBSPLIT.out.stats.map { meta, stats ->
-  stats_ch = processed_fastq.map { meta, stats ->
+  stats_ch = BBMAP_BBSPLIT.out.stats.map { meta, stats ->
+  //stats_ch = processed_fastq.map { meta, stats ->
     def sample_id = meta.id
     def stats1 = stats
     tuple(sample_id, stats1)
   }
-  KRAKEN2_KRAKEN2(processed_fastq, params.kraken2_db, params.kraken2_save_classified_reads, params.kraken2_save_unclassified_reads, params.kraken2_save_readclassifications)
-  //KRAKEN2_KRAKEN2(BBMAP_BBSPLIT.out.all_fastq, params.kraken2_db, params.kraken2_save_classified_reads, params.kraken2_save_unclassified_reads, params.kraken2_save_readclassifications)
+  //KRAKEN2_KRAKEN2(processed_fastq, params.kraken2_db, params.kraken2_save_classified_reads, params.kraken2_save_unclassified_reads, params.kraken2_save_readclassifications)
+  KRAKEN2_KRAKEN2(BBMAP_BBSPLIT.out.all_fastq, params.kraken2_db, params.kraken2_save_classified_reads, params.kraken2_save_unclassified_reads, params.kraken2_save_readclassifications)
   BRACKEN ( KRAKEN2_KRAKEN2.out.report )
   //KRAKEN2_TO_KRONA ( KRAKEN2_KRAKEN2.out.kraken2_results2 )
 
@@ -1157,8 +1190,8 @@ workflow {
 
   //read classification with kaiju
   //incorporate a separate module for kaiju2krona and kaiju2table
-  //KAIJU_KAIJU ( BBMAP_BBSPLIT.out.all_fastq, params.kaiju_db_path )
-  KAIJU_KAIJU ( processed_fastq, params.kaiju_db_path )
+  KAIJU_KAIJU ( BBMAP_BBSPLIT.out.all_fastq, params.kaiju_db_path )
+  //KAIJU_KAIJU ( processed_fastq, params.kaiju_db_path )
   KRONA ( KAIJU_KAIJU.out.krona_results )
   
   read_classification_ch = KAIJU_KAIJU.out.kaiju_results.join(BRACKEN.out.bracken_results)

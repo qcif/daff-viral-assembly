@@ -12,9 +12,9 @@ import json
 def read_filtered_read_count(fastp_path):
     with open(fastp_path) as f:
         data = json.load(f)
-        raw_reads = data["summary"]["before_filtering"]["total_reads"]
-        mean_raw_read_length = data["summary"]["after_filtering"]["read1_mean_length"]
-        quality_filtered_reads = data["summary"]["after_filtering"]["total_reads"]
+        raw_reads = (data["summary"]["before_filtering"]["total_reads"]) // 2  # divide by 2 for paired-end
+        mean_raw_read_length = data["summary"]["before_filtering"]["read1_mean_length"]
+        quality_filtered_reads = (data["summary"]["after_filtering"]["total_reads"]) // 2  # divide by 2 for paired-end
         mean_filtered_read_length = data["summary"]["after_filtering"]["read1_mean_length"]
         gc_content = data["summary"]["after_filtering"]["gc_content"]
     f.close()
@@ -38,16 +38,21 @@ def main():
 
     timestr = time.strftime("%Y%m%d-%H%M%S")
     summary_dict = {}
+    
 
     for raw_read_out in glob.glob("*.fastp.json"):
-        mean_raw_read_length = 0
-        quality_filtered_reads = 0
-        mean_filtered_read_length = 0
-        gc_content = 0
         sample = (os.path.basename(raw_read_out).replace('.fastp.json', ''))
         raw_reads, quality_filtered_reads, mean_raw_read_length, mean_filtered_read_length, gc_content  = read_filtered_read_count(raw_read_out)  
-
-        summary_dict[sample] = [raw_reads,  quality_filtered_reads, mean_raw_read_length, mean_filtered_read_length, gc_content]
+        summary_dict[sample] = {
+            "raw_reads": raw_reads,
+            "quality_filtered_reads": quality_filtered_reads,
+            "mean_raw_read_length": mean_raw_read_length,
+            "mean_filtered_read_length": mean_filtered_read_length,
+            "gc_content": gc_content,
+            "rRNA_cleaned_reads": np.nan,
+            "phix_cleaned_reads": np.nan,
+        }
+        #summary_dict[sample] = [raw_reads,  quality_filtered_reads, mean_raw_read_length, mean_filtered_read_length, gc_content]
     print(summary_dict)
         
 
@@ -59,12 +64,12 @@ def main():
                 if line.strip().startswith("Result:"):
                     m = re.search(r'Result:\s+(\d+)\s+reads', line)
                     if m:
-                        rRNA_cleaned_reads = int(float(m.group(1)))
+                        rRNA_cleaned_reads = (int(float(m.group(1)))) // 2  # divide by 2 for paired-end
                         break
             #first_line = next(f)
             #qt_reads = int(first_line[0].strip())
         f.close()
-        summary_dict[sample].append(rRNA_cleaned_reads)
+        summary_dict[sample]["rRNA_cleaned_reads"] = rRNA_cleaned_reads
 
 
     for bbsplit_log in glob.glob("*_bbsplit_stats.txt"):
@@ -104,12 +109,16 @@ def main():
             raise ValueError("Could not find total reads in log file.")
 
         total_mapped_reads = r1_mapped + r2_mapped
-        phix_cleaned_reads = total_reads - total_mapped_reads
+        phix_cleaned_reads = (total_reads - total_mapped_reads) // 2  # divide by 2 for paired-end
         f.close()
-        summary_dict[sample].append(phix_cleaned_reads)
+        summary_dict[sample]["phix_cleaned_reads"] = phix_cleaned_reads
 
-
-    run_data_df = pd.DataFrame([([k] + v) for k, v in summary_dict.items()], columns=['Sample','raw_reads','quality_filtered_reads','mean_raw_read_length','mean_filtered_read_length','gc_content','rRNA_cleaned_reads','phix_cleaned_reads'])
+    run_data_df = (
+        pd.DataFrame.from_dict(summary_dict, orient="index")
+        .reset_index()
+        .rename(columns={"index": "Sample"})
+    )
+   #run_data_df = pd.DataFrame([([k] + v) for k, v in summary_dict.items()], columns=['Sample','raw_reads','quality_filtered_reads','mean_raw_read_length','mean_filtered_read_length','gc_content','rRNA_cleaned_reads','phix_cleaned_reads'])
     run_data_df['percent_qfiltered'] = run_data_df['quality_filtered_reads'] / run_data_df['raw_reads'] * 100
     run_data_df['percent_qfiltered'] = run_data_df['percent_qfiltered'].apply(lambda x: float("{:.2f}".format(x)))
     run_data_df['percent_cleaned'] = run_data_df['phix_cleaned_reads'] / run_data_df['raw_reads'] * 100
@@ -121,9 +130,12 @@ def main():
         'phix_cleaned_reads'
     ]
 
-    run_data_df[int_cols] = run_data_df[int_cols].apply(
-        pd.to_numeric, errors='coerce'
-    ).astype('Int64')   # pandas nullable integer
+    run_data_df[int_cols] = (
+        run_data_df[int_cols]
+        .apply(pd.to_numeric, errors='coerce')
+        .round(0)                 # <-- KEY FIX
+        .astype('Int64')
+    )
     
     run_data_df = run_data_df.sort_values("Sample")
     run_data_df['raw_reads_flag'] = np.where((run_data_df['raw_reads'] < 8000000), "Less than 8M raw reads", "") # ! confirm with DAFF
