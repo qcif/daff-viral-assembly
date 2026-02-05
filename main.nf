@@ -788,7 +788,7 @@ process BRACKEN {
 
   output:
     file("*_bracken_report*.txt")
-    tuple val(meta), path("*_bracken_report.txt"), emit: bracken_results
+    tuple val(meta.id), path("*_bracken_report.txt"), emit: bracken_results
     //tuple val(prefix), path("${prefix}_bracken_report_viral.txt"), emit: bracken_results
 
   when:
@@ -1180,7 +1180,7 @@ workflow {
   RETRIEVE_VIRAL_READS_KRAKEN2 ( kraken_ch )
 
   //read classification with kaiju
-  //incorporate a separate module for kaiju2krona and kaiju2table
+  //incorporate a separate module for kaiju2krona and kaiju2table?
   KAIJU_KAIJU ( BBMAP_BBSPLIT.out.all_fastq, params.kaiju_db_path )
   KRONA ( KAIJU_KAIJU.out.krona_results )
   
