@@ -22,6 +22,11 @@
         </th>
         {% endfor %}
       </tr>
+      <tr class="filters">
+        {% for colname in kaiju.columns_primary_display %}
+          <th></th>
+        {% endfor %}
+      </tr>
     </thead>
     <tbody>
       {% for row in kaiju %}
@@ -51,5 +56,32 @@
 </div>
 
 <script>
-  $(document).ready( () => new DataTable('#kaijuTable') );
+$(document).ready(function () {
+
+  var table = $('#kaijuTable').DataTable({
+    orderCellsTop: true,
+    fixedHeader: true
+  });
+
+  var booleanColumns = [3, 4];
+
+  booleanColumns.forEach(function (colIdx) {
+    var column = table.column(colIdx);
+    var cell = $('.filters th').eq(colIdx);
+
+    var select = $('<select class="form-select form-select-sm">' +
+                   '<option value="">All</option>' +
+                   '<option value="TRUE">TRUE</option>' +
+                   '<option value="FALSE">FALSE</option>' +
+                   '</select>')
+      .appendTo(cell)
+      .on('change', function () {
+        var val = $.fn.dataTable.util.escapeRegex($(this).val());
+        column
+          .search(val ? '^' + val + '$' : '', true, false)
+          .draw();
+      });
+  });
+
+});
 </script>
