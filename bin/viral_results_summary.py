@@ -267,20 +267,20 @@ def main():
     num_cols = ["ncontigs_per_spp", "contig_length", "pident", "bitscore", "evalue", "mapping_read_count", "pc_mapping_reads", "mean_depth", "pc_cov_30X", "mean_mapping_quality", "total_conf_score", "normalised_conf_score" , "PFAM_total"]
 
     # fill values
+    merged_df4_filt = merged_df4[merged_df4["contig_seq"].notna()]
+    merged_df4_filt[text_cols] = merged_df4_filt[text_cols].fillna("NA")
+    merged_df4_filt[num_cols] = merged_df4_filt[num_cols].fillna(0)
     
-    merged_df4[text_cols] = merged_df4[text_cols].fillna("NA")
-    merged_df4[num_cols] = merged_df4[num_cols].fillna(0)
-    
-    merged_df4[num_cols] = merged_df4[num_cols].apply(pd.to_numeric, errors="coerce")
+    merged_df4_filt[num_cols] = merged_df4_filt[num_cols].apply(pd.to_numeric, errors="coerce")
 
-    merged_df4.sort_values(
+    merged_df4_filt.sort_values(
         by=["mapping_read_count", "normalised_conf_score"],
         ascending=[False, False],
         inplace=True
     )
-
+    
     output_file = f"{sample_name}_summary_viral_results.tsv"
-    merged_df4.to_csv(output_file, index=False, sep="\t")
+    merged_df4_filt.to_csv(output_file, index=False, sep="\t")
     
     #merged_df4 = merged_df3.merge(
     #    map2ref_df[["taxon_name", "consensus_seq", "sacc", "reference_length", "reads", "pc_reads", "mean_depth", "pc_cov_30X", "mean_mapping_quality", "normalised_conf_score" ]],
