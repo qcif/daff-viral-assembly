@@ -183,7 +183,7 @@ def filter_and_format(df, sample_name, filter_file):
     df["bitscore"] = df["bitscore"].astype(int)
     df["evalue"] = df["evalue"].astype(float)
     df["assembly_kmer_cov"] = df["qseqid"].str.extract(r'_cov_([0-9.]+)').astype(float)
-    df["qlen"] = df["alignment_length"].astype(int)
+    df["qlen"] = df["qlen"].astype(int)
     df["alignment_length"] = df["alignment_length"].astype(int)
     
     df = apply_group_score(df, "species", "pident", max_pid, "pident_score_spp")
