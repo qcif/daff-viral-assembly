@@ -67,7 +67,7 @@ $(document).ready(function () {
 
   booleanColumns.forEach(function (colIdx) {
     var column = table.column(colIdx);
-    var cell = $('.filters th').eq(colIdx);
+    var cell = $('#kaijuTable thead tr.filters th').eq(colIdx);
 
     var select = $('<select class="form-select form-select-sm">' +
                    '<option value="">All</option>' +

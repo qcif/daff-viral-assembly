@@ -120,12 +120,11 @@ $(document).ready(function () {
     fixedHeader: true
   });
 
-  // 👇 CHANGE THESE to your TRUE/FALSE column indices (0-based)
   var booleanColumns = [9, 10, 11];
 
   booleanColumns.forEach(function (colIdx) {
     var column = table.column(colIdx);
-    var cell = $('.filters th').eq(colIdx);
+    var cell = $('#blastTable thead tr.filters th').eq(colIdx);
 
     var select = $('<select class="form-select form-select-sm">' +
                    '<option value="">All</option>' +
