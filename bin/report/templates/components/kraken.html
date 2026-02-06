@@ -32,6 +32,11 @@
           </th>
           {% endfor %}
         </tr>
+        <tr class="filters">
+          {% for colname in kraken.columns_primary_display %}
+            <th></th>
+          {% endfor %}
+        </tr>
       </thead>
       <tbody>
         {% for row in kraken %}
@@ -79,18 +84,45 @@
     krakenDataTable = new DataTable('#krakenTable', {
       pageLength: 25,
       order: [[1, 'desc']],
+      orderCellsTop: true,
       columnDefs: [
         {
-          targets: [4, 5, 6, 7, 8],
+          targets: [ 5, 6, 7, 8, 9 ],
           visible: false,
           searchable: true,
         }
       ]
     });
+
+  var booleanColumns = [3, 4];
+
+    booleanColumns.forEach(function (colIdx) {
+      var column = krakenDataTable.column(colIdx);
+      var cell = $('#krakenTable thead tr.filters th').eq(colIdx);
+
+      var select = $(
+        '<select class="form-select form-select-sm">' +
+          '<option value="">All</option>' +
+          '<option value="TRUE">TRUE</option>' +
+          '<option value="FALSE">FALSE</option>' +
+        '</select>'
+      )
+      .appendTo(cell)
+      .on('change', function () {
+        var val = $.fn.dataTable.util.escapeRegex($(this).val());
+        column
+          .search(val ? '^' + val + '$' : '', true, false)
+          .draw();
+      });
+    });
+
   });
+
 
   function clearKrakenTableFilters() {
     console.log('Clearing Kraken table filters');
     krakenDataTable.search('').columns().search('').draw();
+
+    $('#krakenTable thead tr.filters select').val('');
   }
 </script>
