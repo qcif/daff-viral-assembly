@@ -37,8 +37,13 @@
           {{ blast_hits.COLUMN_METADATA[colname]['label'] }}
         </th>
         {% endfor %}
-      </tr>
-    </thead>
+    </tr>
+    <tr class="filters">
+      {% for colname in blast_hits.columns_primary_display %}
+        <th></th>
+      {% endfor %}
+    </tr>
+  </thead>
     <tbody>
       {% for row in blast_hits %}
       <tr
@@ -108,5 +113,33 @@
 {% endif %}
 
 <script>
-  $(document).ready( () => new DataTable('#blastTable') );
+$(document).ready(function () {
+
+  var table = $('#blastTable').DataTable({
+    orderCellsTop: true,
+    fixedHeader: true
+  });
+
+  // 👇 CHANGE THESE to your TRUE/FALSE column indices (0-based)
+  var booleanColumns = [9, 10, 11];
+
+  booleanColumns.forEach(function (colIdx) {
+    var column = table.column(colIdx);
+    var cell = $('.filters th').eq(colIdx);
+
+    var select = $('<select class="form-select form-select-sm">' +
+                   '<option value="">All</option>' +
+                   '<option value="TRUE">TRUE</option>' +
+                   '<option value="FALSE">FALSE</option>' +
+                   '</select>')
+      .appendTo(cell)
+      .on('change', function () {
+        var val = $.fn.dataTable.util.escapeRegex($(this).val());
+        column
+          .search(val ? '^' + val + '$' : '', true, false)
+          .draw();
+      });
+  });
+
+});
 </script>
