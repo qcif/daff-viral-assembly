@@ -418,7 +418,7 @@ process HTML_REPORT {
   label 'setting_3'
 
   input:
-    tuple val(sampleid), path(raw_fastqc), path(filtered_fastqc), path (fastp), path(fasta), path(summary_known_viruses), path(kaiju_summary), path(kraken_summary), path(detections_summary), path(mapping_summary), path(consensus), path(bam), path(bai), path(novel_virus_summary),
+    tuple val(sampleid), path(raw_fastqc), path(filtered_fastqc), path(fastp), path(fasta), path(summary_known_viruses), path(kaiju_summary), path(kraken_summary), path(detections_summary), path(mapping_summary), path(consensus), path(bam), path(bai), path(novel_virus_summary),
     path(timestamp),
     path(qcreport_html),
     path(qcreport_txt),
@@ -448,17 +448,21 @@ process HTML_REPORT {
 process SEQTK {
   tag "${sampleid}"
   label "setting_2"
+  publishDir "${params.outdir}/${sampleid}/06_assembly", mode: 'copy'
 
   input:
     tuple val(sampleid), path(assembly)
   output:
-    path("${sampleid}_scaffolds_filt.fasta")
-    tuple val(sampleid), path("${sampleid}_scaffolds_filt.fasta"), emit: filt_fasta
+    path("${sampleid}_spades_scaffolds.fasta")
+    tuple val(sampleid), path("${sampleid}_spades_scaffolds.fasta"), emit: filt_fasta
+    tuple val(sampleid), path("${sampleid}_spades_scaffolds_headers.txt"), emit: filt_headers
 
   script:
   """
   seqtk seq -L 150 ${assembly} > ${sampleid}_scaffolds_filt.fasta
-  
+
+  grep '>' ${sampleid}_scaffolds_filt.fasta | sed 's/>NODE/CONTIG/g' > ${sampleid}_spades_scaffolds_headers.txt
+  sed -E 's/^>NODE_([0-9]+).*/>CONTIG_\\1/' ${sampleid}_scaffolds_filt.fasta > ${sampleid}_spades_scaffolds.fasta
   """
 }
 /*
@@ -518,7 +522,7 @@ process EXTRACT_VIRAL_BLAST_HITS {
   containerOptions "${bindOptions}"
 
   input:
-    tuple val(sampleid), path(blast_results) 
+    tuple val(sampleid), path(blast_results), path(assembly_headers)
 
   output:
     //tuple val(sampleid), path("${sampleid}_megablast_top_viral_hits_filtered.txt"), emit: viral_blast_results
@@ -530,7 +534,7 @@ process EXTRACT_VIRAL_BLAST_HITS {
   script:
   """
   cat ${blast_results} > ${sampleid}_blastn.txt
-  filter_blast.py --blastn_results ${sampleid}_blastn.txt --sample_name ${sampleid} --taxonkit_database_dir ${params.taxdump} --filter ${params.filter_terms}
+  filter_blast.py --blastn_results ${sampleid}_blastn.txt --sample_name ${sampleid} --taxonkit_database_dir ${params.taxdump} --filter ${params.filter_terms} --assembly_headers ${assembly_headers}
   """
 }
 
@@ -1208,7 +1212,8 @@ workflow {
   BLASTN.out.blast_results
     .groupTuple()
     .set { ch_blastresults } 
-  EXTRACT_VIRAL_BLAST_HITS ( ch_blastresults )
+  //CONFIRM THAT SAMPLEID IS PASSED CORRECTLY WHEN JOINING CHANNELS
+  EXTRACT_VIRAL_BLAST_HITS ( ch_blastresults.join(SEQTK.out.filt_headers) )
   //Add contig sequence to blast results summary table
   FASTA2TABLE ( EXTRACT_VIRAL_BLAST_HITS.out.viral_blast_results.join(SEQTK.out.filt_fasta) )
   //Mapping back to contigs that had viral blast hits

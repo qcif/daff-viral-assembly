@@ -17,6 +17,7 @@ def parse_arguments():
     parser.add_argument("--sample_name", required=True, type=str)
     parser.add_argument("--taxonkit_database_dir", required=True, type=str)
     parser.add_argument("--filter", required=True, type=str)
+    parser.add_argument("--assembly_headers", required=True, type=str)
     return parser.parse_args()
 
 def load_blast_results(path):
@@ -31,7 +32,6 @@ def load_blast_results(path):
         "qcovs", "qframe", "sframe"
     ]
     # Create a temporary file with header + original content
-   
     df = pd.read_csv(path, sep="\t", header=None, dtype=str)
     if df.shape[1] != len(columns):
         raise ValueError(
@@ -47,8 +47,6 @@ def load_blast_results(path):
         "qcovs": 'int64', "qframe": 'int64', "sframe": 'int64'
     }
     # Load DataFrame
-    #df = pd.read_csv(tmp_path, sep='\t', usecols=columns, dtype=dtype)
-    #df = pd.read_csv(path, sep="\t", header=0, usecols=columns, dtype=dtype)
     for col, dtype_ in dtype.items():
         if col in df.columns:
             if dtype_ in ("int64", "float64"):
@@ -57,15 +55,11 @@ def load_blast_results(path):
                 df[col] = df[col].astype(str)
 
     df["staxids"] = pd.to_numeric(df["staxids"].str.split(";").str[0], errors='coerce').fillna(0).astype(int)
-    #top_hit = df.drop_duplicates(subset=["qseqid"], keep="first").copy()
-
     return df
 
 def enrich_with_taxonomy(df, taxonkit_dir):
     """Add taxonomy information to the DataFrame."""
     staxids_l = df["staxids"].unique().tolist()
-    #lineage_df = pytaxonkit.lineage(staxids_l, data_dir=taxonkit_dir)
-    #lineage_df.rename(columns=str.lower, inplace=True)      
     lineage_df = pytaxonkit.lineage(staxids_l, data_dir=taxonkit_dir)[['TaxID', 'FullLineage']]
     lineage_df.columns = ["staxids", "full_lineage"]
     lineage_df["staxids"] = lineage_df["staxids"].astype(int)
@@ -92,12 +86,11 @@ def merge_taxonomy(dfs):
     """Merge taxonomy-enriched data."""
     return reduce(lambda left, right: pd.merge(left, right, on="staxids", how="outer"), dfs)
 
-def filter_and_format(df, sample_name, filter_file):
+def filter_and_format(df, sample_name, filter_file, headers):
     """Filter only viral hits and format."""
     df.insert(0, "sample_name", sample_name)
     df = df[~df["species"].str.contains("synthetic construct", na=False)]
     df = df[~df["species"].str.contains("Expression vector", na=False)]
-    #df = df.drop_duplicates(subset=["qseqid"], keep="first").copy()
     # Then drop duplicates — keep first valid hit per qseqid
     df = df.sort_values(by=["qseqid", "bitscore"], ascending=[True, False])  # Optional: Sort by best score
     df = df.drop_duplicates(subset=["qseqid"], keep="first").copy()
@@ -122,7 +115,6 @@ def filter_and_format(df, sample_name, filter_file):
         )
     )
 
-    #df["species_updated"] = df[["species", "RNA_type"]].agg(" ".join, axis=1)
     df["species_updated"] = df[["species", "RNA_type"]].fillna("").astype(str).agg(" ".join, axis=1)
     df["species_updated"] = df["species_updated"].str.replace("RNA1 RNA1", "RNA1", regex=False)
     df["species_updated"] = df["species_updated"].str.replace("RNA2 RNA2", "RNA2", regex=False)
@@ -131,61 +123,18 @@ def filter_and_format(df, sample_name, filter_file):
 
     df["ncontigs_per_sacc"] = df.groupby(["species_updated", "sacc"])["sacc"].transform("count")
     df["ncontigs_per_spp"] = df.groupby("species_updated").species_updated.transform("size")
-    #df["ncontigs_score"] = df.groupby("species_updated")["ncontigs"].transform(max_naccs)
-
-    #df["pident"] = df["pident"].astype(float)
-    #df["pident"] = pd.to_numeric(df["pident"], errors="coerce")
-    #df["pident_score"] = df.groupby("species_updated")["pident"].transform(max_pid)
-
-    #df["bitscore"] = df["bitscore"].astype(int)
-    #df["bitscore"] = pd.to_numeric(df["bitscore"], errors="coerce")
-    #df["bitscore_score"] = df.groupby("species_updated")["bitscore"].transform(max_bitscore)
-
-    #df["evalue"] = df["evalue"].astype(float)
-    #df["evalue"] = pd.to_numeric(df["evalue"], errors="coerce")
-    #df["evalue_score"] = df.groupby("species_updated")["evalue"].transform(min_evalue)
-    
-    # Extract cov value using regex and convert to float
-    #df["assembly_kmer_cov"] = df["qseqid"].str.extract(r'_cov_([0-9.]+)').astype(float)
-    #df["assembly_kmer_cov_score"] = df.groupby("species_updated")["assembly_kmer_cov"].transform(max_assembly_kmer_cov)
-
-    # assign a score of 1 if qcovs > 75, else 0
-    #df["qcovs_score"] = global_qcovs(df)
-    #df["best_qcovs_score"] = df.groupby("species_updated")["qcovs"].transform(max_qcovs)
-    #df["completeness_score"] = df["stitle"].apply(completeness_score)
-
-    #df["qlen"] = df["alignment_length"].astype(int)
-    #df["query_length_score"] = df.groupby("species_updated")["qlen"].transform(max_length)
-    #df["alignment_length"] = pd.to_numeric(df["alignment_length"], errors="coerce")
-    #df["alignment_length"] = df["alignment_length"].astype(int)
-    #df["alignment_length_score"] = df.groupby("species_updated")["alignment_length"].transform(max_length)
-
-    #df["total_score"] = (
-#   #    df["ncontigs_score"]
-    #    df["pident_score"]
-    ##    + df["bitscore_score"]
-    #    + df["evalue_score"]
-    #    + df["assembly_kmer_cov_score"]
-    #    + df["qcovs_score"]
-    #    + df["best_qcovs_score"]
-    ##    + df["completeness_score"]
-    #    + df["alignment_length_score"]
-    ##    + df["query_length_score"]
-    #)
-
-
-    
-
-    
-    
+          
     #apply scores at species level
     df["pident"] = df["pident"].astype(float)
     df["bitscore"] = df["bitscore"].astype(int)
     df["evalue"] = df["evalue"].astype(float)
-    df["assembly_kmer_cov"] = df["qseqid"].str.extract(r'_cov_([0-9.]+)').astype(float)
+    #modify how we access the cov value from the header
+    headers_df = pd.read_csv(headers, sep="\t", header=None, names=["spades_headers"], dtype=str)
+    headers_df["assembly_kmer_cov"] = headers_df["spades_headers"].str.extract(r'_cov_([0-9.]+)').astype(float)
+    headers_df["qseqid"] = headers_df["spades_headers"].str.extract(r'^(CONTIG_[0-9]+)').astype(str)
+    df = df.merge(headers_df[["qseqid", "assembly_kmer_cov"]], on="qseqid", how="left")
     df["qlen"] = df["qlen"].astype(int)
     df["alignment_length"] = df["alignment_length"].astype(int)
-    
     df = apply_group_score(df, "species", "pident", max_pid, "pident_score_spp")
     df = apply_group_score(df, "species", "bitscore", max_bitscore, "bitscore_score_spp")
     df = apply_group_score(df, "species", "evalue", min_evalue, "evalue_score_spp")
@@ -197,7 +146,6 @@ def filter_and_format(df, sample_name, filter_file):
     df = apply_group_score(df, "species", "alignment_length", max_length, "alignment_length_score_spp")
 
     df["total_score_spp"] = (
-    #       df["ncontigs_score"]
             df["pident_score_spp"]
             + df["bitscore_score_spp"]
             + df["evalue_score_spp"]
@@ -223,7 +171,6 @@ def filter_and_format(df, sample_name, filter_file):
     df = apply_group_score(df, "species_updated", "alignment_length", max_length, "alignment_length_score_spp_rna")
 
     df["total_score_spp_rna"] = (
-    #       df["ncontigs_score"]
             df["pident_score_spp_rna"]
             + df["bitscore_score_spp_rna"]
             + df["evalue_score_spp_rna"]
@@ -239,7 +186,6 @@ def filter_and_format(df, sample_name, filter_file):
 
 
     #apply the same scores per accession number
-
     df = apply_group_score(df, "sacc", "pident", max_pid, "pident_score_sacc")
     df = apply_group_score(df, "sacc", "bitscore", max_bitscore, "bitscore_score_sacc")
     df = apply_group_score(df, "sacc", "evalue", min_evalue, "evalue_score_sacc")
@@ -248,9 +194,7 @@ def filter_and_format(df, sample_name, filter_file):
     df = apply_group_score(df, "sacc", "qlen", max_length, "query_length_score_sacc")
     df = apply_group_score(df, "sacc", "alignment_length", max_length, "alignment_length_score_sacc")
 
-    #top_hits_df = df.loc[df.groupby(["species_updated"])["total_score"].idxmax()].copy()
     df["total_score_sacc"] = (
-    #       df["ncontigs_score"]
             df["pident_score_sacc"]
             + df["bitscore_score_sacc"]
             + df["evalue_score_sacc"]
@@ -263,12 +207,9 @@ def filter_and_format(df, sample_name, filter_file):
     )
 
     # Find the index of the best hit per species
-    
-
     best_idx_per_acc = df.groupby("sacc")["total_score_sacc"].idxmax()
 
     #Create a new column indicating whether the row is the best hit
-    
     df["best_contig_per_acc_filter"] = df.index.isin(best_idx_per_acc)
 
     # Read exclusion patterns from a file
@@ -277,8 +218,6 @@ def filter_and_format(df, sample_name, filter_file):
 
     pattern = "|".join(exclude_patterns)
 
-    #top_hits_df = top_hits_df[~top_hits_df["species_updated"].str.contains(pattern, case=False, na=False)]
-    #top_hits_df = top_hits_df[~top_hits_df["stitle"].str.contains(pattern, case=False, na=False)]
     # Create a new column that indicates whether the row is filtered
     df["term_filter"] = ~(
         df["species_updated"].str.contains(pattern, case=False, na=False)
@@ -293,30 +232,12 @@ def filter_and_format(df, sample_name, filter_file):
         (df["assembly_kmer_cov"] >= 1) &
         (df["qcovs"] >= 30)
         )
-
-    #exclude_patterns = ["phage", "tick virus", "Sclerotinia", "Plasmopara", "Botrytis cinerea", "Erysiphales","Erysiphe"]
-    #pattern = "|".join(exclude_patterns)  # create regex pattern: 'phage|tick virus|Sclerotinia|Plasmopara'
-    #top_hits_df = top_hits_df[~top_hits_df["species"].str.contains(pattern, case=False, na=False)]
-
-    #final_columns = ["sample_name", "qseqid", "sacc", "alignment_length", "evalue", "bitscore", "pident", "mismatch",
-    #                 "gapopen", "qstart", "qend", "qlen", "sstart", "send", "slen", "sstrand", 
-    #                 "qcovhsp", "staxids", "qseq", "sseq", "qcovs", 
-    #                 "species_updated", "RNA_type", "stitle", "full_lineage", "ncontigs", 
-    #                 "ncontigs_score", "pident_score", "bitscore_score", "evalue_score", "assembly_kmer_cov_score", 
-    #                 "qcovs_score", "best_qcovs_score", "completeness_score", "alignment_length_score", "query_length_score", "total_score"]
     
     final_columns_filt = ["sample_name", "qseqid", "sacc", "alignment_length", "evalue", "bitscore", "pident", "mismatch",
                      "gapopen", "qstart", "qend", "qlen", "sstart", "send", "slen", "sstrand",
                      "qcovhsp", "staxids", "qseq", "sseq", "qcovs", "species",
                      "species_updated", "RNA_type", "stitle", "full_lineage", "ncontigs_per_sacc", "ncontigs_per_spp", "assembly_kmer_cov", "total_score_spp", "total_score_spp_rna", "total_score_sacc", "term_filter", "cov_filter", "best_contig_per_sp_filter", "best_contig_per_sp_rna_filter", "best_contig_per_acc_filter"]
     
-    #columns before filtering and re-ordering:
-    # sample_name	qseqid	sgi	sacc	alignment_length	pident	mismatch	gapopen	qstart	qend	qlen	sstart	send	slen	
-    # sstrand	evalue	bitscore	qcovhsp	stitle	staxids	qseq	sseq	sseqid	qcovs	qframe	sframe	species	full_lineage	
-    # broad_taxonomic_category	RNA_type	species_updated	ncontigs	ncontigs_score	pident_score	bitscore_score	alignment_length_score	
-    # cov	cov_score	evalue_score	global_qcovs_score	qcovs_score	completeness_score	total_score
-
-    #return df[final_columns], top_hits_df[final_columns_filt]
     return df[final_columns_filt]
 
 def apply_group_score(df, group_col, target_col, score_func, new_col):
@@ -398,6 +319,7 @@ def main():
     sample_name = args.sample_name
     tk_db_dir = args.taxonkit_database_dir
     filter_file = args.filter
+    headers = args.assembly_headers
 
     if not os.path.isfile(blastn_results_path):
         raise FileNotFoundError(f"{blastn_results_path} does not exist.")
@@ -405,16 +327,11 @@ def main():
     blastn_results = load_blast_results(blastn_results_path)
     enriched_dfs = enrich_with_taxonomy(blastn_results, tk_db_dir)
     merged_df = merge_taxonomy(enriched_dfs)
-    #final_df, filtered_df = filter_and_format(merged_df, sample_name, filter_file)
-    final_df = filter_and_format(merged_df, sample_name, filter_file)
+    final_df = filter_and_format(merged_df, sample_name, filter_file, headers)
 
     out_file = os.path.basename(args.blastn_results).replace("_blastn.txt", "_megablast_top_viral_hits.txt")
     final_df.to_csv(out_file, sep="\t", index=False)
     print(f"Virus-only results saved to {out_file}")
-    
-    #out_file2 = os.path.basename(args.blastn_results).replace("_blastn.txt", "_megablast_top_viral_hits_filtered.txt")
-    #filtered_df.to_csv(out_file2, sep="\t", index=False)
-    #print(f"Virus-only filtered results saved to {out_file2}")
 
 if __name__ == "__main__":
     main()
