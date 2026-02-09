@@ -4,6 +4,6 @@ taxon_id,Taxon ID,,,
 broad_categories,Broad categories,,,
 reads,Reads,int,Y,
 pc_reads,% Reads,float,Y,
-cov_filter,Meets min coverage,bool,Y,
+cov_filter,Meets min coverage,bool,Y,% quality filtered reads matching to taxon > 0.002
 term_filter,Meets term filter,bool,Y,
 full_lineage,Full lineage,,,
