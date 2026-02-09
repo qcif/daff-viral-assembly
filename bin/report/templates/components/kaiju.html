@@ -1,7 +1,14 @@
-<h2>Kaiju results</h2>
+<h2>Direct taxonomic read classification (Kaiju)</h2>
 
 <p>
-  This section shows [...]
+  Kaiju is a bioinformatics tool that translates sequencing reads into amino acid sequences and compares them to a reference protein database (kaiju_db_nr_euk_2023-05-10) to assign taxonomic labels.<br>
+  This database represents a curated subset of the NCBI nr database and includes protein sequences from Archaea, bacteria, viruses, fungi, and microbial eukaryotes.<br>
+  Pytaxonkit is subseqeuently used to retrieve the full taxonomic lineage for each taxid identified by Kaiju, and the NCBI taxonomy is used to determine which taxa are viruses/viroids.<br>
+  The table below shows the number and per cent of quality filtered reads assigned to each taxon identified by Kaiju.<br>
+  It can be sorted by alphabetical or numerical order by clicking on the column headers, and the number of entries shown can be adjusted using the dropdown menu above the table.<br>
+  The results can be limited to a specific taxon by typing its name in the search box (for example "virus").<br>
+  The table can also be filtered to only show rows which meet minimum coverage criteria (i.e. % quality filtered reads matching to taxon > 0.002), as well as a default term criteria.<br>
+  Important note: since Kaiju performs a translated search against a protein database, it will not be able to detect viroids.<br>
 </p>
 
 <div class="my-3" style="overflow-x: auto;">
