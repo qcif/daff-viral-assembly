@@ -31,7 +31,6 @@ total_score_spp,Score,int,Y,
 total_score_spp_rna,Score (RNA),int,,
 total_score_sacc,Score (accession),int,,
 term_filter,Matches terminology?,bool,Y,
-cov_filter,Meets coverage?,bool,Y,
-best_contig_per_sp_filter,Best contig per spp?,bool,Y,
+cov_filter,Meets coverage?,bool,Y,>1 read contributed to the assembled contig and >30% of the query sequence length is covered by the reference sequence identified
 best_contig_per_sp_rna_filter,Best contig per spp RNA?,bool,,
 best_contig_per_acc_filter,Best contig per acc?,bool,,
