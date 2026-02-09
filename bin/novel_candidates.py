@@ -54,9 +54,11 @@ def main():
     merged3_df_filt = merged3_df[
         ~(merged3_df[rows_to_check].fillna(0).eq(0).all(axis=1))
     ]
-    merged3_df_filt = merged3_df_filt[merged3_df_filt["taxonomy"].str.lower() != "unclassified"]
+    
+    #merged3_df_filt = merged3_df_filt[merged3_df_filt["taxonomy"].str.lower() != "unclassified"]
     merged3_df_filt = merged3_df_filt[merged3_df_filt["length"] >= 500]
     merged3_df_filt = merged3_df_filt[merged3_df_filt["virus_score"] >= 0.9]
+    #Keep only contigs with no blast hits.
     merged3_df_filt = merged3_df_filt[
         merged3_df_filt["sacc"].isna() | (merged3_df_filt["sacc"].str.strip() == "")
     ]
