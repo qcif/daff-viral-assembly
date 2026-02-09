@@ -1,18 +1,18 @@
 colname,label,type,primary_display,tooltip
 sample_name,,,,
-sacc,Hit accession,,Y,
-taxon_name,Taxon name,,Y,
-reference_length,Reference length,int,Y,
-reads,Reads,int,Y,
-pc_reads,% Reads,float,Y,
-mean_depth,Mean depth,float,Y,
-pc_cov_30X,% Coverage at 30X,float,Y,
-mean_mapping_quality,Mean mapping quality,float,Y,
+sacc,Hit accession,,Y,Accession number of best homology match recovered from megablast search of contigs against the core nucleotide database
+taxon_name,Taxon name,,Y,Taxonomic description of the best homology match
+reference_length,Reference length,int,Y,Length of the reference sequence
+reads,Reads,int,Y,Number of quality filtered reads that mapped to the reference sequence
+pc_reads,% Reads,float,Y,Percentage of quality filtered reads that mapped to the reference sequence
+mean_depth,Mean depth,float,Y,Average depth of coverage across the reference sequence
+pc_cov_30X,% Coverage at 30X,float,Y,Percentage of the reference sequence that is covered by at least 30 reads
+mean_mapping_quality,Mean mapping quality,float,Y,Average mapping quality of the reads that mapped to the reference sequence
 read_count_flag,Read count flag,,,
 mean_depth_flag,Mean depth flag,,,
 30x_cov_flag,30X coverage flag,,,
 mean_mq_flag,Mean MQ flag,,,
 total_conf_score,Total confidence score,int,,
-normalised_conf_score,Normalised confidence score,float,Y,
+normalised_conf_score,Normalised confidence score,float,Y,The normalised confidence score is a value between 0 and 1 that is calculated by normalising the confidence score to the maximum possible score for this sequence. A value of 1 indicates the sequence with highest confidence
 consensus_seq,Consensus sequence,,Y,
 full_lineage,Full lineage,,,
