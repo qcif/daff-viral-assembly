@@ -18,7 +18,7 @@
 
 <ul class="lead">
   <li>
-    {{ contigs_fasta | length }} contigs were assembled from cleaned reads.
+    {{ contigs_fasta | length }} contigs were assembled from quality-filtered reads assigned as viral or unclassified by Kraken.
   </li>
   <li>
     {{ blast_stats.count }}
@@ -53,7 +53,7 @@
   </thead>
     <tbody>
       {% for row in blast_hits %}
-      {% set accession = row[blast_hits.columns_primary_display[0]] %}
+      {% set contig_id = row['qseqid'] %}
       <tr
         {% if row['bs_class'] %}
         class="alert-{{ row['bs_class'] }}"
@@ -62,11 +62,11 @@
         {% for colname in blast_hits.columns_primary_display %}
         <td class="align-middle">
           {% if colname == 'evalue' %}
-          <span style="white-space: nowrap;">{{ row[colname] }}</span>
+            <span style="white-space: nowrap;">{{ row[colname] }}</span>
           {% elif colname == 'contig_seq' %}
-          {{ render_sequence_modal(accession, row[colname]) }}
+            {{ render_sequence_modal(contig_id, row[colname]) }}
           {% else %}
-          {{ row[colname] }}
+            {{ row[colname] }}
           {% endif %}
         </td>
         {% endfor %}
@@ -126,7 +126,6 @@
 $(document).ready(function () {
 
   var table = $('#blastTable').DataTable({
-    orderCellsTop: true,
     fixedHeader: true
   });
 
