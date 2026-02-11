@@ -173,11 +173,28 @@ def main():
     #map2ref_df = pd.read_csv(map2ref, sep="\t", dtype=str)
 
     print(blast_df.head())
+
+    
     filtered_blast_df = blast_df[
         (blast_df["term_filter"].astype(str) == "True") &
-        #(blast_df["cov_filter"].astype(str) == "True") &
+        (blast_df["cov_filter"].astype(str) == "True") &
         (blast_df["best_contig_per_sp_filter"].astype(str) == "True")
     ]
+
+
+    # Standardize species naming
+    filtered_blast_df["species"] = filtered_blast_df["species"].replace(
+        {"Citrus viroid IIIa": "Apscaviroid nanocitri"}
+    )
+
+    kraken_df["taxon_name"] = kraken_df["taxon_name"].replace(
+        {"Citrus dwarfing viroid": "Apscaviroid nanocitri"}
+    )
+
+    kaiju_df["taxon_name"] = kaiju_df["taxon_name"].replace(
+        {"Citrus dwarfing viroid": "Apscaviroid nanocitri"}
+    )
+
     #print(kraken_df.head())
     #print(kaiju_df.head())
     summary_df = pd.DataFrame()

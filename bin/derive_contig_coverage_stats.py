@@ -116,12 +116,12 @@ def apply_qc_flags(df):
 
     df['30X_COVERAGE_FLAG'] = np.select(
         [
+            (~df['term_filter'].fillna(False)) | (~df['cov_filter'].fillna(False)),
             (df['qseqid'] != 0) & (df['qseq_pc_cov_30X'] >= 90),
             (df['qseqid'] != 0) & (df['qseq_pc_cov_30X'] >= 75) & (df['qseq_pc_cov_30X'] < 90),
-            (df['qseqid'] != 0) & (df['qseq_pc_cov_30X'] < 75),
-            (df['qseqid'].isin([0, None, '', '0', '-']))
+            (df['qseqid'] != 0) & (df['qseq_pc_cov_30X'] < 75)
         ],
-        ['GREEN', 'ORANGE', 'RED', 'GREY'],
+        ['GREY', 'GREEN', 'ORANGE', 'RED'],
         default=""
     )
 
@@ -133,45 +133,42 @@ def apply_qc_flags(df):
     #GREY: If sgi == 0.
     df['MAPPED_READ_COUNT_FLAG'] = np.select(
         [
+            (~df['term_filter'].fillna(False)) | (~df['cov_filter'].fillna(False)),
             (df['qseqid'] != 0) & (df['qseq_mapping_read_count'] >= 1000),
             (df['qseqid'] != 0) & (df['qseq_mapping_read_count'] >= 200) & (df['qseq_mapping_read_count'] < 1000),
-            (df['qseqid'] != 0) & (df['qseq_mapping_read_count'] < 200),
-            (df['qseqid'].isin([0, None, '', '0', '-']))
+            (df['qseqid'] != 0) & (df['qseq_mapping_read_count'] < 200) & (df['qseq_mapping_read_count'] < 1000)
         ],
-        ['GREEN', 'ORANGE', 'RED', 'GREY'],
+        ['GREY', 'GREEN', 'ORANGE', 'RED'],
         default=""
     )
 
     # Mean coverage flag
     df['MEAN_COVERAGE_FLAG'] = np.select(
         [
+            (~df['term_filter'].fillna(False)) | (~df['cov_filter'].fillna(False)),
             (df['qseqid'] != 0) & (df['qseq_mean_depth'] >= 500),
             (df['qseqid'] != 0) & (df['qseq_mean_depth'] >= 100) & (df['qseq_mean_depth'] < 500),
-            (df['qseqid'] != 0) & (df['qseq_mean_depth'] < 100),
-            (df['qseqid'].isin([0, None, '', '0', '-']))
+            (df['qseqid'] != 0) & (df['qseq_mean_depth'] < 100) 
         ],
-        ['GREEN', 'ORANGE', 'RED', 'GREY'],
+        ['GREY', 'GREEN', 'ORANGE', 'RED'],
         default=""
     )
 
     # Mean mapping quality flag
-    df['MEAN_MQ_FLAG'] = np.where(
-        (df['qseqid'] != 0) & 
-        (df['mean_MQ'] >= 30),
-        "GREEN",
-        np.where((df['qseqid'] != 0) & 
-                (df['mean_MQ'] < 30) & 
-                (df['mean_MQ'] >= 10),
-                "ORANGE",
-            np.where((df['qseqid'] != 0) &
-                (df['mean_MQ'] < 10),
-                "RED",
-                np.where(df['qseqid'].isin([0, None, '', '0', '-']),
-                    "GREY",
-                    ""
-                )
-            )
-        )
+    df['MEAN_MQ_FLAG'] = np.select(
+        [
+            (~df['term_filter'].fillna(False)) | (~df['cov_filter'].fillna(False)),
+            (df['qseqid'] != 0) & (df['mean_MQ'] >= 30),
+            (df['qseqid'] != 0) & (df['mean_MQ'] >= 10) & (df['mean_MQ'] < 30),
+            (df['qseqid'] != 0) & (df['mean_MQ'] < 10)
+        ],
+        [
+            "GREY",
+            "GREEN",
+            "ORANGE",
+            "RED"
+        ],
+        default=""
     )
 
     flag_score_map = {
@@ -339,7 +336,8 @@ def main():
     #clean the sacc by removing version numbers
     #blast_df["sacc"] = blast_df["sacc"].astype(str).str.strip()
     print(blast_df.head())
-    merged_df2 = pd.merge(blast_df, merged_df, left_on="qseqid", right_on="qseqid", how="inner")
+    merged_df2 = pd.merge(blast_df, merged_df, left_on="qseqid", right_on="qseqid", how="left")
+    merged_df2 = merged_df2.fillna(0)
 
     flagged_df = apply_qc_flags(merged_df2)
     flagged_df = flagged_df.rename(columns={
