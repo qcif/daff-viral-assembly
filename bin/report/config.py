@@ -103,7 +103,8 @@ class Config:
     @property
     def blast_hits_path(self) -> Path:
         return self._get_file_by_pattern(
-            "*_megablast_top_viral_hits_with_contigs.txt")
+#            "*_megablast_top_viral_hits_with_contigs.txt")
+            "*_contigs_with_cov_stats.txt")
 
     @property
     def kraken_hits_path(self) -> Path:

@@ -1,7 +1,7 @@
 colname,label,type,primary_display,tooltip
 sample_name,,,,
 qseqid,Contig ID,,Y,
-contig_seq,Sequence,,,
+contig_seq,Sequence,,Y,
 sacc,Hit accession,,Y,
 alignment_length,Alignment length,int,,
 evalue,E-value,scientific,,
@@ -21,16 +21,30 @@ staxids,Subject taxid,,,
 qseq,Query sequence,,,
 sseq,Match sequence,,,
 qcovs,Query coverage,int,Y,
-species_updated,Preliminary taxonomic classification,,Y,
-RNA_type,RNA type,,,
+species,Preliminary taxonomic classification,,Y,
+taxon_name,Taxonomic name with RNA type,,,
+RNA_type,RNA type,,Y,
 stitle,Subject title,,,
 full_lineage,Taxonomy,,,
 ncontigs_per_sacc,# Contigs per acc,int,Y,
 ncontigs_per_spp,# Contigs per spp,int,,
-total_score_spp,Score,int,Y,
+assembly_kmer_cov,Assembly k-mer coverage,float,,
+total_score_spp,Score,int,,
 total_score_spp_rna,Score (RNA),int,,
 total_score_sacc,Score (accession),int,,
 term_filter,Matches terminology?,bool,Y,
 cov_filter,Meets coverage?,bool,Y,>1 read contributed to the assembled contig and >30% of the query sequence length is covered by the reference sequence identified
+best_contig_per_sp_filter,Best contig per spp?,bool,Y,
 best_contig_per_sp_rna_filter,Best contig per spp RNA?,bool,,
 best_contig_per_acc_filter,Best contig per acc?,bool,,
+mapping_read_count,Reads,int,Y,Number of quality filtered reads that mapped to the contig
+pc_mapping_reads,% Reads,float,Y,Percentage of quality filtered reads that mapped to the contig
+mean_depth,Mean depth,float,Y,Average depth of coverage across the contig
+pc_cov_30X,% Coverage at 30X,float,Y,Percentage of the contig that is covered by at least 30 reads
+mean_mapping_quality,Mean mapping quality,float,Y,Average mapping quality of the reads that mapped to the contig
+read_count_flag,Read count flag,,,
+mean_depth_flag,Mean depth flag,,,
+30x_cov_flag,30X coverage flag,,,
+mean_mq_flag,Mean MQ flag,,,
+total_conf_score,Total confidence score,int,,
+normalised_conf_score,Normalised confidence score,float,Y,The normalised confidence score is a value between 0 and 1 that is calculated by normalising the confidence score to the maximum possible score for this sequence. A value of 1 indicates the sequence with highest confidence

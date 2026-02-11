@@ -1,3 +1,5 @@
+{% from "macros/sequence-display.html" import render_sequence_modal %}
+
 <h2>Homology to viral reference sequences</h2>
 
 <p>
@@ -50,6 +52,7 @@
   </thead>
     <tbody>
       {% for row in blast_hits %}
+      {% set accession = row[blast_hits.columns_primary_display[0]] %}
       <tr
         {% if row['bs_class'] %}
         class="alert-{{ row['bs_class'] }}"
@@ -59,6 +62,8 @@
         <td class="align-middle">
           {% if colname == 'evalue' %}
           <span style="white-space: nowrap;">{{ row[colname] }}</span>
+          {% elif colname == 'contig_seq' %}
+          {{ render_sequence_modal(accession, row[colname]) }}
           {% else %}
           {{ row[colname] }}
           {% endif %}
@@ -124,7 +129,7 @@ $(document).ready(function () {
     fixedHeader: true
   });
 
-  var booleanColumns = [9, 10, 11];
+  var booleanColumns = [10, 11, 12];
 
   booleanColumns.forEach(function (colIdx) {
     var column = table.column(colIdx);
