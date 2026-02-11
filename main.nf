@@ -418,7 +418,7 @@ process HTML_REPORT {
   label 'setting_3'
 
   input:
-    tuple val(sampleid), path(raw_fastqc), path(filtered_fastqc), path(fastp), path(fasta), path(summary_known_viruses), path(kaiju_summary), path(kraken_summary), path(detections_summary), path(mapping_summary), path(consensus), path(bam), path(bai), path(novel_virus_summary),
+    tuple val(sampleid), path(raw_fastqc), path(filtered_fastqc), path(fastp), path(fasta), path(summary_known_viruses), path(kaiju_summary), path(kraken_summary), path(detections_summary), path(ref_mapping_summary), path(consensus), path(bam), path(bai), path(novel_virus_summary),
     path(timestamp),
     path(qcreport_html),
     path(qcreport_txt),
@@ -903,7 +903,7 @@ process GENOMAD {
       file "*_aggregated_classification/*aggregated_classification.tsv"
       file "*_annotate/*_taxonomy.tsv"
       file "${sampleid}_genomad.log"
-      tuple val(sampleid), path("${sampleid}_scaffolds_virus_summary.tsv"), emit: virus_preds
+      tuple val(sampleid), path("${sampleid}_spades_scaffolds_virus_summary.tsv"), emit: virus_preds
       
     script:
     """
@@ -916,7 +916,7 @@ process GENOMAD {
         --min-score 0.7 \\
         --splits 1 \\
         > ${sampleid}_genomad.log 2>&1
-        cp ${sampleid}_scaffolds_summary/${sampleid}_scaffolds_virus_summary.tsv .
+        cp ${sampleid}_spades_scaffolds_summary/${sampleid}_spades_scaffolds_virus_summary.tsv .
     """
 }
 //Derive ORFs from contig sequences using orfipy
@@ -1201,7 +1201,7 @@ workflow {
   ORFIPY ( SEQTK.out.filt_fasta )
   HMMSCAN ( ORFIPY.out.orf_fasta )
 
-  GENOMAD ( SPADES.out.assembly )
+  GENOMAD ( SEQTK.out.filt_fasta )
   //Enhancement: Option to perform a blastx alignment of contig ORFs?
   //DIAMOND  ( SEQTK.out.filt_fasta.splitFasta(by: 5000, file: true) )
   //DIAMOND.out.diamond_results
@@ -1285,7 +1285,8 @@ workflow {
                                                     .join(SUMMARISE_RESULTS.out.summary_known_viruses)                                               
                                                     .join(SUMMARISE_READ_CLASSIFICATION.out.kaiju_summary)
                                                     .join(SUMMARISE_READ_CLASSIFICATION.out.kraken_summary)
-                                                    .join(FASTA2TABLE.out.blast_results2)
+//                                                    .join(FASTA2TABLE.out.blast_results2)
+                                                    .join(CONTIG_COVSTATS.out.detections_summary)
                                                     .join(FASTA2TABLE2.out.detections_summary_final)
                                                     .join(SAMTOOLS2.out.sorted_bam)
                                                     .join(NOVELS.out.novel_virus_candidates)
