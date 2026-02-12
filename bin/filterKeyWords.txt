@@ -38,7 +38,6 @@ tori-like
 Soybean leaf-associated
 Soybean-associated double-stranded RNA virus 1
 XiangYun narna-levi-like virus
-Aphid
 retrovirus
 narnavirus
 phage
