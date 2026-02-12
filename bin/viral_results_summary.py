@@ -108,10 +108,16 @@ def summarize_domains(df_filtered):
 
     # Remove rows where PFAM count is zero
     summary = summary[summary["PFAM_total"] > 0]
+
+    # If no domains detected → return empty table (no totals row)
+    if summary.empty:
+        base_cols = ["query_name", "ORFs", "PFAM_total", "RdRp"]
+        return pd.DataFrame(columns=base_cols)
     
     # Add RdRp column
     existing_rdRp_pfams = [pf for pf in RDRP_PFAMS if pf in summary.columns]
-    summary["RdRp"] = summary[existing_rdRp_pfams].sum(axis=1) > 0
+    #summary["RdRp"] = summary[existing_rdRp_pfams].sum(axis=1) > 0
+    summary["RdRp"] = summary[existing_rdRp_pfams].sum(axis=1) > 0 if existing_rdRp_pfams else False
 
 
     # Sort by highest number of PFAM occurrences
@@ -136,10 +142,7 @@ def summarize_domains(df_filtered):
         [summary, total_row.to_frame().T],
         ignore_index=True
     )
-
-
     return summary
-
 
 def main():
     ################################################################################
