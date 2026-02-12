@@ -5,9 +5,9 @@
   <div class="col">
     <p class="small">
       This report contains tables and plots to help interpret the outcome of the RNASeq run and the viral detection analyses performed.<br>
-      <strong>Section I</strong> provides a summary of the input parameters, quality control metrics and an overview of the detected viruses from the different analyses performed (if at least one de novo contig was assigned to a virus).<br>
+      <strong>Section I</strong> provides a summary of the input parameters, quality control metrics and an overview of the viruses/viroids detected by both BLAST homology and direct read homology searches (provided that at least one de novo contig was assigned to these viruses/viroids).<br>
       <strong>Section II and III</strong> provides the detailed results for the direct read search performed using Kraken2 and Kaiju respectively.<br>
-      <strong>Section IV</strong> shows the candidate virus detected using de novo assembly followed by megablast homology search.<br>
+      <strong>Section IV</strong> shows the candidate virus detected using de novo assembly followed by megablast homology search. After mapping reads back to the contigs obtained, coverage statistics are also derived.<br>
       <strong>Section V</strong> shows consensus generated when mapping back to viral reference genomes detected by megablast in Section IV.<br>
       <strong>Section VI</strong> shows potential novel viral sequences derived by de novo assembly that did not match any known viral reference sequence but have viral characteristics (based on geNomad and hmmscan).  
     </p>

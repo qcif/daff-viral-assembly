@@ -5,7 +5,7 @@ broad_categories,Broad categories,,,
 reads,Reads,int,Y,
 pc_reads,% Reads,float,Y,
 cov_filter,Meets min coverage,bool,Y,% quality filtered reads matching to taxon > 0.001
-term_filter,meets term filter,bool,Y,
+term_filter,Meets term filter,bool,Y,
 full_lineage,Full lineage,,Y,
 full_lineage_ranks,,,,
 acellular root,Entity,,Y,
