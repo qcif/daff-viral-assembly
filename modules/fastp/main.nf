@@ -85,10 +85,6 @@ process FASTP {
             --thread $task.cpus \\
             --json ${prefix}.fastp.json \\
             --html ${prefix}.fastp.html \\
-            --detect_adapter_for_pe \\
-            --cut_front \\
-            --cut_tail \\
-            --length_required 50 --average_qual 20 \\
             $fail_fastq \\
             $args \\
             2> >(tee ${prefix}.fastp.log >&2) \\
@@ -134,6 +130,7 @@ process FASTP {
             $merge_fastq \\
             --thread $task.cpus \\
             --detect_adapter_for_pe \\
+            --length_required 50 --average_qual 20 \\
             $args \\
             2> >(tee ${prefix}.fastp.log >&2)
 
