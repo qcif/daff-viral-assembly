@@ -128,6 +128,8 @@ def _get_report_context(
         'metadata': _get_metadata(samplesheet_file),
         'parameters': _get_parameters(default_params_file, params_file),
         'run_qc': _get_run_qc(),
+        'run_qc_raw_fastqc_filename': config.run_qc_raw_fastqc_path.name,
+        'run_qc_clean_fastqc_filename': config.run_qc_clean_fastqc_path.name,
         'bam_html_file': config.bam_html_path.name,
         'contigs_fasta': contigs_fasta,
         'blast_hits': blast_hits,

@@ -102,9 +102,7 @@ class Config:
 
     @property
     def blast_hits_path(self) -> Path:
-        return self._get_file_by_pattern(
-#            "*_megablast_top_viral_hits_with_contigs.txt")
-            "*_contigs_with_cov_stats.txt")
+        return self._get_file_by_pattern("*_contigs_with_cov_stats.txt")
 
     @property
     def kraken_hits_path(self) -> Path:
@@ -130,6 +128,14 @@ class Config:
     @property
     def filter_keywords(self) -> Path:
         return self._get_file_by_pattern("filterKeyWords.txt")
+
+    @property
+    def run_qc_raw_fastqc_path(self) -> Path:
+        return self._get_file_by_pattern("*.merged_subsampled_1_fastqc.html")
+
+    @property
+    def run_qc_clean_fastqc_path(self) -> Path:
+        return self._get_file_by_pattern("*.fastp_1_fastqc.html")
 
     # @property
     # def PLACEHOLDER(self) -> Path:

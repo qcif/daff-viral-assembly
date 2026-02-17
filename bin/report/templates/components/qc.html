@@ -5,6 +5,7 @@
     <th></th>
     <th>Value</th>
     <th>Outcome</th>
+    <th></th>
   </thead>
 
   <tr
@@ -22,6 +23,15 @@
       {% else %}
       <span class="emoji">✅</span>
       {% endif %}
+    </td>
+    <td>
+      <a
+        class="btn btn-sm btn-primary hide-broken"
+        href="./{{ run_qc_raw_fastqc_filename }}"
+        target="_blank"
+      >
+        FastQC report
+      </a>
     </td>
   </tr>
   <tr
@@ -46,16 +56,15 @@
       <span class="emoji">✅</span>
       {% endif %}
     </td>
-  </tr>
-  <tr
-    class="alert-{{ run_qc.flag }}"
-    title="TBC"
-    data-bs-toggle="tooltip"
-    data-bs-placement="left"
-  >
-    <td class="text-danger">Any other fields?</td>
-    <td></td>
-    <td></td>
+    <td>
+      <a
+        class="btn btn-sm btn-primary hide-broken"
+        href="./{{ run_qc_clean_fastqc_filename }}"
+        target="_blank"
+      >
+        FastQC report
+      </a>
+    </td>
   </tr>
 </table>
 
