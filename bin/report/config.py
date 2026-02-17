@@ -127,6 +127,10 @@ class Config:
     def novel_viruses_path(self) -> Path:
         return self._get_file_by_pattern("*_novel_virus_candidates.tsv")
 
+    @property
+    def filter_keywords(self) -> Path:
+        return self._get_file_by_pattern("filterKeyWords.txt")
+
     # @property
     # def PLACEHOLDER(self) -> Path:
     #     return self._get_file_by_pattern("*.*")

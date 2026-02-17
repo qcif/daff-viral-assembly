@@ -146,6 +146,7 @@ def _get_report_context(
         ),
         'flags': config.flags,
         'blast_passed': config.blast_passed,
+        'filter_keywords': config.filter_keywords.read_text().splitlines(),
     }
 
 
