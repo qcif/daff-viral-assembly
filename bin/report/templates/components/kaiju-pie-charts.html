@@ -1,0 +1,67 @@
+<div class="kaiju-pie-charts-container">
+
+  <p class="alert alert-info">
+    {{ (100 - kaiju_taxa_by_kingdom.na.read_percent) | round(1) }}% of reads were taxonomically classified.
+    The remaining {{ kaiju_taxa_by_kingdom.na.read_percent }}% of reads were not identifiable against reference sequences.
+  </p>
+
+  <div class="row">
+    <div class="col">
+      <div id="kaiju-taxa-overview-pie"></div>
+
+      <div id="kaiju-kingdom-chart-wrapper" style="display: none;">
+        <div class="d-flex align-items-center" style="padding-left: 73px;">
+          <div id="kaiju-kingdom-chart-container" style="flex: 1;">
+            <div class="pie-container" id="kaiju-plant-container" style="display: none;">
+              <div id="kaiju-plant-pie"></div>
+            </div>
+
+            <div class="pie-container" id="kaiju-animal-container" style="display: none;">
+              <div id="kaiju-animal-pie"></div>
+            </div>
+
+            <div class="pie-container" id="kaiju-bacteria-container" style="display: none;">
+              <div id="kaiju-bacteria-pie"></div>
+            </div>
+
+            <div class="pie-container" id="kaiju-fungi-container" style="display: none;">
+              <div id="kaiju-fungi-pie"></div>
+            </div>
+
+            <div class="pie-container" id="kaiju-virus-container" style="display: none;">
+              <div id="kaiju-virus-pie"></div>
+            </div>
+
+            <div class="pie-container" id="kaiju-other-container" style="display: none;">
+              <div id="kaiju-other-pie"></div>
+            </div>
+          </div>
+
+          <div class="btn-group-vertical ms-2 kaiju-rank-toggle-buttons" role="group" aria-label="Taxonomic rank selector">
+            <button type="button" class="btn btn-sm btn-outline-primary kaiju-rank-btn active" data-rank="family">Family</button>
+            <button type="button" class="btn btn-sm btn-outline-primary kaiju-rank-btn" data-rank="genus">Genus</button>
+            <button type="button" class="btn btn-sm btn-outline-primary kaiju-rank-btn" data-rank="species">Species</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="pie-container" id="kaiju-default-message">
+        <p class="lead text-center text-muted my-5">
+          Select a taxon to view records
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  {% include 'components/js/taxa-pie-charts.js' %}
+
+  $(document).ready(function() {
+    initTaxaPieCharts(
+      'kaiju',
+      {{ kaiju_taxa_by_kingdom|safe }},
+      '#kaijuTable'
+    );
+  });
+</script>

@@ -83,14 +83,17 @@ td.column-flag_name {
 }
 
 /* Interactive plots */
-.kraken-pie-charts-container .plotly.plot-container {
+.kraken-pie-charts-container .plotly.plot-container,
+.kaiju-pie-charts-container .plotly.plot-container {
   display: flex;
   justify-content: center;
 }
-.kraken-pie-charts-container .surface {
+.kraken-pie-charts-container .surface,
+.kaiju-pie-charts-container .surface {
   cursor: pointer;
 }
-.kraken-pie-charts-container .surface:hover {
+.kraken-pie-charts-container .surface:hover,
+.kaiju-pie-charts-container .surface:hover {
   opacity: 0.9;
   cursor: pointer;
 }

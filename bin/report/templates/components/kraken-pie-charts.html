@@ -38,9 +38,9 @@
           </div>
 
           <div class="btn-group-vertical ms-2 rank-toggle-buttons" role="group" aria-label="Taxonomic rank selector">
-            <button type="button" class="btn btn-sm btn-outline-primary rank-btn active" data-rank="family">Family</button>
-            <button type="button" class="btn btn-sm btn-outline-primary rank-btn" data-rank="genus">Genus</button>
-            <button type="button" class="btn btn-sm btn-outline-primary rank-btn" data-rank="species">Species</button>
+            <button type="button" class="btn btn-sm btn-outline-primary kraken-rank-btn active" data-rank="family">Family</button>
+            <button type="button" class="btn btn-sm btn-outline-primary kraken-rank-btn" data-rank="genus">Genus</button>
+            <button type="button" class="btn btn-sm btn-outline-primary kraken-rank-btn" data-rank="species">Species</button>
           </div>
         </div>
       </div>
@@ -55,8 +55,13 @@
 </div>
 
 <script>
-  const krakenTaxaByKingdom = {{ kraken_taxa_by_kingdom|safe }};
+  {% include 'components/js/taxa-pie-charts.js' %}
 
-  {% include 'components/js/kraken-pie-charts.js' %}
-
+  $(document).ready(function() {
+    initTaxaPieCharts(
+      'kraken',
+      {{ kraken_taxa_by_kingdom|safe }},
+      '#krakenTable'
+    );
+  });
 </script>

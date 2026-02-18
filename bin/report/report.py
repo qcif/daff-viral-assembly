@@ -146,6 +146,10 @@ def _get_report_context(
             config.kraken_hits_path,
             group_kingdoms=True,
         ),
+        'kaiju_taxa_by_kingdom': parse_kraken_taxonomy(
+            config.kaiju_hits_path,
+            group_kingdoms=True,
+        ),
         'flags': config.flags,
         'blast_passed': config.blast_passed,
         'filter_keywords': config.filter_keywords.read_text().splitlines(),

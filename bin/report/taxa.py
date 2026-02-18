@@ -349,10 +349,15 @@ def _determine_kingdom_group(lineage_parts: list[str]) -> str:
     higher_taxa = [
         part.lower() for part in lineage_parts
     ][:4]
-    entity, domain = higher_taxa[:2]
+    entity = higher_taxa[0]
 
     if entity == 'viruses':
         return 'virus'
+
+    if len(higher_taxa) < 2:
+        return 'other'
+
+    domain = higher_taxa[1]
 
     if domain == 'bacteria':
         return 'bacteria'

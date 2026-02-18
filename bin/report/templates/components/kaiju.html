@@ -10,50 +10,72 @@
   </button>
 </p>
 
-<div class="my-3" style="overflow-x: auto;">
+<div class="row justify-content-start my-3">
 
   {% if kaiju | length %}
-  <table id="kaijuTable" class="table table-lined tight text-center">
-    <thead>
-      <tr>
-        {% for colname in kaiju.columns_primary_display %}
-        <th
-          {% if kaiju.COLUMN_METADATA[colname]['tooltip'] %}
-          title="{{ kaiju.COLUMN_METADATA[colname]['tooltip'] }}"
-          data-bs-toggle="tooltip"
-          data-bs-placement="top"
+  <div class="col-sm-6" style="overflow-x: auto;">
+    <p class="text-end">
+      <button
+        class="btn btn-secondary btn-sm float-right"
+        onclick="clearKaijuTableFilters();"
+        role="button"
+      >
+        Clear filters
+      </button>
+    </p>
+
+    <table id="kaijuTable" class="table table-lined tight text-center">
+      <thead>
+        <tr>
+          {% for colname in kaiju.columns_primary_display %}
+          <th
+            {% if kaiju.COLUMN_METADATA[colname]['tooltip'] %}
+            title="{{ kaiju.COLUMN_METADATA[colname]['tooltip'] }}"
+            data-bs-toggle="tooltip"
+            data-bs-placement="top"
+            {% endif %}
+          >
+            {{ kaiju.COLUMN_METADATA[colname]['label'] }}
+          </th>
+          {% endfor %}
+        </tr>
+        <tr class="filters">
+          {% for colname in kaiju.columns_primary_display %}
+            <th></th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in kaiju %}
+        <tr
+          {% if row['bs_class'] %}
+          class="alert-{{ row['bs_class'] }}"
           {% endif %}
         >
-          {{ kaiju.COLUMN_METADATA[colname]['label'] }}
-        </th>
+          {% for colname in kaiju.columns_primary_display  %}
+          <td class="align-middle {% if loop.index == 1 %}text-start{% endif %}">
+            {% if colname == 'evalue' %}
+            <span style="white-space: nowrap;">{{ row[colname] }}</span>
+            {% elif kaiju.COLUMN_METADATA[colname]['type'] == 'float' %}
+              {% if row[colname] is number %}
+              {{ '%.3g' | format(row[colname]) }}
+              {% else %}
+              {{ row[colname] }}
+              {% endif %}
+            {% else %}
+            {{ row[colname] }}
+            {% endif %}
+          </td>
+          {% endfor %}
+        </tr>
         {% endfor %}
-      </tr>
-      <tr class="filters">
-        {% for colname in kaiju.columns_primary_display %}
-          <th></th>
-        {% endfor %}
-      </tr>
-    </thead>
-    <tbody>
-      {% for row in kaiju %}
-      <tr
-        {% if row['bs_class'] %}
-        class="alert-{{ row['bs_class'] }}"
-        {% endif %}
-      >
-        {% for colname in kaiju.columns_primary_display  %}
-        <td class="align-middle">
-          {% if colname == 'evalue' %}
-          <span style="white-space: nowrap;">{{ row[colname] }}</span>
-          {% else %}
-          {{ row[colname] }}
-          {% endif %}
-        </td>
-        {% endfor %}
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col-sm-6">
+    {% include 'components/kaiju-pie-charts.html' %}
+  </div>
   {% else %}
   <p>
     No taxonomic classification results to show.
@@ -93,6 +115,9 @@
             The table can also be filtered to only show rows which meet minimum coverage criteria and match a pre-defined list of terms.
           </li>
           <li>
+            The pie chart on the right provides a visual summary of the taxonomic composition at the kingdom level (top). The top 10 most abundant taxa detected within a kingdom can be displayed by clicking on the desired kingdom and these can be viewed at the family, genus or species level (bottom).
+          </li>
+          <li>
             <strong>Important note:</strong> since Kaiju performs a translated search against a protein database, it will not be able to detect viroids.
           </li>
         </ol>
@@ -106,32 +131,51 @@
 </div>
 
 <script>
-$(document).ready(function () {
 
-  var table = $('#kaijuTable').DataTable({
-    orderCellsTop: true,
-    fixedHeader: true
-  });
+  let kaijuDataTable;
 
-  var booleanColumns = [3, 4];
+  $(document).ready( () => {
+    kaijuDataTable = new DataTable('#kaijuTable', {
+      pageLength: 25,
+      order: [[1, 'desc']],
+      orderCellsTop: true,
+      columnDefs: [
+        {
+          targets: [ 5, 6, 7, 8, 9 ],
+          visible: false,
+          searchable: true,
+        }
+      ]
+    });
 
-  booleanColumns.forEach(function (colIdx) {
-    var column = table.column(colIdx);
-    var cell = $('#kaijuTable thead tr.filters th').eq(colIdx);
+    const booleanColumns = [3, 4];
 
-    var select = $('<select class="form-select form-select-sm">' +
-                   '<option value="">All</option>' +
-                   '<option value="TRUE">TRUE</option>' +
-                   '<option value="FALSE">FALSE</option>' +
-                   '</select>')
+    booleanColumns.forEach(function (colIdx) {
+      const column = kaijuDataTable.column(colIdx);
+      const cell = $('#kaijuTable thead tr.filters th').eq(colIdx);
+
+      const select = $(
+        '<select class="form-select form-select-sm">' +
+          '<option value="">All</option>' +
+          '<option value="TRUE">TRUE</option>' +
+          '<option value="FALSE">FALSE</option>' +
+        '</select>'
+      )
       .appendTo(cell)
       .on('change', function () {
-        var val = $.fn.dataTable.util.escapeRegex($(this).val());
+        const val = $.fn.dataTable.util.escapeRegex($(this).val());
         column
           .search(val ? '^' + val + '$' : '', true, false)
           .draw();
       });
+    });
+
   });
 
-});
+
+  function clearKaijuTableFilters() {
+    kaijuDataTable.search('').columns().search('').draw();
+
+    $('#kaijuTable thead tr.filters select').val('');
+  }
 </script>

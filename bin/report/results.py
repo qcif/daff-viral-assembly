@@ -302,9 +302,8 @@ class ConsensusFASTA:
         }
 
 
-class KrakenResults(AbstractResultRows):
-    COLUMN_METADATA = _csv_to_dict(config.SCHEMA.KRAKEN_FIELD_CSV)
-    COLUMNS = list(COLUMN_METADATA.keys())
+class AbstractTaxonomicClassificationResult(AbstractResultRows):
+    """Base class for taxonomic classification results (Kraken, Kaiju)."""
 
     def __init__(self, *args):
         super().__init__(*args)
@@ -360,49 +359,14 @@ class KrakenResults(AbstractResultRows):
                 row[rank] = taxonomy.get(rank, '-')
 
 
-class KaijuResults(AbstractResultRows):
-    COLUMN_METADATA = _csv_to_dict(config.SCHEMA.KRAKEN_KAIJU_FIELD_CSV)
+class KrakenResults(AbstractTaxonomicClassificationResult):
+    COLUMN_METADATA = _csv_to_dict(config.SCHEMA.KRAKEN_FIELD_CSV)
     COLUMNS = list(COLUMN_METADATA.keys())
 
-    def __init__(self, *args):
-        super().__init__(*args)
-        self.columns_display = [
-            c for c in self.COLUMN_METADATA
-            if self.COLUMN_METADATA[c]['label']
-        ]
-        self.columns_primary_display = [
-            c for c in self.columns_display
-            if self.COLUMN_METADATA[c]['primary_display']
-        ]
-        self.set_bs_class()
-        self.set_null_rows()
 
-    @property
-    def positive_hits(self):
-        return [
-            row for row in self.rows
-            if row.get('sacc') not in [None, '', '0', '-']
-        ]
-
-    def set_bs_class(self):
-        def _get_bs_class(row):
-            # TODO: define this
-            return 'success'
-
-        self.rows = [
-            {
-                **row,
-                'bs_class': _get_bs_class(row),
-            }
-            for row in self.rows
-        ]
-
-    def set_null_rows(self):
-        """Set rows with no hits to have a null value."""
-        for row in self.rows:
-            if not row['taxon_id'] or row['taxon_id'] == '0':
-                for colname in self.COLUMNS[3:]:
-                    row[colname] = '-'
+class KaijuResults(AbstractTaxonomicClassificationResult):
+    COLUMN_METADATA = _csv_to_dict(config.SCHEMA.KAIJU_FIELD_CSV)
+    COLUMNS = list(COLUMN_METADATA.keys())
 
 
 class MappingResults(AbstractResultRows):
