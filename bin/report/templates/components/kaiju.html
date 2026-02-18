@@ -1,20 +1,13 @@
 <h2>Direct taxonomic read classification (Kaiju)</h2>
 
-<p>
-  Kaiju is a bioinformatics tool that translates sequencing reads into amino acid sequences and compares them to a reference protein database (kaiju_db_nr_euk_2023-05-10) to assign taxonomic labels.<br>
-  This database represents a curated subset of the NCBI nr database and includes protein sequences from Archaea, bacteria, viruses, fungi, and microbial eukaryotes.<br>
-  Pytaxonkit is subsequently used to retrieve the full taxonomic lineage for each taxid identified by Kaiju, and the NCBI taxonomy is used to determine which taxa are viruses/viroids.<br>
-  The table below shows the number and per cent of quality filtered reads assigned to each taxon identified by Kaiju.<br>
-  It can be sorted by alphabetical or numerical order by clicking on the column headers, and the number of entries shown can be adjusted using the dropdown menu above the table.<br>
-  The results can be limited to a specific taxon by typing its name in the search box (for example "virus").<br>
-  The table can also be filtered to only show rows which meet minimum coverage criteria and default term criteria.<br>
-  Important note: since Kaiju performs a translated search against a protein database, it will not be able to detect viroids.<br>
-</p>
-
-<p>
-  The "Matches keywords" column indicates whether the taxon name matches a specified
+<p class="alert alert-info">
+  The <strong>Matches keywords</strong> column indicates whether the taxon name matches a specified
   <a href="javascript:void(0);" data-bs-toggle="modal" data-bs-target="#filterKeywordsModal">
     list of terms</a>.
+
+  <button type="button" class="btn btn-primary btn-sm" style="float: right;" data-bs-toggle="modal" data-bs-target="#kaijuInfoModal">
+    About this analysis
+  </button>
 </p>
 
 <div class="my-3" style="overflow-x: auto;">
@@ -66,6 +59,50 @@
     No taxonomic classification results to show.
   </p>
   {% endif %}
+</div>
+
+<div class="modal fade" id="kaijuInfoModal" tabindex="-1" aria-labelledby="kaijuInfoModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="kaijuInfoModalLabel">Taxonomic classification with Kaiju</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body">
+        <ol>
+          <li>
+            <strong>Kaiju</strong> translates sequencing reads into amino acid sequences and compares them to a reference protein database (<code>kaiju_db_nr_euk_2023-05-10</code>) to assign taxonomic labels to each read.
+          </li>
+          <li>
+            This database represents a curated subset of the NCBI nr database and includes protein sequences from Archaea, bacteria, viruses, fungi, and microbial eukaryotes.
+          </li>
+          <li>
+            Pytaxonkit is subsequently used to retrieve the full taxonomic lineage for each taxid identified by Kaiju, and the NCBI taxonomy is used to determine which taxa are viruses/viroids.
+          </li>
+          <li>
+            The table below shows the number and percent of quality filtered reads assigned to each taxon identified by Kaiju.
+          </li>
+          <li>
+            Sort the table by alphabetical or numerical order by clicking on column headers, and adjust the number of displayed entries using the dropdown menu above the table.
+          </li>
+          <li>
+            The results can be limited to a specific taxon using the search box (for example "virus", or "sapiens").
+          </li>
+          <li>
+            The table can also be filtered to only show rows which meet minimum coverage criteria and match a pre-defined list of terms.
+          </li>
+          <li>
+            <strong>Important note:</strong> since Kaiju performs a translated search against a protein database, it will not be able to detect viroids.
+          </li>
+        </ol>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
