@@ -3,7 +3,7 @@
 <div class="alert alert-info">
   <div class="row align-items-center">
     <div class="col">
-      <strong>Kaiju</strong> is very similar to <strong>Kraken</strong>, but sometimes identifies species that the latter does not. <strong>Kaiju</strong> operates on protein sequences, meaning that it cannot identify viroids sequences. It attempts to classify each individual sequencing read to species level. The number of reads allocated to each species are shown in the table. This gives us a rough estimate of the taxonomic distribution of genetic material in the sample.
+      <strong>Kaiju</strong> is very similar to <strong>Kraken</strong>, but sometimes identifies species that the latter does not. <strong>Kaiju</strong> operates on protein sequences, meaning that it cannot identify viroids sequences. It attempts to classify each individual sequencing read to species level. The number of reads allocated to each species are shown in the table. This gives us a rough estimate of the taxonomic distribution of genetic material in the sample. Please note that the database used by Kaiju does not include sequences from higher eukaryotes, meaning that reads originating from the host organism will not be classified in this analysis. 
 
       The <strong>Matches keywords</strong> column indicates whether the taxon name matches a specified
       <a href="javascript:void(0);" data-bs-toggle="modal" data-bs-target="#filterKeywordsModal">
@@ -104,7 +104,8 @@
             <strong>Kaiju</strong> translates sequencing reads into amino acid sequences and compares them to a reference protein database (<code>kaiju_db_nr_euk_2023-05-10</code>) to assign taxonomic labels to each read.
           </li>
           <li>
-            This database represents a curated subset of the NCBI nr database and includes protein sequences from Archaea, bacteria, viruses, fungi, and microbial eukaryotes.
+            This database represents a curated subset of the NCBI nr database and includes protein sequences from Archaea, bacteria, viruses, fungi, and microbial eukaryotes. 
+            It does not include sequences from higher eukaryotes, meaning that reads originating from the host organism will not be classified by Kaiju.
           </li>
           <li>
             Pytaxonkit is subsequently used to retrieve the full taxonomic lineage for each taxid identified by Kaiju, and the NCBI taxonomy is used to determine which taxa are viruses/viroids.

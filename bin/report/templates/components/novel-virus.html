@@ -1,11 +1,17 @@
 {% from "macros/sequence-display.html" import render_sequence_modal %}
 
-<h2>Detection of novel viruses</h2>
-
-<p class="text-danger">
-  This section shows ...
-</p>
-
+<div class="alert alert-info">
+  <div class="row align-items-center">
+    <div class="col">
+     The <strong>novel virus detections analysis</strong> shows sequences derived by de novo assembly that did not show significant similarity to any sequence in the NCBI core_nt database but have viral characteristics (based on geNomad and hmmscan). 
+    </div>
+    <div class="col-auto">
+      <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#novelInfoModal">
+        About this analysis
+      </button>
+    </div>
+  </div>
+</div>
 <div class="my-3" style="overflow-x: auto;">
 
   {% if novel_viruses | length %}
@@ -63,4 +69,45 @@
     No novel virus data available.
   </p>
   {% endif %}
+</div>
+
+<div class="modal fade" id="novelInfoModal" tabindex="-1" aria-labelledby="novelInfoModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="novelInfoModalLabel">Novel virus detection</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body">
+        <ol>
+          <li>
+            <em>De novo</em> assembled contigs that are at least 500 bp in length and did not show significant similarity to any sequences in the NCBI core_nt database were further analysed to identify potential novel viruses.
+          </li>
+          <li>
+            Contigs were classified using<strong>geNomad</strong>, a machine learning–based tool that evaluates gene content and sequence composition to determine viral origin. The table displays contigs retained as high-confidence candidate viral sequences, defined by a <strong>virus score</strong> (posterior probability of being viral) of at least 0.9. 
+          </li>
+          <li>
+            The number of viral hallmark genes detected by <strong>geNomad</strong> within a contig is also reported.
+          </li>
+          <li>
+            Open reading frames (ORFs) encoding protein sequences of at least 100 amino acids were then predicted from these contigs using <strong>orfipy</strong>. 
+          </li>
+          <li>
+            The predicted protein sequences were subsequently searched against the curated Pfam-A profile Hidden Markov Model database using <strong>hmmscan</strong>. 
+          </li>
+          <li>
+            The table reports the number of ORFs with a significant match to a viral protein family domain (defined as a <strong>full sequence score</strong> of at least 50), the totalnumber of viral domains detected, and whether an RNA-dependent RNA polymerase (RdRP) domain was identified. 
+          </li>
+          <li>
+            Rows are sorted in descending order based on the contigs <strong>virus score</strong>, with higher-scoring contigs representing higher-confidence viral candidates.
+          </li>
+        </ol>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
 </div>

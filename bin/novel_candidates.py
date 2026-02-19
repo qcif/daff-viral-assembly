@@ -49,6 +49,11 @@ def main():
 
     num_cols = ["length", "virus_score", "PFAM_total"]
     merged3_df[num_cols] = merged3_df[num_cols].apply(pd.to_numeric, errors="coerce")
+    # Force integer columns
+    int_cols = ["n_genes", "length", "n_hallmarks", "genetic_code"]
+    for col in int_cols:
+        merged3_df[col] = pd.to_numeric(merged3_df[col], errors="coerce").astype("Int64")
+
     rows_to_check = ["PFAM_total", "virus_score"]
 
     merged3_df_filt = merged3_df[
