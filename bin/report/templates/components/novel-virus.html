@@ -82,25 +82,25 @@
       <div class="modal-body">
         <ol>
           <li>
-            <em>De novo</em> assembled contigs that are at least 500 bp in length and do not show significant similarity to any sequences in the NCBI core_nt database were further analysed to identify potential novel viruses.
+            <em>De novo</em> assembled contigs that are at least 500 bp in length and did not show significant similarity to any sequences in the NCBI core_nt database were further analysed to identify potential novel viruses.
           </li>
           <li>
-            Contigs were classified based on gene content and sequence composition by the machine learning–based tool <strong>geNomad</strong>. The table displays contigs that were retained as high-confidence candidate viral sequences, based on their <strong>virus score</strong> (posterior probability of being viral) being at least 0.9. 
+            Contigs were classified using<strong>geNomad</strong>, a machine learning–based tool that evaluates gene content and sequence composition to determine viral origin. The table displays contigs retained as high-confidence candidate viral sequences, defined by a <strong>virus score</strong> (posterior probability of being viral) of at least 0.9. 
           </li>
           <li>
-            The number of viral hallmark genes detected by <strong>geNomad</strong> within a contig is also displayed in the table.
+            The number of viral hallmark genes detected by <strong>geNomad</strong> within a contig is also reported.
           </li>
           <li>
             Open reading frames (ORFs) encoding protein sequences of at least 100 amino acids were then predicted from these contigs using <strong>orfipy</strong>. 
           </li>
           <li>
-            These were then searched against the curated Pfam-A profile Hidden Markov Model database using <strong>hmmscan</strong>. 
+            The predicted protein sequences were subsequently searched against the curated Pfam-A profile Hidden Markov Model database using <strong>hmmscan</strong>. 
           </li>
           <li>
-            The table captures the number of ORFs with a significant match (defined by <strong>hmmscan</strong> as a <strong>full sequence score</strong> ≥ 50) to a viral protein family domain, the number of viral domains and whether an RNA-dependent RNA polymerase (RdRP) domain was identified within these contigs. 
+            The table reports the number of ORFs with a significant match to a viral protein family domain (defined as a <strong>full sequence score</strong> of at least 50), the totalnumber of viral domains detected, and whether an RNA-dependent RNA polymerase (RdRP) domain was identified. 
           </li>
           <li>
-            The rows are sorted based on the recovered <strong>Virus score</strong>.
+            Rows are sorted in descending order based on the contigs <strong>virus score</strong>, with higher-scoring contigs representing higher-confidence viral candidates.
           </li>
         </ol>
       </div>
