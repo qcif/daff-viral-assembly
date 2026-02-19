@@ -4,7 +4,7 @@
   </div>
   <div class="col">
     <p class="small">
-      This report provides a detailed analysis of your RNASeq data. A series of viral detection analyses were performed to evaluate potential viral material in your sample. Kraken and Kaiju show the many different taxa that your reads match to, while BLAST and "Reference mapping" show the alignment of either your assembled contigs or sequencing reads to viral references identified by BLAST. "Novel virus detection" shows an attempt to identify assembled sequences with viral characteristics.
+      This report provides a detailed analysis of your RNASeq data. A series of viral detection analyses were performed to evaluate potential viral material in your sample. Kraken and Kaiju show the many different taxa that your reads match to, while BLAST and "Reference mapping" show the alignment of either your assembled contigs or sequencing reads to viral references identified by BLAST. "Novel virus detection" attempts to identify novel viral sequences, derived by <em>de novo</em> assembly, that are predicted to have viral characteristics.
       <a class="small" data-bs-toggle="modal" href="#overviewInfoModal" role="button">
         More info
       </a>
@@ -44,7 +44,7 @@
 
             <h6>Novel virus detection</h6>
             <p>
-              Attempts to reveal potential novel viral sequences derived by <em>de novo</em> assembly that have viral characteristics (based on <code>geNomad</code> and <code>hmmscan</code>), but did not match a known viral reference sequence.
+              Attempts to reveal potential novel viral sequences derived by <em>de novo</em> assembly that have viral characteristics (based on <code>geNomad</code> and <code>hmmscan</code>), but did not match any sequence in the NCBI core_nt database.
             </p>
           </div>
           <div class="modal-footer">
