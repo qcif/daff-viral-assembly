@@ -1,79 +1,79 @@
-Saccharomyces
-cellular organisms; Eukaryota; Viridiplantae;
-Blacklegged tick
-Bremia lactucae
-Coniothyrium
-Erysiphales
-Erysiphe
-Plasmopara
-Ophiocordyceps
-Phomopsis
-Sclerotinia
-Tetranychus urticae-associated 
-Bundaberg bee virus
-Weivirus-like virus
+achromobacter sp.
+acremonium sclerotigenum ourmia-like virus 1
+actinomadura sp.
+actinomadura sp. ca-154981 chromosome, complete genome
+alternaria
+bemisia tabaci
+betacytorhabdovirus
+blacklegged tick
+botourmia-like virus
+botourmiaviridae
+botrytis cinerea
+bremia lactucae
+broome virga-like virus
+bundaberg bee virus
+bunya-like virus
+caudoviricetes sp.
+cellular organisms; eukaryota; viridiplantae;
+chelatococcus
+cladosporium
+colletotrichum
+coniothyrium
+coronavirus
 dicistro-like virus
 dicistrovirus
-Narnaviridae
-Botourmiaviridae
-tick virus
-Nigrospora
-Bemisia tabaci
+downy mildew lesion associated orfanplasmovirus 3
+erysiphales
+erysiphe
 flea-associated
-Podosphaera
-Puccinia
-Penicillium 
-Colletotrichum
-Cladosporium
-Neofusicoccum
-Alternaria
-Botrytis cinerea
-wasp-associated
-Neuropteran
-picorna-like virus
-Magoulivirus
-Nodaviridae
-Broome virga-like virus
-tori-like
-Soybean leaf-associated
-Soybean-associated double-stranded RNA virus 1
-XiangYun narna-levi-like virus
-retrovirus
-narnavirus
-phage
-mycovirus
-bunya-like virus
-narna-like virus
-botourmia-like virus
-Orthototiviridae
-betacytorhabdovirus
-totivirus
-splipalmivirus
-Caudoviricetes sp.
-mycotymovirus
-Paramecium bursaria Chlorella virus CVA-1
-Tequatrovirus T4
-Homavirus sp.
-Mitovirus sp.
-mitovirus
-Achromobacter sp.
-mitochondrion
-ourmiavirus
-Actinomadura sp.
-Gammapapillomavirus
-Sphingomonas
 gammaherpesvirus
-ourmia-like virus
-Acremonium sclerotigenum ourmia-like virus 1
-Downy mildew lesion associated orfanplasmovirus 3
-Chelatococcus
-uncultured virus
-Actinomadura sp. CA-154981 chromosome, complete genome
-Leptosphaeria biglobosa letobirnavirus 1 RNA2
-Inoviridae sp.
-Myoviridae sp.
-Human papillomavirus
-Influenza A virus
+gammapapillomavirus
+gammapapillomavirus
+homavirus sp.
+human papillomavirus
+influenza a virus
+inoviridae sp.
+leptosphaeria biglobosa letobirnavirus 1 rna2
+magoulivirus
+mitochondrion
+mitovirus
+mitovirus sp.
+mycotymovirus
+mycovirus
+myoviridae sp.
+narna-like virus
+narnaviridae
+narnavirus
+neofusicoccum
+neuropteran
+nigrospora
+nodaviridae
+ophiocordyceps
 ormycovirus
-coronavirus
-Gammapapillomavirus
+orthototiviridae
+ourmia-like virus
+ourmiavirus
+paramecium bursaria chlorella virus cva-1
+penicillium 
+phage
+phomopsis
+picorna-like virus
+plasmopara
+podosphaera
+puccinia
+retrovirus
+saccharomyces
+sclerotinia
+soybean-associated double-stranded rna virus 1
+soybean leaf-associated
+sphingomonas
+splipalmivirus
+tequatrovirus t4
+tetranychus urticae-associated 
+tick virus
+tori-like
+totivirus
+uncultured virus
+wasp-associated
+weivirus-like virus
+xiangyun narna-levi-like virus
