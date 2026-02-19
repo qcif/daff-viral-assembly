@@ -252,9 +252,13 @@ def _calculate_blast_stats(
     blast_hits: BlastHits,
     contigs_fasta: ConsensusFASTA,
 ) -> dict:
+    percent_hits = (
+        100 * len(blast_hits.positive_hits)
+        / len(contigs_fasta)
+    )
     return {
         'count': len(blast_hits.positive_hits),
-        'percent': 'NA' if not contigs_fasta else round(
-            100 * len(blast_hits.positive_hits) / len(contigs_fasta)
+        'percent': 'NA' if not contigs_fasta else float(
+            f'{percent_hits:.2g}'
         ),
     }

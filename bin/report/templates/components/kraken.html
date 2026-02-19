@@ -1,14 +1,21 @@
 <h2>Direct taxonomic read classification (Kraken/Braken)</h2>
 
-<p class="alert alert-info">
-  The <strong>Matches keywords</strong> column indicates whether the taxon name matches a specified
-  <a href="javascript:void(0);" data-bs-toggle="modal" data-bs-target="#filterKeywordsModal">
-    list of terms</a>.
+<div class="alert alert-info">
+  <div class="row align-items-center">
+    <div class="col">
+      <strong>Kraken</strong> attempts to classify each individual sequencing read to species level. The number of reads allocated to each species are shown in the table. This gives us a rough estimate of the taxonomic distribution of genetic material in the sample.
 
-  <button type="button" class="btn btn-primary btn-sm" style="float: right;" data-bs-toggle="modal" data-bs-target="#krakenInfoModal">
-    About this analysis
-  </button>
-</p>
+      The <strong>Matches keywords</strong> column indicates whether the taxon name matches a specified
+      <a href="javascript:void(0);" data-bs-toggle="modal" data-bs-target="#filterKeywordsModal">
+        list of terms</a>.
+    </div>
+    <div class="col-auto">
+      <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#krakenInfoModal">
+        About this analysis
+      </button>
+    </div>
+  </div>
+</div>
 
 <div class="row justify-content-start my-3">
   {% if kraken | length %}
