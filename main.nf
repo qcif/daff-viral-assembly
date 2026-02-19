@@ -438,6 +438,7 @@ process HTML_REPORT {
     cp ${qcreport_html} run_qc_report.html
     cp ${params.tool_versions} versions.yml
     cp ${params.default_params} default_params.yml
+    cp ${params.filter_terms} filterKeyWords.txt
 
     build_report.py --samplesheet ${samplesheet} --result_dir . --params_file ${configyaml} --analyst ${analyst_name} --facility ${facility} --versions versions.yml --default_params_file default_params.yml
     #build_report.py --samplesheet ${samplesheet} --result_dir . --params_file ${configyaml} --versions versions.yml --default_params_file default_params.yml
