@@ -312,20 +312,13 @@ def main():
     # ------------------------------------
 
     # Convert taxon_id safely
-    #os.environ["TAXONKIT_DB"] = tk_db_dir
     # Get lineage only for non-zero taxids
     unique_taxids = df.loc[df["taxon_id"] != 0, "taxon_id"].unique().tolist()
     print(f"Unique taxids in Kaiju results: {len(unique_taxids)}")
 
     # Query lineage (just pass taxid list)
-    #lin = lineage(unique_taxids)  # no 'format' keyw0iord
     lin = lineage(unique_taxids, data_dir=tk_db_dir)
-    #lin_dfs = []
-    #for chunk in chunked(unique_taxids, size=500):
-    #    lin_chunk = lineage(chunk, data_dir=tk_db_dir)
-    #    lin_dfs.append(pd.DataFrame(lin_chunk))
-
-    #lin_df = pd.concat(lin_dfs, ignore_index=True)
+    
     # Convert to DataFrame
     lin_df = pd.DataFrame(lin)
     print(lin_df.columns)
@@ -391,17 +384,7 @@ def main():
     br = br.rename(columns={
         "taxonomy_id": "taxon_id"})
     unique_taxids_br = br.loc[br["taxon_id"] != 0, "taxon_id"].unique().tolist()
-    #lin2 = lineage(unique_taxids_br)  # no 'format' keyword
     lin2 = lineage(unique_taxids_br, data_dir=tk_db_dir)
-
-    #lin2_dfs = []
-    #for chunk in chunked(unique_taxids, size=500):
-    #    lin2_chunk = lineage(chunk, data_dir=tk_db_dir)
-    #    lin2_dfs.append(pd.DataFrame(lin_chunk))
-
-    #lin2_df = pd.concat(lin2_dfs, ignore_index=True)
-
-
     lin2_df = pd.DataFrame(lin2)
     lin2_df = lin2_df.rename(columns={
         "TaxID": "taxid",
@@ -462,15 +445,6 @@ def main():
     br["cov_filter"] = br["pc_reads"].astype(float) >= 0.001
     br_subset = br[['taxon_name', 'taxon_id', 'full_lineage', 'full_lineage_ranks', 'broad_categories', 'reads', 'pc_reads', 'term_filter', 'cov_filter']]
     br_subset.to_csv(sample_name + "_kraken_summary.txt", sep="\t", index=False)
-
-#def read_filtered_read_count(fastp_json_path):
-#    filtered_reads = 0
-#    with open(fastp_json_path) as f:
-#        data = json.load(f)
-#    filtered_reads = data["summary"]["after_filtering"]["total_reads"]
-
-#    return filtered_reads
-
 
 if __name__ == "__main__":
     main()

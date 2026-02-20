@@ -15,7 +15,6 @@ def main():
     fastq = args.fastq
 
     for reference in glob.glob("*.fasta"):
-        #file_name = reference.removesuffix('.fasta')
         file_name = str(Path(reference).with_suffix(""))
         print(file_name)
 
