@@ -1,4 +1,5 @@
 {% from "macros/sequence-display.html" import render_view_sequence_button %}
+{% set term_filter_idx = blast_hits.columns_primary_display.index('term_filter') %}
 
 <h2>Homology to viral reference sequences</h2>
 
@@ -7,9 +8,9 @@
     <div class="col">
       The <strong>BLAST</strong> analysis compares the sequences assembled from your sample with a reference database of known viral sequences.
 
-      The <strong>Matches keywords</strong> column allows you to filter out sequences that match a
+      The <strong>Terms to exclude</strong> column allows you to filter out sequences that match a 
       <a href="javascript:void(0);" data-bs-toggle="modal" data-bs-target="#filterKeywordsModal">
-        list of excluded terms</a>.
+        pre-defined list of terms</a>.
 
       The <strong>Meets coverage</strong> column allows you to filter out sequences that are not well supported by the data.
     </div>
@@ -70,6 +71,8 @@
             <span style="white-space: nowrap;">{{ row[colname] }}</span>
           {% elif colname == 'contig_seq' %}
             {{ render_view_sequence_button("Assembled sequence " + contig_id, row[colname]) }}
+          {% elif colname == 'term_filter' %}
+            {{ '' if row[colname] else 'Y' }}
           {% else %}
             {{ row[colname] }}
           {% endif %}
@@ -141,10 +144,10 @@
             The results can be limited to a specific virus genus or species by typing its name in the search box.
           </li>
           <li>
-            The table can also be filtered to only show rows which meet different criteria (i.e. minimum coverage, terminology, and/or best contig per species).
+            The table can also be filtered to only show rows which meet different criteria (i.e. minimum coverage, taxon identified by BLAST does not match a pre-defined exclusion list, and/or best contig per species).
           </li>
           <li>
-            The <strong>"best contig per species"</strong> is selected based on the BLAST homology search results. Contigs assigned to the same species are ranked using a weighted indicator-based composite score that rewards several key features (% identity, bitscore, evalue, query coverage per subject, k-mer coverage of contig during assembly, contig length, alignment length, and annotation completeness). The contig with the highest score is then selected as the representative for that species.
+            The <strong>"Best contig per species"</strong> is selected based on the BLAST homology search results. Contigs assigned to the same species are ranked using a weighted indicator-based composite score that rewards several key features (% identity, bitscore, evalue, query coverage per subject, k-mer coverage of contig during assembly, contig length, alignment length, and annotation completeness). The contig with the highest score is then selected as the representative for that species.
           </li>
           <li>
             The reads are also mapped back to the contigs to derive statistics on the number of reads mapped, mean depth, % coverage at 30X, and mean mapping quality. A <strong>confidence score</strong> is calculated based on these statistics to evaluate how well the raw sequencing data supports the assembled contigs.
@@ -175,7 +178,8 @@ $(document).ready(function () {
     ]
   });
 
-  var booleanColumns = [10, 11, 12];
+  var booleanColumns = [11, 12];
+  var termFilterIdx = {{ term_filter_idx }};
 
   booleanColumns.forEach(function (colIdx) {
     var column = table.column(colIdx);
@@ -194,6 +198,26 @@ $(document).ready(function () {
           .draw();
       });
   });
+  (function () {
+    var column = table.column(termFilterIdx);
+    var cell = $('#blastTable thead tr.filters th').eq(termFilterIdx);
+
+    $('<select class="form-select form-select-sm">' +
+        '<option value="">All</option>' +
+        '<option value="Y">Y</option>' +
+        '<option value="blank">—</option>' +
+      '</select>')
+      .appendTo(cell)
+      .on('change', function () {
+        var val = $(this).val();
+        if (val === "blank") {
+          column.search('^$', true, false).draw();   // match empty cell
+        } else {
+          column.search(val ? '^' + val + '$' : '', true, false).draw();
+        }
+      });
+  })();
+
 
 });
 </script>

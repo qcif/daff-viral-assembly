@@ -32,7 +32,7 @@ assembly_kmer_cov,Assembly k-mer coverage,float,,Y,
 total_score_spp,Score,int,,Y,
 total_score_spp_rna,Score (RNA),int,,Y,
 total_score_sacc,Score (accession),int,,Y,
-term_filter,Matches keywords,bool,Y,Y,
+term_filter,Terms to exclude,bool,Y,Y,
 cov_filter,Meets coverage?,bool,Y,Y,>1 read contributed to the assembled contig and >30% of the query sequence length is covered by the reference sequence identified
 best_contig_per_sp_filter,Best contig per spp?,bool,Y,Y,
 best_contig_per_sp_rna_filter,Best contig per spp RNA?,bool,,Y,

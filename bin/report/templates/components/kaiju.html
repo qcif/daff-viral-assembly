@@ -1,3 +1,5 @@
+{% set term_filter_idx = kaiju.columns_primary_display.index('term_filter') %}
+
 <h2>Direct taxonomic read classification (Kaiju)</h2>
 
 <div class="alert alert-info">
@@ -5,9 +7,9 @@
     <div class="col">
       <strong>Kaiju</strong> is very similar to <strong>Kraken</strong>, but sometimes identifies species that the latter does not. <strong>Kaiju</strong> operates on protein sequences, meaning that it cannot identify viroids sequences. It attempts to classify each individual sequencing read to species level. The number of reads allocated to each species are shown in the table. This gives us a rough estimate of the taxonomic distribution of genetic material in the sample. Please note that the database used by Kaiju does not include sequences from higher eukaryotes, meaning that reads originating from the host organism will not be classified in this analysis. 
 
-      The <strong>Matches keywords</strong> column indicates whether the taxon name matches a specified
+      The <strong>Terms to exclude</strong> column allows you to filter out sequences that match a 
       <a href="javascript:void(0);" data-bs-toggle="modal" data-bs-target="#filterKeywordsModal">
-        list of terms</a>.
+        pre-defined list of terms</a>.
     </div>
     <div class="col-auto">
       <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#kaijuInfoModal">
@@ -63,6 +65,8 @@
           <td class="align-middle {% if loop.index == 1 %}text-start{% endif %}">
             {% if colname == 'evalue' %}
             <span style="white-space: nowrap;">{{ row[colname] }}</span>
+            {% elif colname == 'term_filter' %}
+            {{ '' if row[colname] else 'Y' }}
             {% elif kaiju.COLUMN_METADATA[colname]['type'] == 'float' %}
               {% if row[colname] is number %}
               {{ '%.3g' | format(row[colname]) }}
@@ -120,7 +124,7 @@
             The results can be limited to a specific taxon using the search box (for example "virus", or "sapiens").
           </li>
           <li>
-            The table can also be filtered to only show rows which meet minimum coverage criteria and match a pre-defined list of terms.
+            The table can be filtered to show only rows that satisfy the minimum coverage criteria and do not match any terms from a pre-defined exclusion list.
           </li>
           <li>
             The pie chart on the right provides a visual summary of the taxonomic composition at the kingdom level (top). The top 10 most abundant taxa detected within a kingdom can be displayed by clicking on the desired kingdom and these can be viewed at the family, genus or species level (bottom).
@@ -156,31 +160,49 @@
       ]
     });
 
-    const booleanColumns = [3, 4];
+   const boolIdx = 3;
 
-    booleanColumns.forEach(function (colIdx) {
-      const column = kaijuDataTable.column(colIdx);
-      const cell = $('#kaijuTable thead tr.filters th').eq(colIdx);
+   const column = kaijuDataTable.column(boolIdx);
+   const cell = $('#kaijuTable thead tr.filters th').eq(boolIdx);
 
-      const select = $(
-        '<select class="form-select form-select-sm">' +
-          '<option value="">All</option>' +
-          '<option value="TRUE">TRUE</option>' +
-          '<option value="FALSE">FALSE</option>' +
-        '</select>'
-      )
-      .appendTo(cell)
-      .on('change', function () {
-        const val = $.fn.dataTable.util.escapeRegex($(this).val());
-        column
-          .search(val ? '^' + val + '$' : '', true, false)
-          .draw();
-      });
+    $(
+      '<select class="form-select form-select-sm">' +
+        '<option value="">All</option>' +
+        '<option value="TRUE">TRUE</option>' +
+        '<option value="FALSE">FALSE</option>' +
+      '</select>'
+    )
+    .appendTo(cell)
+    .on('change', function () {
+      const val = $.fn.dataTable.util.escapeRegex($(this).val());
+      column
+        .search(val ? '^' + val + '$' : '', true, false)
+        .draw();
     });
 
+
+  const termFilterIdx = {{ term_filter_idx }};
+
+  (function () {
+    const column = kaijuDataTable.column(termFilterIdx);
+    const cell = $('#kaijuTable thead tr.filters th').eq(termFilterIdx);
+
+    $('<select class="form-select form-select-sm" style="min-width: 4.5rem; white-space: nowrap;">' +
+        '<option value="">All</option>' +
+        '<option value="Y">Y</option>' +
+        '<option value="blank">—</option>' +
+      '</select>')
+      .appendTo(cell)
+      .on('change', function () {
+        const val = $(this).val();
+        if (val === "blank") {
+          column.search('^$', true, false).draw();   // empty cell
+        } else {
+          column.search(val ? '^' + val + '$' : '', true, false).draw();
+        }
+      });
+  })();
   });
-
-
   function clearKaijuTableFilters() {
     kaijuDataTable.search('').columns().search('').draw();
 
