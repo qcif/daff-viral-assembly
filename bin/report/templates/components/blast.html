@@ -61,7 +61,7 @@
       {% set contig_id = row['qseqid'] %}
       <tr
         {% if row['bs_class'] %}
-        class="alert-{{ row['bs_class'] }}"
+        class="table-{{ row['bs_class'] }} align-middle"
         {% endif %}
       >
         {% for colname in blast_hits.columns_primary_display %}
@@ -100,7 +100,7 @@
   data-bs-toggle="modal"
   data-bs-target="#consensusBlastModal"
 >
-  Consensus statistics
+  Contigs statistics
 </button>
 
 <a
@@ -168,7 +168,11 @@
 $(document).ready(function () {
 
   var table = $('#blastTable').DataTable({
-    orderCellsTop: true,
+  orderCellsTop: true,
+  order: [
+    [18, 'desc'],
+    [3, 'desc']
+    ]
   });
 
   var booleanColumns = [10, 11, 12];

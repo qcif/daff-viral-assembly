@@ -235,10 +235,6 @@ class BlastHits(AbstractResultRows):
             c for c in self.columns_display
             if self.COLUMN_METADATA[c]['primary_display']
         ]
-        self.columns_secondary_display = [
-            c for c in self.columns_display
-            if self.COLUMN_METADATA[c]['secondary_display']
-        ]
         self.set_bs_class()
         self.set_null_rows()
 
@@ -251,8 +247,18 @@ class BlastHits(AbstractResultRows):
 
     def set_bs_class(self):
         def _get_bs_class(row):
-            # TODO: define this
-            return 'success'
+            # Extract numeric scores (expected in the range 0 to 1)
+            conf_score = row.get('normalised_conf_score', 1)
+ 
+            # Define thresholds (customize as needed)
+            if conf_score == 0:
+                return 'secondary'   # grey
+            elif conf_score < 0.5:
+                return 'danger'      # red
+            elif conf_score < 0.8:
+                return 'warning'     # orange
+            else:
+                return 'success'     # green
 
         self.rows = [
             {
@@ -399,8 +405,19 @@ class MappingResults(AbstractResultRows):
 
     def set_bs_class(self):
         def _get_bs_class(row):
-            # TODO: define this
-            return 'success'
+            # Extract numeric scores (expected in the range 0 to 1)
+            conf_score = row.get('normalised_conf_score', 1)
+            sacc = row.get('sacc')
+ 
+            # Define thresholds (customize as needed)
+            if conf_score == 0 and sacc in [None, '', '0', '-']:
+                return 'secondary'   # grey
+            elif conf_score < 0.5:
+                return 'danger'      # red
+            elif conf_score < 0.8:
+                return 'warning'     # orange
+            else:
+                return 'success'     # green
 
         self.rows = [
             {
@@ -431,6 +448,38 @@ class SummaryResults(AbstractResultRows):
         self.columns_primary_display = [
             c for c in self.columns_display
             if self.COLUMN_METADATA[c]['primary_display']
+        ]
+
+        self.set_bs_class()
+
+    @property
+    def positive_hits(self):
+        return [
+            row for row in self.rows
+            if row.get('sacc') not in [None, '', '0', '-']
+        ]
+
+    def set_bs_class(self):
+        def _get_bs_class(row):
+            # Extract numeric scores (expected in the range 0 to 1)
+            conf_score = row.get('normalised_conf_score', 1)
+ 
+            # Define thresholds (customize as needed)
+            if conf_score == 0 :
+                return 'secondary'   # grey
+            elif conf_score < 0.5:
+                return 'danger'      # red
+            elif conf_score < 0.8:
+                return 'warning'     # orange
+            else:
+                return 'success'     # green
+
+        self.rows = [
+            {
+                **row,
+                'bs_class': _get_bs_class(row),
+            }
+            for row in self.rows
         ]
 
 

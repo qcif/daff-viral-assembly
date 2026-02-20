@@ -36,7 +36,7 @@
       {% set contig_id = row['qseqid'] %}
       <tr
         {% if row['bs_class'] %}
-        class="alert-{{ row['bs_class'] }} align-middle"
+        class="table-{{ row['bs_class'] }} align-middle"
         {% endif %}
       >
         {% for colname in summary.columns_primary_display %}
@@ -74,6 +74,7 @@
   $(document).ready( () => new DataTable('#summaryTable', {
     order: [
       [ 11, 'desc' ],
+      [9, 'desc']
     ],
   }) );
 </script>
