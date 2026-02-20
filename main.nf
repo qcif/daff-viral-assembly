@@ -427,7 +427,10 @@ process HTML_REPORT {
 
   output:
     path("*"), optional: true
-    path("run_qc_report.html"), optional: true
+    //path("run_qc_report.html"), optional: true
+    path(raw_fastqc)
+    path(filtered_fastqc)
+    path(qcreport_html)
 
   script:
   //analyst_name = params.analyst_name.replaceAll(/ /, '_')
@@ -435,7 +438,7 @@ process HTML_REPORT {
   analyst_name = "Maely"
   facility = "QUT"
     """
-    cp ${qcreport_html} run_qc_report.html
+    #cp ${qcreport_html} .
     cp ${params.tool_versions} versions.yml
     cp ${params.default_params} default_params.yml
     cp ${params.filter_terms} filterKeyWords.txt
