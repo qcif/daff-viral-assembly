@@ -1,22 +1,12 @@
-{% macro render_sequence_modal(accession, sequence) %}
+{% macro render_view_sequence_button(title, sequence) %}
 
-{% set modalId = accession | css_hash %}
-
-<button class="btn btn-sm btn-primary my-1" data-bs-toggle="modal" data-bs-target="#sequenceModal{{ modalId }}">
+<button
+  class="btn btn-sm btn-primary my-1"
+  data-title="{{ title }}"
+  data-sequence="{{ sequence }}"
+  onclick="displaySequenceModal(this)"
+>
   View
 </button>
 
-<div class="modal fade" id="sequenceModal{{ modalId }}" tabindex="-1">
-  <div class="modal-dialog modal-lg">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Reference sequence: {{ accession }}</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body text-start">
-        <p style="font-family: monospace; word-wrap: break-word;">{{ sequence }}</p>
-      </div>
-    </div>
-  </div>
-</div>
 {% endmacro %}

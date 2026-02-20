@@ -235,6 +235,10 @@ class BlastHits(AbstractResultRows):
             c for c in self.columns_display
             if self.COLUMN_METADATA[c]['primary_display']
         ]
+        self.columns_secondary_display = [
+            c for c in self.columns_display
+            if self.COLUMN_METADATA[c]['secondary_display']
+        ]
         self.set_bs_class()
         self.set_null_rows()
 

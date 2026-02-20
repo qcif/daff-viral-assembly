@@ -26,7 +26,7 @@
         <table class="table table-lined tight">
           <thead>
             <tr>
-              {% for colname in blast_hits.columns_display %}
+              {% for colname in blast_hits.columns_secondary_display %}
               <th
                 {% if blast_hits.COLUMN_METADATA[colname]['tooltip'] %}
                 title="{{ blast_hits.COLUMN_METADATA[colname]['tooltip'] }}"
@@ -46,7 +46,7 @@
               class="alert-{{ row['bs_class'] }}"
               {% endif %}
             >
-              {% for colname in blast_hits.columns_display %}
+              {% for colname in blast_hits.columns_secondary_display %}
               <td class="column-{{ row[colname] | lower }}">
                 {% if colname == 'evalue' %}
                 <span style="white-space: nowrap;">{{ row[colname] }}</span>

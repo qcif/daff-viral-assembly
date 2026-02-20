@@ -1,4 +1,4 @@
-{% from "macros/sequence-display.html" import render_sequence_modal %}
+{% from "macros/sequence-display.html" import render_view_sequence_button %}
 
 <div class="alert alert-info">
   <div class="row align-items-center">
@@ -50,7 +50,7 @@
           {% endif %}
         >
           {% if colname == 'contig_seq' %}
-          {{ render_sequence_modal(sequence_name, row[colname]) }}
+          {{ render_view_sequence_button("Assembled sequence " + sequence_name, row[colname]) }}
           {% elif colname == 'taxonomy' %}
           {{ row[colname][-1] }}
           {% elif colname == 'ORFs' %}

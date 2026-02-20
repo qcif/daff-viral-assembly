@@ -1,4 +1,4 @@
-{% from "macros/sequence-display.html" import render_sequence_modal %}
+{% from "macros/sequence-display.html" import render_view_sequence_button %}
 
 <div class="alert alert-info">
   <div class="row align-items-center">
@@ -49,7 +49,7 @@
           {% if colname == 'evalue' %}
           <span style="white-space: nowrap;">{{ row[colname] }}</span>
           {% elif colname == 'consensus_seq' %}
-          {{ render_sequence_modal(accession, row[colname]) }}
+          {{ render_view_sequence_button("Assembled sequence matching accession " + accession, row[colname]) }}
           {% else %}
           {{ row[colname] }}
           {% endif %}

@@ -1,4 +1,4 @@
-{% from "macros/sequence-display.html" import render_sequence_modal %}
+{% from "macros/sequence-display.html" import render_view_sequence_button %}
 {% from "macros/bool-icon.html" import render_bool_icon %}
 
 <h3>Summary of results</h3>
@@ -47,7 +47,7 @@
             <span style="white-space: nowrap;">{{ row[colname] }}</span>
           {% elif colname == 'contig_seq' %}
             {% if row[colname].lower() != 'na' %}
-            {{ render_sequence_modal(contig_id, row[colname]) }}
+            {{ render_view_sequence_button("Assembled sequence " + contig_id, row[colname]) }}
             {% else %}
             N/A
             {% endif %}
