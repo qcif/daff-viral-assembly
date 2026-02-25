@@ -292,7 +292,7 @@ process FASTA2TABLE2 {
 
 process MOSDEPTH {
   tag "$sampleid"
-  label "setting_3"
+  label "setting_2"
 
   input:
     tuple val(sampleid), path(consensus), path(bam), path(bai), path(bed)
@@ -316,7 +316,7 @@ process MOSDEPTH {
 
 process MOSDEPTH_CONTIGS {
   tag "$sampleid"
-  label "setting_3"
+  label "setting_2"
 
   input:
     tuple val(sampleid), path(consensus), path(bam), path(bai), path(bed)
@@ -341,7 +341,7 @@ process MOSDEPTH_CONTIGS {
 
 process PYFAIDX {
   tag "$sampleid"
-  label "setting_3"
+  label "setting_1"
 
   input:
     tuple val(sampleid), path(fasta)
@@ -361,7 +361,7 @@ process PYFAIDX {
 
 process PYFAIDX_CONTIGS {
   tag "$sampleid"
-  label "setting_3"
+  label "setting_1"
 
   input:
     tuple val(sampleid), path(fasta)
@@ -380,6 +380,7 @@ process PYFAIDX_CONTIGS {
 }
 
 process QCREPORT {
+  label "setting_1"
   publishDir "${params.outdir}/02_qc_report", mode: 'copy', overwrite: true
   containerOptions "${bindOptions}"
 
@@ -544,7 +545,7 @@ process EXTRACT_VIRAL_BLAST_HITS {
 
 process SUMMARISE_READ_CLASSIFICATION {
   tag "${sampleid}"
-  label "setting_2"
+  label "setting_1"
   publishDir "${params.outdir}/${sampleid}/05_read_classification", mode: 'copy'
   containerOptions "${bindOptions}"
 
@@ -787,7 +788,7 @@ process KRAKEN2_TO_KRONA {
 //It will rescue the abundance estimates for such species by summing up all S1 level abundances to S level.
 process BRACKEN {
   tag "$meta.id"
-  label 'setting_2'
+  label 'setting_1'
   publishDir "${params.outdir}/${meta.id}/05_read_classification",  mode: 'copy'
   containerOptions "${bindOptions}"
 
@@ -821,7 +822,7 @@ process BRACKEN {
 //Explore downtrack downloading krona taxonomy to see if it improves the visualisation
 process KRONA {
   publishDir "${params.outdir}/${sampleid}/05_read_classification", mode: 'link'
-  label 'setting_3'
+  label 'setting_31'
   containerOptions "${bindOptions}"
   tag "${sampleid}"
 
@@ -839,7 +840,7 @@ process KRONA {
 
 process RETRIEVE_VIRAL_READS_KRAKEN2 {
   tag "$meta.id"
-  label "setting_10"
+  label "setting_11"
   containerOptions "${bindOptions}"
   publishDir "${params.outdir}/${meta.id}/05_read_classification", mode: 'copy'
 
@@ -929,7 +930,7 @@ process GENOMAD {
 
 process ORFIPY {
   tag "${sampleid}"
-    label "setting_21"
+    label "setting_2"
     containerOptions "${bindOptions}"
     publishDir "${params.outdir}/${sampleid}/07_annotation", mode: 'copy'
 
@@ -1018,7 +1019,7 @@ process NOVELS {
 
 process EXTRACT_CONTIGS {
   tag "${sampleid}"
-  label "setting_2"
+  label "setting_1"
 
   input:
     tuple val(sampleid), path(contig_ids), path(contigs)
@@ -1037,7 +1038,7 @@ process EXTRACT_CONTIGS {
 process COUNT_FASTQ_READS {
 
     tag "$meta.id"
-    label 'setting_30'
+    label 'setting_1'
 
     input:
     tuple val(meta), path(reads)
