@@ -38,7 +38,7 @@ process FASTP {
 
 process FASTP {
     tag "$meta.id"
-    label "setting_6"
+    label "setting_4"
     publishDir "${params.outdir}/$meta.id/02_qtrimmed", mode: 'copy', pattern: '{*fastq.gz}'
     publishDir "${params.outdir}/$meta.id/03_fastqc_trimmed", mode: 'copy', pattern: '{*fastp.html,*fastp.json}'
 
