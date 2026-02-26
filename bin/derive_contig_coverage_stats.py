@@ -360,7 +360,7 @@ def main():
     flagged_df_subset = flagged_df[["sample_name", "qseqid", "contig_seq", "sacc", "alignment_length", "evalue", "bitscore", "pident", "mismatch",
                      "gapopen", "qstart", "qend", "qlen", "sstart", "send", "slen", "sstrand",
                      "qcovhsp", "staxids", "qseq", "sseq", "qcovs", 
-                     "species", "taxon_name", "RNA_type", "stitle", "full_lineage", "ncontigs_per_sacc", "ncontigs_per_spp", "assembly_kmer_cov", "total_score_spp", "total_score_spp_rna", "total_score_sacc", "term_filter", "cov_filter", "best_contig_per_sp_filter", "best_contig_per_sp_rna_filter", "best_contig_per_acc_filter", "mapping_read_count",
+                     "species", "taxon_name", "RNA_type", "stitle", "full_lineage", "ncontigs_per_sacc", "ncontigs_per_spp", "assembly_kmer_cov", "total_score_spp", "total_score_spp_rna", "total_score_sacc", "cov_filter", "term_filter", "best_contig_per_sp_filter", "best_contig_per_sp_rna_filter", "best_contig_per_acc_filter", "mapping_read_count",
                      'pc_mapping_reads', 'mean_depth', 'pc_cov_30X',  'mean_mapping_quality', 'read_count_flag', 'mean_depth_flag', '30x_cov_flag', 'mean_mq_flag', 'total_conf_score','normalised_conf_score']]
  
     
