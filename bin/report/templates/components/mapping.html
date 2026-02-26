@@ -3,11 +3,13 @@
 <div class="alert alert-info">
   <div class="row align-items-center">
     <div class="col">
-     The <strong>mapping analysis</strong> aligns quality-filtered sequencing reads to viral reference sequences identified during the BLAST homology search.
+     The <strong>mapping analysis</strong> aligns quality-filtered sequencing reads to viral reference sequences identified during the BLAST homology search of contigs. 
+     
+     This allows us to evaluate how well the raw sequencing data supports the presence of each reference sequence in the sample, and to generate a <strong>consensus sequence</strong> for each reference based on the aligned reads.
+
+     The table is sorted by a <strong>confidence score</strong> that takes into consideration the number of reads mapped, mean depth, % coverage at 30X, and mean mapping quality, and is normalised to a value between 0 and 1. A higher score indicates higher confidence in the mapping result.
 
      The <strong>normalised confidence score</strong> reflects how well the sequencing data supports each reference sequence, based on read depth, coverage, and mapping quality.
-
-     The <strong>consensus sequence</strong> represents the most likely viral sequence reconstructed from the aligned reads.
     </div>
     <div class="col-auto">
       <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#mappingInfoModal">
@@ -78,6 +80,9 @@
         <ol>
           <li>
             Quality-filtered reads are mapped back to the viral reference sequences identified using the megablast homology search.
+          </li>
+          <li>
+            Mapping is undertaken only for references derived from contigs that meet both the coverage threshold and the term-filter criteria. 
           </li>
           <li>
             References with <code>&gt;97%</code> similarity to a reference sequence are clustered using <strong>CD-HIT</strong> (only the longest reference sequence is retained).

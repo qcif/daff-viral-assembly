@@ -154,7 +154,7 @@
             The <strong>"Best contig per species"</strong> is selected based on the BLAST homology search results. Contigs assigned to the same species are ranked using a weighted indicator-based composite score that rewards several key features (% identity, bitscore, evalue, query coverage per subject, k-mer coverage of contig during assembly, contig length, alignment length, and annotation completeness). The contig with the highest score is then selected as the representative for that species.
           </li>
           <li>
-            The reads are also mapped back to the contigs to derive statistics on the number of reads mapped, mean depth, % coverage at 30X, and mean mapping quality. A <strong>confidence score</strong> is calculated based on these statistics to evaluate how well the raw sequencing data supports the assembled contigs.
+            Reads are mapped back to the contigs that pass coverage and term filtering criteria, to derive statistics on the number of reads mapped, mean depth, % coverage at 30X, and mean mapping quality. A <strong>confidence score</strong> is calculated based on these statistics to evaluate how well the raw sequencing data supports the assembled contigs.
           </li>
         </ol>
       </div>
