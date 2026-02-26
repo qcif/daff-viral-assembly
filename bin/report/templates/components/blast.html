@@ -1,5 +1,7 @@
 {% from "macros/sequence-display.html" import render_view_sequence_button %}
 {% set term_filter_idx = blast_hits.columns_primary_display.index('term_filter') %}
+{% set cov_filter_idx  = blast_hits.columns_primary_display.index('cov_filter') %}
+{% set best_contig_idx = blast_hits.columns_primary_display.index('best_contig_per_sp_filter') %}
 
 <h2>Homology to viral reference sequences</h2>
 
@@ -12,7 +14,7 @@
       <a href="javascript:void(0);" data-bs-toggle="modal" data-bs-target="#filterKeywordsModal">
         pre-defined list of terms</a>.
 
-      The <strong>Meets coverage</strong> column allows you to filter out sequences that are not well supported by the data.
+      The <strong>Low coverage</strong> column allows you to filter out sequences that do not meet minimum coverage requirements.
     </div>
     <div class="col-auto">
       <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#blastInfoModal">
@@ -73,6 +75,8 @@
             {{ render_view_sequence_button("Assembled sequence " + contig_id, row[colname]) }}
           {% elif colname == 'term_filter' %}
             {{ '' if row[colname] else 'Y' }}
+          {% elif colname == 'cov_filter' %}
+            {{ 'Y' if not row[colname] else '' }}
           {% else %}
             {{ row[colname] }}
           {% endif %}
@@ -144,7 +148,7 @@
             The results can be limited to a specific virus genus or species by typing its name in the search box.
           </li>
           <li>
-            The table can also be filtered to only show rows which meet different criteria (i.e. minimum coverage, taxon identified by BLAST does not match a pre-defined exclusion list, and/or best contig per species).
+            The table can also be filtered to only show rows which meet different criteria (i.e. taxon identified by BLAST does not match a pre-defined exclusion list, contig does not pass coverage thresholds, and/or best contig per species).
           </li>
           <li>
             The <strong>"Best contig per species"</strong> is selected based on the BLAST homology search results. Contigs assigned to the same species are ranked using a weighted indicator-based composite score that rewards several key features (% identity, bitscore, evalue, query coverage per subject, k-mer coverage of contig during assembly, contig length, alignment length, and annotation completeness). The contig with the highest score is then selected as the representative for that species.
@@ -178,29 +182,48 @@ $(document).ready(function () {
     ]
   });
 
-  var booleanColumns = [11, 12];
   var termFilterIdx = {{ term_filter_idx }};
+  var covFilterIdx = {{ cov_filter_idx }};
+  var bestContigIdx = {{ best_contig_idx }};
 
-  booleanColumns.forEach(function (colIdx) {
-    var column = table.column(colIdx);
-    var cell = $('#blastTable thead tr.filters th').eq(colIdx);
+  // TRUE/FALSE dropdown for best_contig (not cov_filter)
+  (function () {
+    var column = table.column(bestContigIdx);
+    var cell = $('#blastTable thead tr.filters th').eq(bestContigIdx);
 
-    var select = $('<select class="form-select form-select-sm">' +
-                   '<option value="">All</option>' +
-                   '<option value="TRUE">TRUE</option>' +
-                   '<option value="FALSE">FALSE</option>' +
-                   '</select>')
+    $('<select class="form-select form-select-sm">' +
+        '<option value="">All</option>' +
+        '<option value="TRUE">TRUE</option>' +
+        '<option value="FALSE">FALSE</option>' +
+      '</select>')
       .appendTo(cell)
       .on('change', function () {
         var val = $.fn.dataTable.util.escapeRegex($(this).val());
-        column
-          .search(val ? '^' + val + '$' : '', true, false)
-          .draw();
+        column.search(val ? '^' + val + '$' : '', true, false).draw();
       });
-  });
+  })();
   (function () {
     var column = table.column(termFilterIdx);
     var cell = $('#blastTable thead tr.filters th').eq(termFilterIdx);
+
+    $('<select class="form-select form-select-sm">' +
+        '<option value="">All</option>' +
+        '<option value="Y">Y</option>' +
+        '<option value="blank">—</option>' +
+      '</select>')
+      .appendTo(cell)
+      .on('change', function () {
+        var val = $(this).val();
+        if (val === "blank") {
+          column.search('^$', true, false).draw();   // match empty cell
+        } else {
+          column.search(val ? '^' + val + '$' : '', true, false).draw();
+        }
+      });
+  })();
+  (function () {
+    var column = table.column(covFilterIdx);
+    var cell = $('#blastTable thead tr.filters th').eq(covFilterIdx);
 
     $('<select class="form-select form-select-sm">' +
         '<option value="">All</option>' +

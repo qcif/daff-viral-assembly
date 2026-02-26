@@ -1,4 +1,5 @@
 {% set term_filter_idx = kaiju.columns_primary_display.index('term_filter') %}
+{% set cov_filter_idx  = kaiju.columns_primary_display.index('cov_filter') %}
 
 <h2>Direct taxonomic read classification (Kaiju)</h2>
 
@@ -10,6 +11,7 @@
       The <strong>Terms to exclude</strong> column allows you to filter out sequences that match a 
       <a href="javascript:void(0);" data-bs-toggle="modal" data-bs-target="#filterKeywordsModal">
         pre-defined list of terms</a>.
+      The <strong>Low coverage</strong> column allows you to filter out reads that do not meet minimum coverage requirements.
     </div>
     <div class="col-auto">
       <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#kaijuInfoModal">
@@ -66,7 +68,9 @@
             {% if colname == 'evalue' %}
             <span style="white-space: nowrap;">{{ row[colname] }}</span>
             {% elif colname == 'term_filter' %}
-            {{ '' if row[colname] else 'Y' }}
+              {{ '' if row[colname] else 'Y' }}
+            {% elif colname == 'cov_filter' %}
+              {{ 'Y' if not row[colname] else '' }}
             {% elif kaiju.COLUMN_METADATA[colname]['type'] == 'float' %}
               {% if row[colname] is number %}
               {{ '%.3g' | format(row[colname]) }}
@@ -115,7 +119,7 @@
             Pytaxonkit is subsequently used to retrieve the full taxonomic lineage for each taxid identified by Kaiju, and the NCBI taxonomy is used to determine which taxa are viruses/viroids.
           </li>
           <li>
-            The table below shows the number and percent of quality filtered reads assigned to each taxon identified by Kaiju.
+            The table below shows the number and percent of quality filtered reads assigned to each taxon identified by Kaiju. With the expection of viruses and viroids, taxa that account for less than 0.2% of reads are filtered out of the table.
           </li>
           <li>
             Sort the table by alphabetical or numerical order by clicking on column headers, and adjust the number of displayed entries using the dropdown menu above the table.
@@ -160,28 +164,8 @@
       ]
     });
 
-   const boolIdx = 3;
-
-   const column = kaijuDataTable.column(boolIdx);
-   const cell = $('#kaijuTable thead tr.filters th').eq(boolIdx);
-
-    $(
-      '<select class="form-select form-select-sm">' +
-        '<option value="">All</option>' +
-        '<option value="TRUE">TRUE</option>' +
-        '<option value="FALSE">FALSE</option>' +
-      '</select>'
-    )
-    .appendTo(cell)
-    .on('change', function () {
-      const val = $.fn.dataTable.util.escapeRegex($(this).val());
-      column
-        .search(val ? '^' + val + '$' : '', true, false)
-        .draw();
-    });
-
-
-  const termFilterIdx = {{ term_filter_idx }};
+  var termFilterIdx = {{ term_filter_idx }};
+  var covFilterIdx = {{ cov_filter_idx }};
 
   (function () {
     const column = kaijuDataTable.column(termFilterIdx);
@@ -202,7 +186,27 @@
         }
       });
   })();
-  });
+  (function () {
+    var column = kaijuDataTable.column(covFilterIdx);
+    var cell = $('#kaijuTable thead tr.filters th').eq(covFilterIdx);
+
+    $('<select class="form-select form-select-sm">' +
+        '<option value="">All</option>' +
+        '<option value="Y">Y</option>' +
+        '<option value="blank">—</option>' +
+      '</select>')
+      .appendTo(cell)
+      .on('change', function () {
+        var val = $(this).val();
+        if (val === "blank") {
+          column.search('^$', true, false).draw();   // match empty cell
+        } else {
+          column.search(val ? '^' + val + '$' : '', true, false).draw();
+        }
+      });
+  })();
+});
+  
   function clearKaijuTableFilters() {
     kaijuDataTable.search('').columns().search('').draw();
 
