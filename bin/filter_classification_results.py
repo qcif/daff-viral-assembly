@@ -374,9 +374,32 @@ def main():
         "percent": "pc_reads"
     })
     df["cov_filter"] = df["pc_reads"].astype(float) >= 0.002
-    df_subset = df[['taxon_name', 'taxon_id', 'full_lineage', 'full_lineage_ranks', 'broad_categories', 'reads', 'pc_reads', 'term_filter', 'cov_filter']]
-    df_subset.to_csv(sample_name + "_kaiju_summary.txt", sep="\t", index=False)
 
+
+    # Ensure reads is numeric, then filter detections with >= 10 reads
+    df["reads"] = pd.to_numeric(df["reads"], errors="coerce").fillna(0).astype(int)
+
+    df_subset = df[['taxon_name', 'taxon_id', 'full_lineage', 'full_lineage_ranks',
+                    'broad_categories', 'reads', 'pc_reads', 'term_filter', 'cov_filter']]
+
+    
+    # Apply min-reads filter ONLY to non-viral taxa
+    # Keep all viral/unclassified-virus rows regardless of reads,
+    # but require reads >= 10 for everything else.
+    cat = df_subset["broad_categories"].astype(str).str.strip().str.lower()
+
+    viral_labels = {
+        "viral",
+        "unclassified virus",
+        "unclassified viral"
+    }
+
+    is_viral_taxon = cat.isin(viral_labels)
+
+    df_subset = df_subset[is_viral_taxon | (df_subset["pc_reads"].astype(float) >= 0.002)].copy()
+
+
+    df_subset.to_csv(sample_name + "_kaiju_summary.txt", sep="\t", index=False)
     # ------------------------------------
     # Load KRAKEN/BRAKEN summary table
     # ------------------------------------
@@ -443,7 +466,30 @@ def main():
     br = pd.concat([br, pd.DataFrame([unclassified_row])], ignore_index=True)
     br["pc_reads"] = (br["reads"] / filtered_read_counts) * 100
     br["cov_filter"] = br["pc_reads"].astype(float) >= 0.001
-    br_subset = br[['taxon_name', 'taxon_id', 'full_lineage', 'full_lineage_ranks', 'broad_categories', 'reads', 'pc_reads', 'term_filter', 'cov_filter']]
+    #br_subset = br[['taxon_name', 'taxon_id', 'full_lineage', 'full_lineage_ranks', 'broad_categories', 'reads', 'pc_reads', 'term_filter', 'cov_filter']]
+    
+    #Ensure reads is numeric, then filter detections with >= 10 reads
+    br["reads"] = pd.to_numeric(br["reads"], errors="coerce").fillna(0).astype(int)
+
+    br_subset = br[['taxon_name', 'taxon_id', 'full_lineage', 'full_lineage_ranks',
+                    'broad_categories', 'reads', 'pc_reads', 'term_filter', 'cov_filter']]
+
+    # Apply min-reads filter ONLY to non-viral taxa
+    # Keep all viral/unclassified-virus rows regardless of reads,
+    # but require reads >= 10 for everything else.
+    cat = br_subset["broad_categories"].astype(str).str.strip().str.lower()
+
+    viral_labels = {
+        "viral",
+        "unclassified virus",
+        "unclassified viral"
+    }
+
+    is_viral_taxon = cat.isin(viral_labels)
+
+    br_subset = br_subset[is_viral_taxon | (br_subset["pc_reads"].astype(float) >= 0.001)].copy()
+
+    
     br_subset.to_csv(sample_name + "_kraken_summary.txt", sep="\t", index=False)
 
 if __name__ == "__main__":
