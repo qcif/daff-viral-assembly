@@ -25,11 +25,11 @@ process SPADES {
     tag "$meta.id"
     label 'setting_5'
 
-    publishDir "${params.outdir}/${meta.id}/06_assembly", mode: 'copy'
+    publishDir "${params.outdir}/${meta.id}/06_assembly", mode: 'copy', pattern: '{*spades.log,*warnings.log}'
     conda "${moduleDir}/environment.yml"
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
-        'https://community-cr-prod.seqera.io/docker/registry/v2/blobs/sha256/7b/7b7b68c7f8471d9111841dbe594c00a41cdd3b713015c838c4b22705cfbbdfb2/data' :
-        'community.wave.seqera.io/library/spades:4.1.0--77799c52e1d1054a' }"
+        'oras://quay.io/biocontainers/spades:4.2.0--h8d6e82b_1' :
+        'quay.io/biocontainers/spades:4.2.0--h8d6e82b_1' }"
 
     input:
     tuple val(meta), path(reads)

@@ -39,8 +39,8 @@ process FASTP {
 process FASTP {
     tag "$meta.id"
     label "setting_4"
-    publishDir "${params.outdir}/$meta.id/02_qtrimmed", mode: 'copy', pattern: '{*fastq.gz}'
-    publishDir "${params.outdir}/$meta.id/03_fastqc_trimmed", mode: 'copy', pattern: '{*fastp.html,*fastp.json}'
+    //publishDir "${params.outdir}/$meta.id/02_qtrimmed", mode: 'copy', pattern: '{*fastq.gz}'
+    publishDir "${params.outdir}/$meta.id/02_qtrimmed", mode: 'copy', pattern: '{*fastp.html,*fastp.json}'
 
     conda "bioconda::fastp=0.23.4"
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
@@ -54,7 +54,7 @@ process FASTP {
     val   save_merged
 
     output:
-    path("*.fastp.fastq.gz")
+    //path("*.fastp.fastq.gz")
     path("*.fastp.html")
     path("*.fastp.json")
     tuple val(meta), path('*.fastp.fastq.gz') , emit: reads
@@ -131,6 +131,10 @@ process FASTP {
             --thread $task.cpus \\
             --detect_adapter_for_pe \\
             --length_required 50 --average_qual 20 \\
+            --cut_front \\
+            --cut_tail \\
+            --cut_window_size 4 \\
+            --cut_mean_quality 20 \\
             $args \\
             2> >(tee ${prefix}.fastp.log >&2)
 

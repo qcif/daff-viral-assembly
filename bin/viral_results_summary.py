@@ -143,24 +143,50 @@ def summarize_domains(df_filtered):
         ignore_index=True
     )
     return summary
+def add_group_max(df, group_col, target_col, new_col):
+    df[new_col] = df.groupby(group_col)[target_col].transform("max")
+    return df
+
+VIROID_RENAME = {
+    "Citrus dwarfing viroid": "Apscaviroid nanocitri",
+    "Citrus viroid IIIa": "Apscaviroid nanocitri"
+}
+
+def standardize_viroid_names(df, column, df_name=""):
+    """Ensure consistent naming for two viroids across any dataframe.
+
+    Converts both known variants to the canonical name and warns if any
+    old names remain afterwards.
+    """
+    if column not in df.columns:
+        return df
+
+    df[column] = df[column].replace(VIROID_RENAME)
+
+    remaining = df[column].isin(VIROID_RENAME.keys())
+    if remaining.any():
+        remaining_vals = df.loc[remaining, column].unique().tolist()
+        print(f"WARNING: {df_name} still contains outdated viroid names in '{column}': {remaining_vals}")
+
+    return df
+
 
 def main():
     ################################################################################
     parser = argparse.ArgumentParser(description="Load blast and coverage stats summary")
-
     parser.add_argument("--sample_name", type=str, required=True, help='provide sample name')
     parser.add_argument("--blast", type=str, required=True, help='provide blast top hits')
-    parser.add_argument("--kraken", type=str, required=True, help='provide fasta file')
-    parser.add_argument("--kaiju", type=str, required=True, help='provide fasta file')
+    parser.add_argument("--kraken", type=str, required=True, help='provide kraken file')
+    parser.add_argument("--kaiju", type=str, required=True, help='provide kaiju file')
     parser.add_argument("--hmmscan", type=str, required=True, help='provide hmmscan file')
-    #parser.add_argument("--map2ref", type=str, required=True, help='provide coverage stats to reference')
+    parser.add_argument("--map2ref", type=str, required=True, help='provide coverage stats to reference')
     args = parser.parse_args()
     sample_name = args.sample_name
     blast = args.blast
     kraken = args.kraken
     kaiju = args.kaiju
     hmmscan = args.hmmscan
-    #map2ref = args.map2ref
+    map2ref = args.map2ref
     
     df = parse_hmmscan_per_target(hmmscan)
     df_filtered = filter_hmmscan(df)
@@ -173,36 +199,57 @@ def main():
     blast_df = pd.read_csv(blast, sep="\t", dtype=str)
     kraken_df = pd.read_csv(kraken, sep="\t", dtype=str)
     kaiju_df = pd.read_csv(kaiju, sep="\t", dtype=str)
-    #map2ref_df = pd.read_csv(map2ref, sep="\t", dtype=str)
-
+    map2ref_df = pd.read_csv(map2ref, sep="\t", dtype=str)
     print(blast_df.head())
 
+    #filter blast results to only those that passed all filters inc best contig per species filter
+    blast_df["pident"] = pd.to_numeric(blast_df["pident"], errors="coerce")
+    blast_df["qlen"] = pd.to_numeric(blast_df["qlen"], errors="coerce")
+    blast_df["mapping_read_count"] = pd.to_numeric(blast_df["mapping_read_count"], errors="coerce")
+    blast_df["pc_mapping_reads"] = pd.to_numeric(blast_df["pc_mapping_reads"], errors="coerce")
+    blast_df = add_group_max(blast_df, "species", "pident", "max_pident_spp")
+    blast_df = add_group_max(blast_df, "species", "qlen", "max_qlen_spp")
+    blast_df = add_group_max(blast_df, "species", "mapping_read_count", "max_mapping_read_count_spp")
+    blast_df = add_group_max(blast_df, "species", "pc_mapping_reads", "max_pc_mapping_reads_spp")
+
+
+    #only reports PFAMs for contigs that passed all filters and were the best contig per species
+    #chnage to stre whether there was a PFAM hit for any contig per species that passed filters, not just the best contig per species
+    blast_df2 = blast_df.merge(
+        hmm_df[["query_name", "PFAM_total", "RdRp"]],
+        left_on="qseqid",
+        right_on="query_name",
+        how="left"   # left join keeps all rows in summary_df
+    )
+    blast_df2 = add_group_max(blast_df2, "species", "PFAM_total", "max_PFAM_total_spp")
+    # ensure RdRp is boolean
+    blast_df2["RdRp"] = blast_df2["RdRp"].fillna(False)
+
+    # species-level flag: any contig of this species has RdRp
+    blast_df2["species_has_RdRp"] = (
+        blast_df2.groupby("species")["RdRp"]
+        .transform("any")
+    )
     
-    filtered_blast_df = blast_df[
-        (blast_df["term_filter"].astype(str) == "True") &
-        (blast_df["cov_filter"].astype(str) == "True") &
-        (blast_df["best_contig_per_sp_filter"].astype(str) == "True")
+
+    filtered_blast_df = blast_df2[
+        (blast_df2["term_filter"].astype(str) == "True") &
+        (blast_df2["cov_filter"].astype(str) == "True") &
+        (blast_df2["best_contig_per_sp_filter"].astype(str) == "True")
     ]
 
-
-    # Standardize species naming
-    filtered_blast_df["species"] = filtered_blast_df["species"].replace(
-        {"Citrus viroid IIIa": "Apscaviroid nanocitri"}
-    )
-
-    kraken_df["taxon_name"] = kraken_df["taxon_name"].replace(
-        {"Citrus dwarfing viroid": "Apscaviroid nanocitri"}
-    )
-
-    kaiju_df["taxon_name"] = kaiju_df["taxon_name"].replace(
-        {"Citrus dwarfing viroid": "Apscaviroid nanocitri"}
-    )
+    # Standardize species naming across all tables for the same viroid
+    filtered_blast_df = standardize_viroid_names(filtered_blast_df, "species", df_name="filtered_blast_df")
+    kraken_df = standardize_viroid_names(kraken_df, "taxon_name", df_name="kraken_df")
+    kaiju_df = standardize_viroid_names(kaiju_df, "taxon_name", df_name="kaiju_df")
+    map2ref_df = standardize_viroid_names(map2ref_df, "taxon_name", df_name="map2ref_df")
 
     #print(kraken_df.head())
     #print(kaiju_df.head())
     summary_df = pd.DataFrame()
     
-    # Mask Kraken/Kaiju species to only viral entries
+    
+    # Mask Kraken/Kaiju species to only viral entries and filter for those that passed the term filter
     kraken_viral = kraken_df.loc[
         (kraken_df["broad_categories"] == "viral") & (kraken_df["term_filter"].str.lower() == "true"),
         "taxon_name"
@@ -232,8 +279,10 @@ def main():
     #print(summary_df)
 
     merged_df = summary_df.merge(
-        filtered_blast_df[["species", "qseqid", "qlen", "sacc", "pident", "bitscore", "evalue", "contig_seq", "ncontigs_per_spp", "total_score_spp", "mapping_read_count", "pc_mapping_reads", "mean_depth", "pc_cov_30X",  
-        "mean_mapping_quality", "read_count_flag", "mean_depth_flag", "30x_cov_flag", "mean_mq_flag", "total_conf_score","normalised_conf_score"]],
+        filtered_blast_df[["species", "qseqid", "qlen", "sacc", "pident", "bitscore", "evalue", "contig_seq", "ncontigs_per_spp", 
+                           "max_pident_spp","max_qlen_spp", "max_mapping_read_count_spp",  "max_pc_mapping_reads_spp", "total_score_spp", "mapping_read_count", "pc_mapping_reads", "mean_depth", "pc_cov_30X",  
+                            "mean_mapping_quality", "read_count_flag", "mean_depth_flag", "30x_cov_flag", "mean_mq_flag", "species_has_RdRp", "max_PFAM_total_spp",
+                            "total_conf_score","normalised_conf_score"]],
         left_on="taxon",
         right_on="species",
         how="left"   # left join keeps all rows in summary_df
@@ -268,68 +317,57 @@ def main():
     # Rename the columns
     merged_df3.rename(columns={"pc_reads": "kraken_pc_reads",
                                "reads": "kraken_reads"}, inplace=True)
-    
-    
 
+   
+    map2ref_df["ref_count"] = map2ref_df.groupby(["taxon_name", "sacc"])["sacc"].transform("count")
+    map2ref_df = add_group_max(map2ref_df, "taxon_name", "pc_cov_30X", "max_pc_cov_30X_spp")
+    map2ref_df = add_group_max(map2ref_df, "taxon_name", "normalised_conf_score", "max_normalised_conf_score_spp")
+    map2ref_df = add_group_max(map2ref_df, "taxon_name", "reference_length", "max_reference_length_spp")
+    map2ref_df_unique = (
+        map2ref_df[
+            ["taxon_name",
+            "max_reference_length_spp",
+            "max_normalised_conf_score_spp",
+            "max_pc_cov_30X_spp"]
+            ]
+            .drop_duplicates(subset=["taxon_name"])
+        )
+    
     merged_df4 = merged_df3.merge(
-        hmm_df[["query_name", "PFAM_total", "RdRp"]],
-        left_on="qseqid",
-        right_on="query_name",
+        map2ref_df_unique[["taxon_name", "max_reference_length_spp", "max_normalised_conf_score_spp", "max_pc_cov_30X_spp"]],
+        left_on="taxon",
+        right_on="taxon_name",
         how="left"   # left join keeps all rows in summary_df
     )
 
-    final_columns_filt = ["taxon", "taxon_in_blast", "taxon_in_kraken", "taxon_in_kaiju", "kraken_reads", "kraken_pc_reads", "kaiju_reads", "kaiju_pc_reads", "ncontigs_per_spp", "qseqid", "contig_seq", "contig_length", "pident", "bitscore", "evalue", "sacc", "mapping_read_count","pc_mapping_reads", "mean_depth", "pc_cov_30X",  
-        "mean_mapping_quality", "read_count_flag", "mean_depth_flag", "30x_cov_flag", "mean_mq_flag",  "total_conf_score","normalised_conf_score", "PFAM_total", "RdRp"]
+    final_columns_filt = ["taxon","kraken_reads", "kraken_pc_reads", 
+                          "max_mapping_read_count_spp",  "max_pc_mapping_reads_spp",
+                          "kaiju_reads", "kaiju_pc_reads", 
+                          "mapping_read_count","pc_mapping_reads", 
+                          "ncontigs_per_spp", "qseqid", "contig_seq", "max_pident_spp", "max_qlen_spp",
+                          "mean_depth", "pc_cov_30X", "normalised_conf_score", "max_PFAM_total_spp", "species_has_RdRp", 
+                          "max_reference_length_spp", "max_normalised_conf_score_spp", "max_pc_cov_30X_spp"]
 
     merged_df4 = merged_df4[final_columns_filt]
-    
-    text_cols = ["qseqid", "contig_seq", "sacc", "read_count_flag", "mean_depth_flag", "30x_cov_flag", "mean_mq_flag", "RdRp" ]
-    num_cols = ["ncontigs_per_spp", "contig_length", "pident", "bitscore", "evalue", "mapping_read_count", "pc_mapping_reads", "mean_depth", "pc_cov_30X", "mean_mapping_quality", "total_conf_score", "normalised_conf_score" , "PFAM_total"]
+    text_cols = ["qseqid", "contig_seq","species_has_RdRp" ]
+    #text_cols = ["qseqid", "contig_seq", "sacc", "read_count_flag", "mean_depth_flag", "30x_cov_flag", "mean_mq_flag", "RdRp" ]
+    num_cols = ["ncontigs_per_spp","mapping_read_count", "pc_mapping_reads", "mean_depth", "pc_cov_30X", "normalised_conf_score" , "max_PFAM_total_spp",  "max_pident_spp", "max_qlen_spp"]
 
     # fill values
-    merged_df4_filt = merged_df4[merged_df4["contig_seq"].notna()]
-    merged_df4_filt[text_cols] = merged_df4_filt[text_cols].fillna("NA")
-    merged_df4_filt[num_cols] = merged_df4_filt[num_cols].fillna(0)
+    merged_df4 = merged_df4[merged_df4["contig_seq"].notna()]
+    merged_df4[text_cols] = merged_df4[text_cols].fillna("NA")
+    merged_df4[num_cols] = merged_df4[num_cols].fillna(0)
     
-    merged_df4_filt[num_cols] = merged_df4_filt[num_cols].apply(pd.to_numeric, errors="coerce")
+    merged_df4[num_cols] = merged_df4[num_cols].apply(pd.to_numeric, errors="coerce")
 
-    merged_df4_filt.sort_values(
+    merged_df4.sort_values(
         by=["mapping_read_count", "normalised_conf_score"],
         ascending=[False, False],
         inplace=True
     )
     
     output_file = f"{sample_name}_summary_viral_results.tsv"
-    merged_df4_filt.to_csv(output_file, index=False, sep="\t")
-    
-    #merged_df4 = merged_df3.merge(
-    #    map2ref_df[["taxon_name", "consensus_seq", "sacc", "reference_length", "reads", "pc_reads", "mean_depth", "pc_cov_30X", "mean_mapping_quality", "normalised_conf_score" ]],
-    #    left_on=["taxon","sacc"],
-    #    right_on=["taxon_name","sacc"],
-    #    how="left"   # left join keeps all rows in summary_df
-    #)
-
-    #merged_df4.sort_values(
-    #    by=["contig_length", "kraken_pc_reads", "kaiju_pc_reads"], 
-    #    ascending=[False, False, False], 
-    #    inplace=True
-    #)
-    # Rename the columns
-    #merged_df4.rename(columns={"consensus_seq": "ref_consensus_seq"}, inplace=True)
-    #merged_df4.fillna({
-    #    "reference_length": 0,
-    #    "reads": 0,
-    #    "species": "NA",
-    #    "genus": "NA",
-    #    "description": "NA"
-    #}, inplace=True)
-
-    #final_columns_filt = ["taxon", "taxon_in_blast", "taxon_in_kraken", "taxon_in_kaiju", "kraken_reads", "kraken_pc_reads", "kaiju_reads", "kaiju_pc_reads", "ncontigs_per_spp", "qseqid", "contig_seq", "contig_length", "pident", "bitscore", "evalue", "sacc", "reference_length", "ref_consensus_seq", "reads", "pc_reads", "mean_depth", "pc_cov_30X", "mean_mapping_quality", "normalised_conf_score"]
-    
-    #merged_df4 = merged_df4[final_columns_filt]
-    #output_file = f"{sample_name}_summary_viral_results.tsv"
-    #merged_df4.to_csv(output_file, index=False, sep="\t")
-
+    merged_df4.to_csv(output_file, index=False, sep="\t")
 
 if __name__ == "__main__":
     main()

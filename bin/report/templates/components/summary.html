@@ -43,6 +43,20 @@
             <span style="white-space: nowrap;">{{ row[colname] }}</span>
           {% elif colname == 'evalue' %}
             <span style="white-space: nowrap;">{{ row[colname] }}</span>
+          {% elif colname == 'max_pc_mapping_reads_spp' %}
+            <span style="white-space: nowrap;">
+              {{ "%.2f"|format(row[colname]|float) }}
+          {% elif colname == 'kraken_pc_reads' %}
+            <span style="white-space: nowrap;">
+              {{ "%.2f"|format(row[colname]|float) }}
+          {% elif colname == 'kaiju_pc_reads' %}
+            <span style="white-space: nowrap;">
+              {{ "%.2f"|format(row[colname]|float) }}
+          {% elif colname == 'max_pident_spp' %}
+            <span style="white-space: nowrap;">
+              {{ "%.2f"|format(row[colname]|float) }}
+            </span>
+
           {% elif colname == 'contig_seq' %}
             {% if row[colname].lower() != 'na' %}
             {{ render_view_sequence_button("Assembled sequence " + contig_id, row[colname]) }}

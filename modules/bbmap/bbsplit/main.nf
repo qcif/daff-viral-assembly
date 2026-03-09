@@ -34,7 +34,7 @@ process FILTER_CONTROL {
 process BBMAP_BBSPLIT {
     tag "$meta.id"
     label "setting_22"
-    publishDir "${params.outdir}/${meta.id}/04_cleaned", mode: 'copy'
+    publishDir "${params.outdir}/${meta.id}/04_cleaned", mode: 'copy', pattern: '{*cleaned*fastq.gz,*bbsplit.log,*bbsplit_stats.txt}'
     //label 'error_retry'
 
     conda "${moduleDir}/environment.yml"
@@ -140,7 +140,7 @@ process BBMAP_BBSPLIT {
         $fastq_out \\
         $primary_out \\
         $refstats_cmd \\
-        $args 2>| >(tee ${prefix}.log >&2)
+        $args 2>| >(tee ${prefix}_bbsplit.log >&2)
 
     # Summary files will have an absolute path that will make the index
     # impossible to use in other processes - fix paths and rename atomically
@@ -177,7 +177,7 @@ process BBMAP_BBSPLIT {
         touch ${prefix}.stats.txt
     fi
 
-    touch ${prefix}.log
+    touch ${prefix}_bbsplit.log
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

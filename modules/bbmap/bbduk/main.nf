@@ -33,7 +33,7 @@ process BBDUK {
 process BBMAP_BBDUK {
     tag "$meta.id"
     label 'setting_26'
-    publishDir "${params.outdir}/${meta.id}/04_cleaned", mode: 'copy'
+    publishDir "${params.outdir}/${meta.id}/04_cleaned", mode: 'copy', pattern: '{*bbduk.log}'
 
     conda "${moduleDir}/environment.yml"
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?

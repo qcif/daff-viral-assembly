@@ -379,7 +379,7 @@ def main():
         #merged_df = merge_dataframes(blast_df, samtools_cov, mosdepth_df, mq_df, df_passes_90_5)
     merged_df = merge_dataframes(samtools_cov, mosdepth_df, mq_df)
     #print(merged_df)
-    columns_to_extract = ["sacc", "species_updated", "full_lineage" ]
+    columns_to_extract = ["sacc", "species", "species_updated", "full_lineage" ]
     subset_df = blast_df[columns_to_extract].drop_duplicates()
     #clean the qseqid by removing version numbers
     merged_df["qseqid_clean"] = merged_df["qseqid"].str.split(".").str[0]
@@ -388,7 +388,8 @@ def main():
     merged_df2 = pd.merge(merged_df, subset_df, left_on="qseqid_clean", right_on="sacc", how="inner")
     flagged_df = apply_qc_flags(merged_df2)
     flagged_df = flagged_df.rename(columns={
-        "species_updated": "taxon_name",
+        "species": "taxon_name",
+        "species_updated": "enriched_taxon_name",
         "query_match_length": "reference_length",
         "qseq_mapping_read_count": "reads",
         "qseq_mean_depth": "mean_depth",

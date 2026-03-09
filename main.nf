@@ -60,25 +60,9 @@ if (params.blastn_db != null) {
     blastn_db_dir = file(params.blastn_db).parent
 }
 
-//if (params.sortmerna_ref != null) {
-//    sortmerna_ref_name = file(params.sortmerna_ref).name
-//    sortmerna_ref_dir = file(params.sortmerna_ref).parent
-//}
-
 if (params.kraken2_db != null) {
     krkdb_dir = file(params.kraken2_db).parent
 }
-//if (params.kaiju_nodes != null & params.kaiju_dbname != null & params.kaiju_names != null) {
-//    kaiju_dbs_dir = file(params.kaiju_nodes).parent
-//}
-/*
-if (params.kaiju_db_path != null ) {
-    kaiju_dbs_dir = file(params.kaiju_nodes).parent
-}
-*/
-//if (params.diamond_db != null) {
-//    diamond_db_dir = file(params.diamond_db).parent
-//}
 
 if (params.genomad_db != null) {
     genomad_db_dir = file(params.genomad_db).parent
@@ -86,17 +70,6 @@ if (params.genomad_db != null) {
 if (params.hmmer_db != null) {
     hmmer_db_dir = file(params.hmmer_db).parent
 }
-//if (params.taxdump != null) {
-//    taxdump_dir = file(params.taxdump).parent
-//}
-
-//if (params.reference != null) {
-//    reference_name = file(params.reference).name
- //   reference_dir = file(params.reference).parent
-//}
-//if (params.host_fasta != null) {
-//   host_fasta_dir = file(params.host_fasta).parent
-//}
 
 def isNonEmptyFile(file) {
     return file.exists() && file.size() > 0
@@ -115,22 +88,11 @@ switch (workflow.containerEngine) {
     if (params.kaiju_db_path != null) {
       bindbuild = (bindbuild + "-B ${params.kaiju_db_path} ")
     }
-//    if (params.diamond_db != null) {
-//      bindbuild = (bindbuild + "-B ${diamond_db_dir} ")
-//    }
-
-//    if (params.sortmerna_ref != null) {
-//      bindbuild = (bindbuild + "-B ${sortmerna_ref_dir} ")
-//    }
 
     if (params.kraken2_db != null) {
       bindbuild = (bindbuild + "-B ${krkdb_dir} ")
     }
-    
-    //if (params.kaiju_nodes != null & params.kaiju_dbname != null & params.kaiju_names != null) {
-    //  bindbuild = (bindbuild + "-B ${kaiju_dbs_dir} ")
-    //}
-    
+      
     if (params.genomad_db != null ) {
       bindbuild = (bindbuild + "-B ${genomad_db_dir} ")
     }
@@ -138,12 +100,6 @@ switch (workflow.containerEngine) {
       bindbuild = (bindbuild + "-B ${hmmer_db_dir} ")
     }
 
-//    if (params.reference != null) {
-//      bindbuild = (bindbuild + "-B ${reference_dir} ")
-//    }
-//   if (params.host_fasta != null) {
-//      bindbuild = (bindbuild + "-B ${host_fasta_dir} ")
-//    }
     bindOptions = bindbuild;
     break;
   default:
@@ -162,15 +118,15 @@ process BLASTN {
 
   script:
   def blastoutput = assembly.getBaseName() + "_blastn.bls"
-    """
-    blastn -query ${assembly} \
-      -db ${params.blastn_db} \
-      -out ${blastoutput} \
-      -evalue 1e-3 \
-      -num_threads ${params.blast_threads} \
-      -outfmt '6 qseqid sgi sacc length pident mismatch gapopen qstart qend qlen sstart send slen sstrand evalue bitscore qcovhsp stitle staxids qseq sseq sseqid qcovs qframe sframe' \
-      -max_target_seqs 5
-    """
+  """
+  blastn -query ${assembly} \
+    -db ${params.blastn_db} \
+    -out ${blastoutput} \
+    -evalue 1e-3 \
+    -num_threads ${params.blast_threads} \
+    -outfmt '6 qseqid sgi sacc length pident mismatch gapopen qstart qend qlen sstart send slen sstrand evalue bitscore qcovhsp stitle staxids qseq sseq sseqid qcovs qframe sframe' \
+    -max_target_seqs 5
+  """
 }
 
 process COVSTATS {
@@ -203,14 +159,11 @@ process CONTIG_COVSTATS {
   output:
     path("*_with_cov_stats.txt")
     tuple val(sampleid), path("*_with_cov_stats.txt"), emit: detections_summary
-//    tuple val(sampleid), path(consensus), path("*reference_with_cov_stats.txt"), emit: detections_summary3
-//    path("*reference_with_cov_stats.txt"), emit: detections_summary2
-
 
   script:
-    """
-    derive_contig_coverage_stats.py --sample ${sampleid} --blastn_results ${blast_results} --bbsplit_stats ${bbsplit_stats} --coverage ${coverage} --bed ${bed} --mapping_quality ${mapping_q}
-    """
+  """
+  derive_contig_coverage_stats.py --sample ${sampleid} --blastn_results ${blast_results} --bbsplit_stats ${bbsplit_stats} --coverage ${coverage} --bed ${bed} --mapping_quality ${mapping_q}
+  """
 }
 
 
@@ -228,32 +181,55 @@ process EXTRACT_BLAST_HITS {
     tuple val(sampleid), path("${sampleid}_final_polished_consensus_match.fasta"), emit: consensus_fasta_files
 
   script:
-    target_organism_str = (target_organism instanceof List)
-    ? "\"${target_organism.join('|')}\""
-    : "\"${target_organism}\""
-    """
-    if [[ \$(wc -l < *_megablast_top_10_hits.txt) -ge 2 ]]
-      then
-        select_top_blast_hit.py --sample_name ${sampleid} --blastn_results ${sampleid}*_top_10_hits.txt --target_organism ${target_organism_str} --taxonkit_database_dir ${params.taxdump}
+  target_organism_str = (target_organism instanceof List)
+  ? "\"${target_organism.join('|')}\""
+  : "\"${target_organism}\""
+  """
+  if [[ \$(wc -l < *_megablast_top_10_hits.txt) -ge 2 ]]
+    then
+      select_top_blast_hit.py --sample_name ${sampleid} --blastn_results ${sampleid}*_top_10_hits.txt --target_organism ${target_organism_str} --taxonkit_database_dir ${params.taxdump}
 
-        # extract segment of consensus sequence that align to reference
-        awk  -F  '\\t' 'NR>1 { printf ">%s\\n%s\\n",\$2,\$23 }' ${sampleid}*_top_hits_tmp.txt | sed 's/-//g' > ${sampleid}_final_polished_consensus_match.fasta
+      # extract segment of consensus sequence that align to reference
+      awk  -F  '\\t' 'NR>1 { printf ">%s\\n%s\\n",\$2,\$23 }' ${sampleid}*_top_hits_tmp.txt | sed 's/-//g' > ${sampleid}_final_polished_consensus_match.fasta
 
-        # extract segment of reference that align to consensus sequence
-        awk  -F  '\\t' 'NR>1 { printf ">%s_%s\\n%s\\n",\$2,\$4,\$24 }' ${sampleid}*_top_hits_tmp.txt | sed 's/-//g' > ${sampleid}_reference_match.fasta
-    else
-        echo "No hits found for ${sampleid} in the blast results. Skipping the extraction of consensus and reference fasta files." >&2
-        touch ${sampleid}_final_polished_consensus_match.fasta
-        touch ${sampleid}_reference_match.fasta
-        touch ${sampleid}_megablast_top_hits_tmp.txt
-    fi
-    """
+      # extract segment of reference that align to consensus sequence
+      awk  -F  '\\t' 'NR>1 { printf ">%s_%s\\n%s\\n",\$2,\$4,\$24 }' ${sampleid}*_top_hits_tmp.txt | sed 's/-//g' > ${sampleid}_reference_match.fasta
+  else
+      echo "No hits found for ${sampleid} in the blast results. Skipping the extraction of consensus and reference fasta files." >&2
+      touch ${sampleid}_final_polished_consensus_match.fasta
+      touch ${sampleid}_reference_match.fasta
+      touch ${sampleid}_megablast_top_hits_tmp.txt
+  fi
+  """
+}
+
+
+process BLASTN_ROUND2 {
+  tag "${sampleid}"
+  containerOptions "${bindOptions}"
+  label "setting_20"
+
+  input:
+    tuple val(sampleid), path(assembly)
+  output:
+    tuple val(sampleid), path("${sampleid}*_blastn.bls"), emit: blast_results
+
+  script:
+  def blastoutput = assembly.getBaseName() + "_blastn.bls"
+  """
+  blastn -query ${assembly} \
+    -db ${params.blastn_db} \
+    -out ${blastoutput} \
+    -evalue 1e-3 \
+    -num_threads ${params.blast_threads} \
+    -outfmt '6 qseqid sgi sacc length pident mismatch gapopen qstart qend qlen sstart send slen sstrand evalue bitscore qcovhsp stitle staxids qseq sseq sseqid qcovs qframe sframe' \
+    -max_target_seqs 5
+  """
 }
 
 process FASTA2TABLE {
   tag "$sampleid"
   label "setting_1"
-  publishDir "${params.outdir}/${sampleid}/07_annotation", mode: 'copy'
 
   input:
     tuple val(sampleid), path(tophits), path(fasta)
@@ -267,11 +243,12 @@ process FASTA2TABLE {
 
 
   script:
-    """
-    fasta2table.py --fasta ${fasta} --sample ${sampleid} --tophits ${tophits}
-    cut -f2 ${sampleid}_megablast_top_viral_hits_filtered_with_contigs.txt | sed '1d' | sed 's/ //g' | sort | uniq > ${sampleid}_contig_ids_to_retrieve.txt
-    """
+  """
+  fasta2table.py --fasta ${fasta} --sample ${sampleid} --tophits ${tophits} --mode contigs
+  cut -f2 ${sampleid}_megablast_top_viral_hits_filtered_with_contigs.txt | sed '1d' | sed 's/ //g' | sort | uniq > ${sampleid}_contig_ids_to_retrieve.txt
+  """
 }
+
 
 process FASTA2TABLE2 {
   tag "$sampleid"
@@ -285,9 +262,9 @@ process FASTA2TABLE2 {
     tuple val(sampleid), file("${sampleid}_reference_with_cov_stats_final.txt"), emit: detections_summary_final
 
   script:
-    """
-    fasta2table.py --fasta ${fasta} --sample ${sampleid} --tophits ${stats}
-    """
+  """
+  fasta2table.py --fasta ${fasta} --sample ${sampleid} --tophits ${stats} --mode reference
+  """
 }
 
 process MOSDEPTH {
@@ -301,18 +278,17 @@ process MOSDEPTH {
     tuple val(sampleid), path("${sampleid}.thresholds.bed"), emit: mosdepth_results
 
   script:
-    """
-    if [[ ! -s ${consensus} ]]; then
-      touch ${sampleid}.thresholds.bed
+  """
+  if [[ ! -s ${consensus} ]]; then
+    touch ${sampleid}.thresholds.bed
 
-    else
-      mosdepth --by ${bed} --thresholds 30 -t ${task.cpus} ${sampleid} ${bam}
-      gunzip *.per-base.bed.gz
-      gunzip *.thresholds.bed.gz
-    fi
-    """
+  else
+    mosdepth --by ${bed} --thresholds 30 -t ${task.cpus} ${sampleid} ${bam}
+    gunzip *.per-base.bed.gz
+    gunzip *.thresholds.bed.gz
+  fi
+  """
 }
-
 
 process MOSDEPTH_CONTIGS {
   tag "$sampleid"
@@ -325,19 +301,17 @@ process MOSDEPTH_CONTIGS {
     tuple val(sampleid), path("${sampleid}.thresholds.bed"), emit: mosdepth_results
 
   script:
-    """
-    if [[ ! -s ${consensus} ]]; then
-      touch ${sampleid}.thresholds.bed
+  """
+  if [[ ! -s ${consensus} ]]; then
+    touch ${sampleid}.thresholds.bed
 
-    else
-      mosdepth --by ${bed} --thresholds 30 -t ${task.cpus} ${sampleid} ${bam}
-      gunzip *.per-base.bed.gz
-      gunzip *.thresholds.bed.gz
-    fi
-    """
+  else
+    mosdepth --by ${bed} --thresholds 30 -t ${task.cpus} ${sampleid} ${bam}
+    gunzip *.per-base.bed.gz
+    gunzip *.thresholds.bed.gz
+  fi
+  """
 }
-
-
 
 process PYFAIDX {
   tag "$sampleid"
@@ -350,13 +324,13 @@ process PYFAIDX {
     tuple val(sampleid), path("${sampleid}.bed"), emit: bed
 
   script:
-    """
-    if [[ ! -s ${fasta} ]]; then
-      touch ${sampleid}.bed
-    else
-      faidx --transform bed ${fasta} > ${sampleid}.bed
-    fi
-    """
+  """
+  if [[ ! -s ${fasta} ]]; then
+    touch ${sampleid}.bed
+  else
+    faidx --transform bed ${fasta} > ${sampleid}.bed
+  fi
+  """
 }
 
 process PYFAIDX_CONTIGS {
@@ -370,13 +344,13 @@ process PYFAIDX_CONTIGS {
     tuple val(sampleid), path("${sampleid}_contigs.bed"), emit: bed
 
   script:
-    """
-    if [[ ! -s ${fasta} ]]; then
-      touch ${sampleid}.bed
-    else
-      faidx --transform bed ${fasta} > ${sampleid}_contigs.bed
-    fi
-    """
+  """
+  if [[ ! -s ${fasta} ]]; then
+    touch ${sampleid}.bed
+  else
+    faidx --transform bed ${fasta} > ${sampleid}_contigs.bed
+  fi
+  """
 }
 
 process QCREPORT {
@@ -394,9 +368,9 @@ process QCREPORT {
     path("run_qc_report_*txt"), emit: qc_report_txt
 
   script:
-    """
-    seq_run_qc_report.py
-    """
+  """
+  seq_run_qc_report.py
+  """
 }
 
 process TIMESTAMP_START {
@@ -407,10 +381,10 @@ process TIMESTAMP_START {
   path("*nextflow_start_timestamp.txt"), emit: timestamp
 
   script:
-    """
-    START_TIMESTAMP=\$(date "+%Y%m%d%H%M%S")
-    echo "\$START_TIMESTAMP" > "\${START_TIMESTAMP}_nextflow_start_timestamp.txt"
-    """
+  """
+  START_TIMESTAMP=\$(date "+%Y%m%d%H%M%S")
+  echo "\$START_TIMESTAMP" > "\${START_TIMESTAMP}_nextflow_start_timestamp.txt"
+  """
 }
 
 process HTML_REPORT {
@@ -428,7 +402,6 @@ process HTML_REPORT {
 
   output:
     path("*"), optional: true
-    //path("run_qc_report.html"), optional: true
     path(raw_fastqc)
     path(filtered_fastqc)
     path(qcreport_html)
@@ -438,22 +411,22 @@ process HTML_REPORT {
   //facility = params.facility.replaceAll(/ /, '_')
   analyst_name = "Maely"
   facility = "QUT"
-    """
-    #cp ${qcreport_html} .
-    cp ${params.tool_versions} versions.yml
-    cp ${params.default_params} default_params.yml
-    cp ${params.filter_terms} filterKeyWords.txt
+  """
+  #cp ${qcreport_html} .
+  cp ${params.tool_versions} versions.yml
+  cp ${params.default_params} default_params.yml
+  cp ${params.filter_terms} filterKeyWords.txt
 
-    build_report.py --samplesheet ${samplesheet} --result_dir . --params_file ${configyaml} --analyst ${analyst_name} --facility ${facility} --versions versions.yml --default_params_file default_params.yml
-    #build_report.py --samplesheet ${samplesheet} --result_dir . --params_file ${configyaml} --versions versions.yml --default_params_file default_params.yml
-    
-    """
+  build_report.py --samplesheet ${samplesheet} --result_dir . --params_file ${configyaml} --analyst ${analyst_name} --facility ${facility} --versions versions.yml --default_params_file default_params.yml
+  #build_report.py --samplesheet ${samplesheet} --result_dir . --params_file ${configyaml} --versions versions.yml --default_params_file default_params.yml
+  
+  """
 }
 
 process SEQTK {
   tag "${sampleid}"
-  label "setting_2"
-  publishDir "${params.outdir}/${sampleid}/06_assembly", mode: 'copy'
+  label "setting_1"
+  publishDir "${params.outdir}/${sampleid}/06_assembly", mode: 'copy', pattern: '{*_spades_scaffolds.fasta}'
 
   input:
     tuple val(sampleid), path(assembly)
@@ -470,57 +443,31 @@ process SEQTK {
   sed -E 's/^>NODE_([0-9]+).*/>CONTIG_\\1/' ${sampleid}_scaffolds_filt.fasta > ${sampleid}_spades_scaffolds.fasta
   """
 }
-/*
-process SORTMERNA {
-  tag "${sampleid}"
-  label "setting_21"
-  containerOptions "${bindOptions}"
-  publishDir "${params.outdir}/${sampleid}/04_cleaned", mode: 'copy'
 
-  input:
-    tuple val(sampleid), path(fastq1), path(fastq2), path(ref), path(index)
-  output:
-    path("${sampleid}_rRNA_reads.log")
-    path("${sampleid}_non_rRNA_reads_fwd.fq.gz")
-    path("${sampleid}_non_rRNA_reads_rev.fq.gz")
-    tuple val(sampleid), path("${sampleid}_non_rRNA_reads_fwd.fq.gz"), path("${sampleid}_non_rRNA_reads_rev.fq.gz"), emit: fastp_filtered_fq
-
-  script:
-  """
-  sortmerna \
-    --ref ${ref} \
-    --reads ${fastq1} \
-    --reads ${fastq2} \
-    --threads ${task.cpus} --workdir . --aligned ${sampleid}_rRNA_reads \
-    --fastx --other ${sampleid}_non_rRNA_reads --paired_in --out2 --num_alignments 1 -v --index 0
-  """
-}
-
-*/
-process EXTRACT_VIRAL_CLASSIFICATION_HITS {
+process EXTRACT_VIRAL_BLAST_HITS {
   tag "${sampleid}"
   label "setting_2"
-  publishDir "${params.outdir}/${sampleid}/07_annotation", mode: 'copy'
   containerOptions "${bindOptions}"
 
   input:
-    tuple val(sampleid), path(blast_results) 
+    tuple val(sampleid), path(blast_results), path(assembly_headers), path(fasta)
 
   output:
-    //tuple val(sampleid), path("${sampleid}_megablast_top_viral_hits_filtered.txt"), emit: viral_blast_results
     tuple val(sampleid), path("${sampleid}_megablast_top_viral_hits.txt"), emit: viral_blast_results
-    //path("${sampleid}_megablast_top_viral_hits.txt")
-    //path("${sampleid}_megablast_top_viral_hits_filtered.txt")
-    path("${sampleid}_blastn.txt")
+    tuple val(sampleid), file("${sampleid}_viral_candidate_contig_ids.txt"), emit: viral_candidate_contig_ids
+    tuple val(sampleid), file("${sampleid}_viral_candidate_contig_ids.txt"), file("${sampleid}_other_contig_ids.txt"), emit: contig_ids
 
   script:
   """
   cat ${blast_results} > ${sampleid}_blastn.txt
-  filter_blast.py --blastn_results ${sampleid}_blastn.txt --sample_name ${sampleid} --taxonkit_database_dir ${params.taxdump} --filter ${params.filter_terms}
+  filter_blast.py --blastn_results ${sampleid}_blastn.txt --sample_name ${sampleid} --taxonkit_database_dir ${params.taxdump} --filter ${params.filter_terms} --assembly_headers ${assembly_headers}
+  cut -f2 ${sampleid}_megablast_top_viral_hits.txt | sed '1d' | sed 's/ //g' | sort | uniq > ${sampleid}_viral_candidate_contig_ids.txt
+  grep '>' ${fasta} | sed 's/>//g' | sed 's/ /_/g' | sort | uniq > ${sampleid}_all_contigs.txt
+  grep -F -x -v -f ${sampleid}_viral_candidate_contig_ids.txt ${sampleid}_all_contigs.txt > ${sampleid}_other_contig_ids.txt
   """
 }
 
-process EXTRACT_VIRAL_BLAST_HITS {
+process EXTRACT_VIRAL_BLAST_HITS_ROUND2 {
   tag "${sampleid}"
   label "setting_2"
   publishDir "${params.outdir}/${sampleid}/07_annotation", mode: 'copy'
@@ -542,7 +489,6 @@ process EXTRACT_VIRAL_BLAST_HITS {
   filter_blast.py --blastn_results ${sampleid}_blastn.txt --sample_name ${sampleid} --taxonkit_database_dir ${params.taxdump} --filter ${params.filter_terms} --assembly_headers ${assembly_headers}
   """
 }
-
 process SUMMARISE_READ_CLASSIFICATION {
   tag "${sampleid}"
   label "setting_1"
@@ -581,22 +527,22 @@ process EXTRACT_REF_FASTA {
     tuple val(sampleid), path("${sampleid}_ref_sequences.fasta"), emit: fasta_files, optional: true
   
   script:
-    """
-    #cut -f1,4 ${ids_to_retrieve} | sed '1d' | sed 's/ /_/g' | sort | uniq > ids_to_retrieve.txt
-    #if [ -s ${ids_to_retrieve} ]
-    #  then
-    #    for i in `cut -f2  ids_to_retrieve.txt`; do j=`grep \${i} ids_to_retrieve.txt | cut -f1`; efetch -db nucleotide  -id \${i} -format fasta > ${sampleid}_\${i}.fasta ; done
-    #    for i in `cut -f1  ${ids_to_retrieve}`; do efetch -db nucleotide  -id \${i} -format fasta > ${sampleid}_\${i}.fasta ; done
-    #    cat ${sampleid}_*.fasta > ${sampleid}_ref_sequences.fasta
-    #fi
+  """
+  #cut -f1,4 ${ids_to_retrieve} | sed '1d' | sed 's/ /_/g' | sort | uniq > ids_to_retrieve.txt
+  #if [ -s ${ids_to_retrieve} ]
+  #  then
+  #    for i in `cut -f2  ids_to_retrieve.txt`; do j=`grep \${i} ids_to_retrieve.txt | cut -f1`; efetch -db nucleotide  -id \${i} -format fasta > ${sampleid}_\${i}.fasta ; done
+  #    for i in `cut -f1  ${ids_to_retrieve}`; do efetch -db nucleotide  -id \${i} -format fasta > ${sampleid}_\${i}.fasta ; done
+  #    cat ${sampleid}_*.fasta > ${sampleid}_ref_sequences.fasta
+  #fi
 
-    if [ -s "${ids_to_retrieve}" ]; then
-    
-       cut -f1 "${ids_to_retrieve}" | while read -r i; do
-          efetch -db nucleotide -id "\$i" -format fasta >> "${sampleid}_ref_sequences.fasta"
-      done
-    fi
-    """
+  if [ -s "${ids_to_retrieve}" ]; then
+  
+      cut -f1 "${ids_to_retrieve}" | while read -r i; do
+        efetch -db nucleotide -id "\$i" -format fasta >> "${sampleid}_ref_sequences.fasta"
+    done
+  fi
+  """
 }
 
 process CLUSTER {
@@ -628,7 +574,7 @@ process MAPPING_BACK_TO_REF {
   script:
   """
   bowtie2-build $ref $ref
-  bowtie2 --threads ${task.cpus} --very-sensitive-local -k 100 --score-min L,20,1.0  -x $ref \
+  bowtie2 --threads ${task.cpus} --very-sensitive-local -k 100 -x $ref \
           -1 $fastq1 -2 $fastq2 -S ${sampleid}_ref_aln.sam 2>> ${sampleid}_mapping.log
   """
 }
@@ -645,9 +591,25 @@ process MAPPING_BACK_TO_CONTIGS {
 
   script:
   """
-  bowtie2-build ${contigs} ${contigs}
-  bowtie2 --threads ${task.cpus} --very-sensitive-local -k 100 --score-min L,20,1.0  -x ${contigs} \
-          -1 $fastq1 -2 $fastq2 -S ${sampleid}_contig_aln.sam 2>> ${sampleid}_mapping.log
+  bwa index ${contigs}
+  bwa mem -t 2 ${contigs} $fastq1 $fastq2 > ${sampleid}_contig_aln.sam 2>> ${sampleid}_mapping.log
+  """
+}
+
+process REALIGN {
+  tag "${sampleid}"
+  label "setting_21"
+
+  input:
+    tuple val(sampleid), path(contigs), path(fastq1), path(fastq2)
+
+  output:
+    tuple val(sampleid), path(contigs), file("${sampleid}_contig_realn.sam"), emit: contig_aligned_sam
+
+  script:
+  """
+  bwa index ${contigs}
+  bwa mem -t 2 ${contigs} $fastq1 $fastq2 > ${sampleid}_contig_realn.sam 2>> ${sampleid}_mapping.log
   """
 }
 
@@ -669,15 +631,15 @@ process SAMTOOLS2 {
     tuple val(sampleid), path("${sampleid}_ref_mapq.txt"), emit: mapping_quality
 
   script:
-    """
-    #filter out unmapped reads -F 4
-    samtools view -@ ${task.cpus} -Sb -F 4 ${sam} | samtools sort -@ ${task.cpus} -o ${sampleid}_ref_aln.sorted.bam
-    samtools index ${sampleid}_ref_aln.sorted.bam
-    samtools coverage ${sampleid}_ref_aln.sorted.bam  > ${sampleid}_ref_coverage.txt
-    samtools view -@ ${task.cpus} ${sampleid}_ref_aln.sorted.bam | awk '{mapq[\$3]+=\$5; count[\$3]++} END {for (chr in mapq) printf "%s\\t%.2f\\n", chr, mapq[chr]/count[chr]}' > ${sampleid}_ref_mapq.txt
-    samtools consensus -@ ${task.cpus} -f fastq -a -A ${sampleid}_ref_aln.sorted.bam -o ${sampleid}_consensus.fastq 
-    samtools consensus -@ ${task.cpus} -f fasta -a -A ${sampleid}_ref_aln.sorted.bam -o ${sampleid}_samtools_consensus_from_ref.fasta
-    """
+  """
+  #filter out unmapped reads -F 4
+  samtools view -@ ${task.cpus} -Sb -F 4 ${sam} | samtools sort -@ ${task.cpus} -o ${sampleid}_ref_aln.sorted.bam
+  samtools index ${sampleid}_ref_aln.sorted.bam
+  samtools coverage ${sampleid}_ref_aln.sorted.bam  > ${sampleid}_ref_coverage.txt
+  samtools view -@ ${task.cpus} ${sampleid}_ref_aln.sorted.bam | awk '{mapq[\$3]+=\$5; count[\$3]++} END {for (chr in mapq) printf "%s\\t%.2f\\n", chr, mapq[chr]/count[chr]}' > ${sampleid}_ref_mapq.txt
+  samtools consensus -@ ${task.cpus} -f fastq -a -A ${sampleid}_ref_aln.sorted.bam -o ${sampleid}_consensus.fastq 
+  samtools consensus -@ ${task.cpus} -f fasta -a -A ${sampleid}_ref_aln.sorted.bam -o ${sampleid}_samtools_consensus_from_ref.fasta
+  """
 }
 
 process SAMTOOLS_CONTIGS {
@@ -697,14 +659,35 @@ process SAMTOOLS_CONTIGS {
     tuple val(sampleid), path("${sampleid}_contig_mapq.txt"), emit: mapping_quality
 
   script:
-    """
-    #filter out unmapped reads -F 4
-    samtools view -@ ${task.cpus} -Sb -F 4 ${sam} | samtools sort -@ ${task.cpus} -o ${sampleid}_contig_aln.sorted.bam
-    samtools index ${sampleid}_contig_aln.sorted.bam
-    samtools coverage ${sampleid}_contig_aln.sorted.bam  > ${sampleid}_contig_coverage.txt
-    samtools view -@ ${task.cpus} ${sampleid}_contig_aln.sorted.bam | awk '{mapq[\$3]+=\$5; count[\$3]++} END {for (chr in mapq) printf "%s\\t%.2f\\n", chr, mapq[chr]/count[chr]}' > ${sampleid}_contig_mapq.txt
-    """
+  """
+  #filter out unmapped reads -F 4
+  samtools view -@ ${task.cpus} -Sb -F 4 ${sam} | samtools sort -@ ${task.cpus} -o ${sampleid}_contig_aln.sorted.bam
+  samtools index ${sampleid}_contig_aln.sorted.bam
+  samtools coverage ${sampleid}_contig_aln.sorted.bam  > ${sampleid}_contig_coverage.txt
+  samtools view -@ ${task.cpus} ${sampleid}_contig_aln.sorted.bam | awk '{mapq[\$3]+=\$5; count[\$3]++} END {for (chr in mapq) printf "%s\\t%.2f\\n", chr, mapq[chr]/count[chr]}' > ${sampleid}_contig_mapq.txt
+  """
 }
+
+process PILEUP {
+  publishDir "${params.outdir}/${sampleid}/08_mapping_to_contigs", mode: 'copy'
+  tag "${sampleid}"
+  label 'setting_21'
+
+  input:
+    tuple val(sampleid), path(ref), path(sam)
+
+  output:
+    tuple val(sampleid), path("${sampleid}_contig_pileup.txt"), path(ref), emit: pileup
+
+  script:
+  """
+  #filter out unmapped reads -F 4
+  samtools view -@ ${task.cpus} -Sb -F 4 ${sam} | samtools sort -@ ${task.cpus} -o ${sampleid}_contig_aln.sorted.bam
+  samtools index ${sampleid}_contig_aln.sorted.bam
+  samtools mpileup -aa -f ${ref} ${sampleid}_contig_aln.sorted.bam > ${sampleid}_contig_pileup.txt  
+  """
+}
+
 
 process BCFTOOLS {
   publishDir "${params.outdir}/${sampleid}/09_mapping_to_ref", mode: 'copy'
@@ -721,22 +704,22 @@ process BCFTOOLS {
     tuple val(sampleid), path(ref), path(bam), path(bai), path("${sampleid}_vcf_applied.fasta"), emit: vcf_applied_fasta
 
   script:
-    """
-    awk '/^>/ {print; next} {gsub(/[WSMKRYBDHVNwsmskrybdhvn]/, "N"); print}' "${ref}" > "${sampleid}_ref_cleaned.fasta"
-		bcftools mpileup -Ou -f ${sampleid}_ref_cleaned.fasta ${bam} | bcftools call -Ou -mv --ploidy=1 | bcftools norm -f ${sampleid}_ref_cleaned.fasta -Oz -o ${sampleid}_raw.vcf.gz
-		# -M, --keep-masked-ref           keep sites with masked reference allele (REF=N)
-		#-c, --check-ref <e|w|x|s>         check REF alleles and exit (e), warn (w), exclude (x), or set (s) bad sites [e]
-		bcftools reheader ${sampleid}_raw.vcf.gz -s <(echo '${sampleid}') \
-    | bcftools filter \
-        -e 'INFO/DP < 20' \
-        -s LOW_DEPTH \
-        --IndelGap 5 \
-        -Oz -o ${sampleid}_annotated.vcf.gz
-    
-    bcftools index ${sampleid}_annotated.vcf.gz
-		# create consensus
-    bcftools consensus -f ${sampleid}_ref_cleaned.fasta ${sampleid}_annotated.vcf.gz -o ${sampleid}_vcf_applied.fasta \
-    """
+  """
+  awk '/^>/ {print; next} {gsub(/[WSMKRYBDHVNwsmskrybdhvn]/, "N"); print}' "${ref}" > "${sampleid}_ref_cleaned.fasta"
+  bcftools mpileup -Ou -f ${sampleid}_ref_cleaned.fasta ${bam} | bcftools call -Ou -mv --ploidy=1 | bcftools norm -f ${sampleid}_ref_cleaned.fasta -Oz -o ${sampleid}_raw.vcf.gz
+  # -M, --keep-masked-ref           keep sites with masked reference allele (REF=N)
+  #-c, --check-ref <e|w|x|s>         check REF alleles and exit (e), warn (w), exclude (x), or set (s) bad sites [e]
+  bcftools reheader ${sampleid}_raw.vcf.gz -s <(echo '${sampleid}') \
+  | bcftools filter \
+      -e 'INFO/DP < 20' \
+      -s LOW_DEPTH \
+      --IndelGap 5 \
+      -Oz -o ${sampleid}_annotated.vcf.gz
+  
+  bcftools index ${sampleid}_annotated.vcf.gz
+  # create consensus
+  bcftools consensus -f ${sampleid}_ref_cleaned.fasta ${sampleid}_annotated.vcf.gz -o ${sampleid}_vcf_applied.fasta \
+  """
 }
 
 process BEDTOOLS {
@@ -753,34 +736,33 @@ process BEDTOOLS {
      tuple val(sampleid), path("${sampleid}_bcftools_masked_consensus.fasta"), emit: bcftools_masked_consensus_fasta
 
   script:
-    """
-		bedtools genomecov -ibam ${bam} -bga > ${sampleid}_genomecov.bed
-    awk '\$4==0 {print}' ${sampleid}_genomecov.bed > ${sampleid}_zero_coverage.bed
-    bedtools maskfasta -fi ${vcf_applied_fasta} -bed ${sampleid}_zero_coverage.bed -fo ${sampleid}_bcftools_masked_consensus.fasta
-    """
+  """
+  bedtools genomecov -ibam ${bam} -bga > ${sampleid}_genomecov.bed
+  awk '\$4==0 {print}' ${sampleid}_genomecov.bed > ${sampleid}_zero_coverage.bed
+  bedtools maskfasta -fi ${vcf_applied_fasta} -bed ${sampleid}_zero_coverage.bed -fo ${sampleid}_bcftools_masked_consensus.fasta
+  """
 }
 
 //Explore downtrack downloading krona taxonomy to see if it improves the visualisation
 process KRAKEN2_TO_KRONA {
-    tag "${sampleid}"
-    label 'setting_3'
-    publishDir "${params.outdir}/${sampleid}/05_read_classification", mode: 'copy'
+  tag "${sampleid}"
+  label 'setting_3'
+  publishDir "${params.outdir}/${sampleid}/05_read_classification", mode: 'copy'
 
-    input:
-    tuple val(sampleid), path(kraken_report)
+  input:
+  tuple val(sampleid), path(kraken_report)
 
-    output:
-    file("${sampleid}_kraken_krona.html")
-    tuple val(sampleid), path("${sampleid}_kraken_krona.html")
+  output:
+  file("${sampleid}_kraken_krona.html")
+  tuple val(sampleid), path("${sampleid}_kraken_krona.html")
 
-    script:
-    """
-    ktImportText \\
-        -o ${sampleid}_kraken_krona.html \\
-        ${kraken_report}
-    """
+  script:
+  """
+  ktImportText \\
+      -o ${sampleid}_kraken_krona.html \\
+      ${kraken_report}
+  """
 }
-
 
 //the logic of the original est_abundance.py had to be modified as it was not working as intended for viral species 
 // only defined at S1 (strain) level but not S level, these would just not appear in the bracken report. 
@@ -789,7 +771,7 @@ process KRAKEN2_TO_KRONA {
 process BRACKEN {
   tag "$meta.id"
   label 'setting_1'
-  publishDir "${params.outdir}/${meta.id}/05_read_classification",  mode: 'copy'
+  //publishDir "${params.outdir}/${meta.id}/05_read_classification",  mode: 'copy'
   containerOptions "${bindOptions}"
 
   input:
@@ -833,9 +815,9 @@ process KRONA {
     file "${sampleid}_kaiju_krona.html"
 
   script:
-    """
-    ktImportText -o ${sampleid}_kaiju_krona.html ${krona_input}
-    """
+  """
+  ktImportText -o ${sampleid}_kaiju_krona.html ${krona_input}
+  """
 }
 
 process RETRIEVE_VIRAL_READS_KRAKEN2 {
@@ -888,41 +870,42 @@ process DIAMOND  {
 }
 */
 process GENOMAD {
-    tag "${sampleid}"
-    label "setting_27"
-    containerOptions "${bindOptions}"
-    publishDir "${params.outdir}/${sampleid}/07_annotation/genomad", mode: 'copy'
+  tag "${sampleid}"
+  label "setting_27"
+  containerOptions "${bindOptions}"
+  publishDir "${params.outdir}/${sampleid}/07_annotation/genomad", mode: 'copy'
 
-    input:
-      tuple val(sampleid), path(fasta)
-    output:
-      file "*_summary/*_virus.fna"
-      file "*_summary/*_virus_summary.tsv"
-      file "*_summary/*_virus_genes.tsv"
-      file "*_summary/*_virus_proteins.faa"
-      file "*_find_proviruses/*_provirus.tsv"
-      file "*_find_proviruses/*_provirus_taxonomy.tsv"
-      file "*_find_proviruses/*_provirus.fna"
-      file "*_find_proviruses/*_provirus_genes.tsv"
-      file "*_find_proviruses/*_provirus_proteins.faa"
-      file "*_aggregated_classification/*aggregated_classification.tsv"
-      file "*_annotate/*_taxonomy.tsv"
-      file "${sampleid}_genomad.log"
-      tuple val(sampleid), path("${sampleid}_spades_scaffolds_virus_summary.tsv"), emit: virus_preds
-      
-    script:
-    """
-      genomad \\
-        end-to-end \\
-        ${fasta} \\
-        ./ \\
-        ${params.genomad_db} \\
-        --threads ${task.cpus} \\
-        --min-score 0.7 \\
-        --splits 1 \\
-        > ${sampleid}_genomad.log 2>&1
-        cp ${sampleid}_spades_scaffolds_summary/${sampleid}_spades_scaffolds_virus_summary.tsv .
-    """
+  input:
+    tuple val(sampleid), path(viral_fasta), path(other_fasta)
+  output:
+    file "*_summary/*_virus.fna"
+    file "*_summary/*_virus_summary.tsv"
+    file "*_summary/*_virus_genes.tsv"
+    file "*_summary/*_virus_proteins.faa"
+    file "*_find_proviruses/*_provirus.tsv"
+    file "*_find_proviruses/*_provirus_taxonomy.tsv"
+    file "*_find_proviruses/*_provirus.fna"
+    file "*_find_proviruses/*_provirus_genes.tsv"
+    file "*_find_proviruses/*_provirus_proteins.faa"
+    file "*_aggregated_classification/*aggregated_classification.tsv"
+    file "*_annotate/*_taxonomy.tsv"
+    file "${sampleid}_genomad.log"
+    tuple val(sampleid), path("${sampleid}_combined_contigs_virus_summary.tsv"), emit: virus_preds
+    
+  script:
+  """
+    cat ${viral_fasta} ${other_fasta} > ${sampleid}_combined_contigs.fasta
+    genomad \\
+      end-to-end \\
+      ${sampleid}_combined_contigs.fasta \\
+      ./ \\
+      ${params.genomad_db} \\
+      --threads ${task.cpus} \\
+      --min-score 0.7 \\
+      --splits 1 \\
+      > ${sampleid}_genomad.log 2>&1
+      cp ${sampleid}_combined_contigs_summary/${sampleid}_combined_contigs_virus_summary.tsv .
+  """
 }
 //Derive ORFs from contig sequences using orfipy
 //https://github.com/urmi-21/orfipy?tab=readme-ov-file
@@ -930,49 +913,50 @@ process GENOMAD {
 
 process ORFIPY {
   tag "${sampleid}"
-    label "setting_2"
-    containerOptions "${bindOptions}"
-    publishDir "${params.outdir}/${sampleid}/07_annotation", mode: 'copy'
+  label "setting_1"
+  containerOptions "${bindOptions}"
+  publishDir "${params.outdir}/${sampleid}/07_annotation", mode: 'copy'
 
-    input:
-      tuple val(sampleid), path(fasta)
-    output:
-      file "${sampleid}_orfs.fasta"
-      tuple val(sampleid), path("${sampleid}_orfs.fasta"), emit: orf_fasta
+  input:
+    tuple val(sampleid), path(viral_fasta), path(other_fasta)
+  output:
+    file "${sampleid}_orfs.fasta"
+    tuple val(sampleid), path("${sampleid}_orfs.fasta"), emit: orf_fasta
 
-    script:
-    """
-      orfipy ${fasta} \\
-        --outdir . \\
-        --chunk-size 100000 \\
-        --pep ${sampleid}_orfs.fasta \\
-        --min 300 \\
-        --procs ${task.cpus}
-    """
+  script:
+  """
+  cat ${viral_fasta} ${other_fasta} > ${sampleid}_combined_contigs.fasta
+    orfipy ${sampleid}_combined_contigs.fasta \\
+      --outdir . \\
+      --chunk-size 100000 \\
+      --pep ${sampleid}_orfs.fasta \\
+      --min 300 \\
+      --procs ${task.cpus}
+  """
 }
 
 process HMMSCAN {
   tag "${sampleid}"
-    label "setting_20"
-    containerOptions "${bindOptions}"
-    publishDir "${params.outdir}/${sampleid}/07_annotation", mode: 'copy'
+  label "setting_20"
+  containerOptions "${bindOptions}"
+  publishDir "${params.outdir}/${sampleid}/07_annotation", mode: 'copy'
 
-    input:
-      tuple val(sampleid), path(fasta)
-    output:
-      file "${sampleid}_orfs.fasta"
-      file "${sampleid}_hmmscan*_output.txt"
-      tuple val(sampleid), path("${sampleid}_hmmscan_per_target_output.txt"), emit: hmmscan_preds
+  input:
+    tuple val(sampleid), path(fasta)
+  output:
+    file "${sampleid}_orfs.fasta"
+    file "${sampleid}_hmmscan*_output.txt"
+    tuple val(sampleid), path("${sampleid}_hmmscan_per_target_output.txt"), emit: hmmscan_preds
 
-    script:
-    """
-      hmmscan --cpu ${task.cpus} \\
-              --domtblout ${sampleid}_hmmscan_per_domain_output.txt \\
-              --tblout ${sampleid}_hmmscan_per_target_output.txt \\
-              --pfamtblout ${sampleid}_hmmscan_succinct_output.txt \\
-              ${params.hmmer_db} ${fasta} \\
-              > ${sampleid}_hmmscan.log 2>&1
-    """
+  script:
+  """
+  hmmscan --cpu ${task.cpus} \\
+          --domtblout ${sampleid}_hmmscan_per_domain_output.txt \\
+          --tblout ${sampleid}_hmmscan_per_target_output.txt \\
+          --pfamtblout ${sampleid}_hmmscan_succinct_output.txt \\
+          ${params.hmmer_db} ${fasta} \\
+          > ${sampleid}_hmmscan.log 2>&1
+  """
 }
 
 process SUMMARISE_RESULTS {
@@ -983,7 +967,7 @@ process SUMMARISE_RESULTS {
   containerOptions "${bindOptions}"
 
   input:
-    tuple val(sampleid), path(kraken_results), path(kaiju_results), path(blast), path(hmmscan)
+    tuple val(sampleid), path(kraken_results), path(kaiju_results), path(blast), path(hmmscan), path(map2ref)
 
   output:
     path("${sampleid}_summary_viral_results.tsv")
@@ -993,7 +977,7 @@ process SUMMARISE_RESULTS {
 
   script:
   """
-  viral_results_summary.py --kaiju ${kaiju_results} --sample_name ${sampleid} --kraken ${kraken_results} --blast ${blast} --hmmscan ${hmmscan}
+  viral_results_summary.py --kaiju ${kaiju_results} --sample_name ${sampleid} --kraken ${kraken_results} --blast ${blast} --hmmscan ${hmmscan} --map2ref ${map2ref}
   """
 }
 
@@ -1010,7 +994,6 @@ process NOVELS {
     path("${sampleid}_novel_virus_candidates.tsv")
     tuple val(sampleid), path("${sampleid}_novel_virus_candidates.tsv"), emit: novel_virus_candidates
 
-
   script:
   """
   novel_candidates.py --sample_name ${sampleid} --fasta ${contigs} --genomad ${genomad} --hmmscan ${hmmscan} --blast ${blast}
@@ -1022,37 +1005,76 @@ process EXTRACT_CONTIGS {
   label "setting_1"
 
   input:
-    tuple val(sampleid), path(contig_ids), path(contigs)
+    tuple val(sampleid), path(viral_contig_ids), path(other_contig_ids), path(contigs)
     output:
-    tuple val(sampleid), path("${sampleid}_candidate_viral_contigs.fasta"), emit: fasta
+    tuple val(sampleid), path("${sampleid}_candidate_viral_contigs.fasta"), emit: viral_candidate_fasta
+    tuple val(sampleid), path("${sampleid}_other_contigs.fasta"), emit: other_fasta
 
   script:
-    """
-    if [[ ! -s ${contig_ids} ]]; then
-      touch ${sampleid}_candidate_viral_contigs.fasta
-    else
-      seqtk subseq ${contigs} ${contig_ids} > ${sampleid}_candidate_viral_contigs.fasta
-    fi
-    """
+  """
+  if [[ ! -s ${viral_contig_ids} ]]; then
+    touch ${sampleid}_candidate_viral_contigs.fasta
+  else
+    seqtk subseq ${contigs} ${viral_contig_ids} > ${sampleid}_candidate_viral_contigs.fasta
+    seqtk subseq ${contigs} ${other_contig_ids} > ${sampleid}_other_contigs.fasta
+  fi
+  """
 }
 process COUNT_FASTQ_READS {
+  tag "$meta.id"
+  label 'setting_1'
 
-    tag "$meta.id"
-    label 'setting_1'
+  input:
+  tuple val(meta), path(reads)
 
-    input:
-    tuple val(meta), path(reads)
+  output:
+  tuple val(meta), path(reads), path("*read_count.txt")
 
-    output:
-    tuple val(meta), path(reads), path("*read_count.txt")
-
-    script:
-    """
-    FWD=\$(ls ${reads} | grep '_1.merged.fastq.gz')
-
-    zgrep -c '^@' "\$FWD" > ${meta.id}_read_count.txt
-    """
+  script:
+  """
+  FWD=\$(ls ${reads} | grep '_1.merged.fastq.gz')
+  zgrep -c '^@' "\$FWD" > ${meta.id}_read_count.txt
+  """
 }
+
+process IDENTIFY_ERRORS {
+  tag "${sampleid}"
+  label "setting_2"
+  containerOptions "${bindOptions}"
+  publishDir "${params.outdir}/${sampleid}/08_mapping_to_contigs", mode: 'copy'
+
+  input:
+    tuple val(sampleid), path(pileup), path(ref)
+
+  output:
+    tuple val(sampleid), path("${sampleid}_trim_coords.tsv"), path(ref), emit: trimmed_coords
+
+  script:
+  """
+  trim_contig_ends.py ${pileup} > ${sampleid}_trim_coords.tsv
+  """
+}
+
+process TRIM_ENDS {
+  tag "${sampleid}"
+  label "setting_2"
+  containerOptions "${bindOptions}"
+  publishDir "${params.outdir}/${sampleid}/08_mapping_to_contigs", mode: 'copy'
+
+  input:
+   tuple val(sampleid), path(trimmed_coords), path(ref)
+
+  output:
+    tuple val(sampleid), path("${sampleid}_contigs.trimmed.fa"), emit: trimmed_contigs
+
+  script:
+  """
+  samtools faidx ${ref}
+  #while read ctg L R; do samtools faidx ${ref} "\${ctg}:\${L}-\${R}" | sed "1s/.*/>\${ctg}_trimmed_\${L}_\${R}/" >> ${sampleid}_contigs.trimmed.fa; done < ${trimmed_coords}
+  while read ctg L R; do samtools faidx ${ref} "\${ctg}:\${L}-\${R}" | sed "1s/.*/>\${ctg}/" >> ${sampleid}_contigs.trimmed.fa; done < ${trimmed_coords}
+  """
+}
+
 
 include { CAT_FASTQ } from './modules/cat_fastq/main'
 include { FASTQC as FASTQC_RAW  } from './modules/fastqc/main'
@@ -1161,7 +1183,6 @@ workflow {
   )
 
   //Provide option to filter host or filter a plant host by default?
-
   //read classification with Kraken
   trial_ch = BBMAP_BBSPLIT.out.all_fastq.map { meta, reads ->
     def sample_id = meta.id
@@ -1202,36 +1223,42 @@ workflow {
   SPADES ( RETRIEVE_VIRAL_READS_KRAKEN2.out.fastq )
   //Filter contigs by length less than 150 bp with SEQTK
   SEQTK ( SPADES.out.assembly )
-  //Predict ORFs on filtered contigs
-  ORFIPY ( SEQTK.out.filt_fasta )
-  HMMSCAN ( ORFIPY.out.orf_fasta )
-
-  GENOMAD ( SEQTK.out.filt_fasta )
-  //Enhancement: Option to perform a blastx alignment of contig ORFs?
-  //DIAMOND  ( SEQTK.out.filt_fasta.splitFasta(by: 5000, file: true) )
-  //DIAMOND.out.diamond_results
-  //  .groupTuple()
-  //  .set { ch_blastxresults }
+  
 
   BLASTN( SEQTK.out.filt_fasta.splitFasta(by: 5000, file: true) )
   BLASTN.out.blast_results
     .groupTuple()
     .set { ch_blastresults } 
-  //CONFIRM THAT SAMPLEID IS PASSED CORRECTLY WHEN JOINING CHANNELS
-  EXTRACT_VIRAL_BLAST_HITS ( ch_blastresults.join(SEQTK.out.filt_headers) )
+  EXTRACT_VIRAL_BLAST_HITS ( ch_blastresults.join(SEQTK.out.filt_headers)
+                                            .join(SEQTK.out.filt_fasta) )
   //Add contig sequence to blast results summary table
-  FASTA2TABLE ( EXTRACT_VIRAL_BLAST_HITS.out.viral_blast_results.join(SEQTK.out.filt_fasta) )
   //Mapping back to contigs that had viral blast hits
-  EXTRACT_CONTIGS ( FASTA2TABLE.out.contig_ids.join(SEQTK.out.filt_fasta) )
-  MAPPING_BACK_TO_CONTIGS ( EXTRACT_CONTIGS.out.fasta.join(trial_ch) )
-  SAMTOOLS_CONTIGS ( MAPPING_BACK_TO_CONTIGS.out.contig_aligned_sam )
-  PYFAIDX_CONTIGS ( EXTRACT_CONTIGS.out.fasta )
+  EXTRACT_CONTIGS ( EXTRACT_VIRAL_BLAST_HITS.out.contig_ids.join(SEQTK.out.filt_fasta) )
+  MAPPING_BACK_TO_CONTIGS ( EXTRACT_CONTIGS.out.viral_candidate_fasta.join(trial_ch) )
+  PILEUP ( MAPPING_BACK_TO_CONTIGS.out.contig_aligned_sam )
+  IDENTIFY_ERRORS ( PILEUP.out.pileup )
+  TRIM_ENDS ( IDENTIFY_ERRORS.out.trimmed_coords )
+  REALIGN ( TRIM_ENDS.out.trimmed_contigs.join(trial_ch) )
+  SAMTOOLS_CONTIGS ( REALIGN.out.contig_aligned_sam )
+  PYFAIDX_CONTIGS ( TRIM_ENDS.out.trimmed_contigs )
   MOSDEPTH_CONTIGS (SAMTOOLS_CONTIGS.out.sorted_bam.join(PYFAIDX_CONTIGS.out.bed))
-
+  BLASTN_ROUND2 ( TRIM_ENDS.out.trimmed_contigs )
+  EXTRACT_VIRAL_BLAST_HITS_ROUND2 ( BLASTN_ROUND2.out.blast_results.join(SEQTK.out.filt_headers) )
+  FASTA2TABLE ( EXTRACT_VIRAL_BLAST_HITS_ROUND2.out.viral_blast_results.join(TRIM_ENDS.out.trimmed_contigs) )
   contig_cov_stats_summary_ch = MOSDEPTH_CONTIGS.out.mosdepth_results.join(FASTA2TABLE.out.blast_results2)
                                                       .join(stats_ch)
                                                       .join(SAMTOOLS_CONTIGS.out.coverage)
                                                       .join(SAMTOOLS_CONTIGS.out.mapping_quality)
+  //Predict ORFs on filtered contigs
+  ORFIPY ( TRIM_ENDS.out.trimmed_contigs.join(EXTRACT_CONTIGS.out.other_fasta) )
+  HMMSCAN ( ORFIPY.out.orf_fasta )
+  GENOMAD ( TRIM_ENDS.out.trimmed_contigs.join(EXTRACT_CONTIGS.out.other_fasta )  )
+
+  //Enhancement: Option to perform a blastx alignment of contig ORFs?
+  //DIAMOND  ( SEQTK.out.filt_fasta.splitFasta(by: 5000, file: true) )
+  //DIAMOND.out.diamond_results
+  //  .groupTuple()
+  //  .set { ch_blastxresults }                                                    
   CONTIG_COVSTATS(contig_cov_stats_summary_ch)
   //Mapping back to reference sequences retrieved from blast hits
   EXTRACT_REF_FASTA ( FASTA2TABLE.out.ref_ids )
@@ -1254,7 +1281,6 @@ workflow {
   
   //Derive QC report
   // Merge all the  files into one channel
-
   ch_multiqc_files = FASTP.out.json.map { meta, json ->
                       json
                       }
@@ -1266,6 +1292,7 @@ workflow {
   SUMMARISE_RESULTS ( SUMMARISE_READ_CLASSIFICATION.out.kraken_summary.join(SUMMARISE_READ_CLASSIFICATION.out.kaiju_summary)
                                                                       .join(CONTIG_COVSTATS.out.detections_summary) 
                                                                       .join(HMMSCAN.out.hmmscan_preds)
+                                                                      .join(FASTA2TABLE2.out.detections_summary_final)
                                                                       )
   NOVELS ( SEQTK.out.filt_fasta.join(SUMMARISE_RESULTS.out.domain_count)
                     .join(GENOMAD.out.virus_preds)
@@ -1283,20 +1310,17 @@ workflow {
       tuple(meta.id, html)
   }
 
-  
+
   files_for_report_ind_samples_ch = fastqc_raw_html_fixed.join(fastqc_trim_html_fixed)
                                                     .join(trim_html_fixed)
                                                     .join(SPADES.out.assembly)
                                                     .join(SUMMARISE_RESULTS.out.summary_known_viruses)                                               
                                                     .join(SUMMARISE_READ_CLASSIFICATION.out.kaiju_summary)
                                                     .join(SUMMARISE_READ_CLASSIFICATION.out.kraken_summary)
-//                                                    .join(FASTA2TABLE.out.blast_results2)
                                                     .join(CONTIG_COVSTATS.out.detections_summary)
                                                     .join(FASTA2TABLE2.out.detections_summary_final)
                                                     .join(SAMTOOLS2.out.sorted_bam)
                                                     .join(NOVELS.out.novel_virus_candidates)
-  
-  //files_for_report_ind_samples_ch.view()
      
   files_for_report_global_ch = TIMESTAMP_START.out.timestamp
             .concat(QCREPORT.out.qc_report_html)
@@ -1305,27 +1329,5 @@ workflow {
             .concat(Channel.from(params.input).map { file(it) }).toList()
   HTML_REPORT(files_for_report_ind_samples_ch
             .combine(files_for_report_global_ch))
-  //files_for_report_global_ch.view()
-/*
-    if (params.subsample) {
-      SUBSAMPLE ( REFORMAT.out.reformatted_fq )
-      final_fq = SUBSAMPLE.out.subsampled_fq
-    }
-    else {
-      final_fq = REFORMAT.out.reformatted_fq
-    }
-      //Perform direct alignment to a reference
-      else if ( params.analysis_mode == 'map2ref') {
-        MINIMAP2_REF ( final_fq )
-        SAMTOOLS ( MINIMAP2_REF.out.aligned_sample )
-        MEDAKA ( SAMTOOLS.out.sorted_sample )
-        FILTER_VCF ( MEDAKA.out.unfilt_vcf )
-      }
 
-      else {
-        error("Analysis mode (clustering) not specified with e.g. '--analysis_mode clustering' or via a detectable config file.")
-      }
-    }
-  }
-*/
 }

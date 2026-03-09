@@ -1,6 +1,8 @@
 process FASTQC {
     tag "$meta.id"
-    label "setting_2"
+    label "setting_11"
+    publishDir "${params.outdir}/$meta.id/03_fastqc_trimmed", mode: 'copy', pattern: 'merged_*_fastqc.{zip,html}'
+    publishDir "${params.outdir}/$meta.id/01_fastqc_raw", mode: 'copy', pattern: '*fastp_*_fastqc.{zip,html}'
 
     conda "bioconda::fastqc=0.12.1"
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?

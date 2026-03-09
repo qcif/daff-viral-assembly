@@ -117,6 +117,5 @@ def fasta_to_dataframe(fasta_file):
     df = pd.DataFrame(data, columns=["seq_name", "contig_seq"])
     return df
 
-
 if __name__ == "__main__":
     main()
