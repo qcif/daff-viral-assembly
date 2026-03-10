@@ -60,10 +60,10 @@
               {{ "%.2f"|format(row[colname]|float) }}
           {% elif colname == 'kraken_pc_reads' %}
             <span style="white-space: nowrap;">
-              {{ "%.2f"|format(row[colname]|float) }}
+              {{ "%.3f"|format(row[colname]|float) }}
           {% elif colname == 'kaiju_pc_reads' %}
             <span style="white-space: nowrap;">
-              {{ "%.2f"|format(row[colname]|float) }}
+              {{ "%.3f"|format(row[colname]|float) }}
           {% elif colname == 'max_pident_spp' %}
             <span style="white-space: nowrap;">
               {{ "%.2f"|format(row[colname]|float) }}
