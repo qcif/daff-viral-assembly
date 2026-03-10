@@ -280,7 +280,7 @@ def main():
 
     merged_df = summary_df.merge(
         filtered_blast_df[["species", "qseqid", "qlen", "sacc", "pident", "bitscore", "evalue", "contig_seq", "ncontigs_per_spp", 
-                           "max_pident_spp","max_qlen_spp", "max_mapping_read_count_spp",  "max_pc_mapping_reads_spp", "total_score_spp", "mapping_read_count", "pc_mapping_reads", "mean_depth", "pc_cov_30X",  
+                           "max_pident_spp","max_qlen_spp", "max_mapping_read_count_spp",  "max_pc_mapping_reads_spp", "total_score_spp", "mapping_read_count", "pc_mapping_reads", "mean_depth", "pc_cov_30X", 
                             "mean_mapping_quality", "read_count_flag", "mean_depth_flag", "30x_cov_flag", "mean_mq_flag", "species_has_RdRp", "max_PFAM_total_spp",
                             "total_conf_score","normalised_conf_score"]],
         left_on="taxon",
@@ -343,7 +343,7 @@ def main():
     final_columns_filt = ["taxon","kraken_reads", "kraken_pc_reads", 
                           "max_mapping_read_count_spp",  "max_pc_mapping_reads_spp",
                           "kaiju_reads", "kaiju_pc_reads", 
-                          "mapping_read_count","pc_mapping_reads", 
+                          "mapping_read_count","pc_mapping_reads",
                           "ncontigs_per_spp", "qseqid", "contig_seq", "max_pident_spp", "max_qlen_spp",
                           "mean_depth", "pc_cov_30X", "normalised_conf_score", "max_PFAM_total_spp", "species_has_RdRp", 
                           "max_reference_length_spp", "max_normalised_conf_score_spp", "max_pc_cov_30X_spp"]

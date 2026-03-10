@@ -129,13 +129,13 @@ process BLASTN {
   """
 }
 
-process COVSTATS {
+process REF_COVSTATS {
   tag "$sampleid"
   label "setting_1"
   publishDir "${params.outdir}/${sampleid}/09_mapping_to_ref", mode: 'copy'
 
   input:
-    tuple val(sampleid), path(bed), path(blast_results), path(bbsplit_stats), path(consensus), path(coverage), path(mapping_q), path(ref)
+    tuple val(sampleid), path(bed), path(blast_results), path(bbsplit_stats), path(consensus), path(coverage), path(mapping_q)
   output:
     path("*reference_with_cov_stats.txt")
     tuple val(sampleid), path("*reference_with_cov_stats.txt"), emit: detections_summary
@@ -145,9 +145,17 @@ process COVSTATS {
 
   script:
     """
-    derive_coverage_stats.py --sample ${sampleid} --blastn_results ${blast_results} --bbsplit_stats ${bbsplit_stats} --coverage ${coverage} --bed ${bed} --reference ${ref} --consensus ${consensus} --mapping_quality ${mapping_q}
+    derive_coverage_stats.py \
+      --mode reference \
+      --sample ${sampleid} \
+      --blastn_results ${blast_results} \
+      --bbsplit_stats ${bbsplit_stats} \
+      --coverage ${coverage} \
+      --bed ${bed} \
+      --mapping_quality ${mapping_q}
     """
 }
+
 
 process CONTIG_COVSTATS {
   tag "$sampleid"
@@ -162,7 +170,14 @@ process CONTIG_COVSTATS {
 
   script:
   """
-  derive_contig_coverage_stats.py --sample ${sampleid} --blastn_results ${blast_results} --bbsplit_stats ${bbsplit_stats} --coverage ${coverage} --bed ${bed} --mapping_quality ${mapping_q}
+  derive_coverage_stats.py \
+    --mode contig \
+    --sample ${sampleid} \
+    --blastn_results ${blast_results} \
+    --bbsplit_stats ${bbsplit_stats} \
+    --coverage ${coverage} \
+    --bed ${bed} \
+    --mapping_quality ${mapping_q}
   """
 }
 
@@ -1275,9 +1290,9 @@ workflow {
                                                       .join(BEDTOOLS.out.bcftools_masked_consensus_fasta)
                                                       .join(SAMTOOLS2.out.coverage)
                                                       .join(SAMTOOLS2.out.mapping_quality)
-                                                      .join(EXTRACT_REF_FASTA.out.fasta_files)
-  COVSTATS(cov_stats_summary_ch)
-  FASTA2TABLE2  ( COVSTATS.out.detections_summary3)
+
+  REF_COVSTATS(cov_stats_summary_ch)
+  FASTA2TABLE2  ( REF_COVSTATS.out.detections_summary3)
   
   //Derive QC report
   // Merge all the  files into one channel
