@@ -3,8 +3,8 @@ sample_name,,,,
 sacc,Hit accession,,Y,Accession number of best homology match recovered from megablast search of contigs against the core nucleotide database
 taxon_name,Taxon name,,Y,Taxonomic description of the best homology match
 reference_length,Reference length,int,Y,Length of the reference sequence
-reads,Reads,int,Y,Number of quality filtered reads that mapped to the reference sequence
-pc_reads,% Reads,float,Y,Percentage of quality filtered reads that mapped to the reference sequence
+mapping_read_count,Reads,int,Y,Number of quality filtered reads that mapped to the reference sequence
+pc_mapping_reads,% Reads,float,Y,Percentage of quality filtered reads that mapped to the reference sequence
 mean_depth,Mean depth,float,Y,Average depth of coverage across the reference sequence
 pc_cov_30X,% Coverage at 30X,float,Y,Percentage of the reference sequence that is covered by at least 30 reads
 mean_mapping_quality,Mean mapping quality,float,Y,Average mapping quality of the reads that mapped to the reference sequence

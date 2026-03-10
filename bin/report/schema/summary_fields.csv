@@ -6,7 +6,7 @@ kaiju_reads,Kaiju reads,int,Y,
 max_pc_mapping_reads_spp,Max % reads mapped to contig,float,Y,
 kraken_pc_reads,Kraken % reads,float,Y,
 kaiju_pc_reads,Kaiju % reads,float,Y,
-ncontigs_per_spp,# contigs per species,int,Y,
+ncontigs_per_spp,# contigs,int,Y,
 max_pident_spp,Best % identity,float,Y,
 max_qlen_spp,Best contig length (nt),int,Y,
 contig_seq,Contig rep sequence,,Y,Contig representative per species
