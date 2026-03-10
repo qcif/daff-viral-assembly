@@ -8,6 +8,7 @@ import pandas as pd
 import os.path
 import sys
 from Bio import SeqIO
+from analyses_config import file_exists, is_file_empty
 
 def fasta_to_dataframe(fasta_file):
     """Convert FASTA file to DataFrame with columns [qseqid, contig_seq]."""
@@ -161,14 +162,14 @@ def main():
     mode = args.mode
     
     # Load FASTA data
-    if os.path.getsize(fasta_file) > 0:
+    if file_exists(fasta_file) and not is_file_empty(fasta_file):
         fasta_df = fasta_to_dataframe(fasta_file)
     else:
         print(f"Warning: FASTA file is empty: {fasta_file}", file=sys.stderr)
         fasta_df = pd.DataFrame(columns=["qseqid", "contig_seq"])
     
     # Load and process BLAST data
-    if os.path.getsize(blast_file) > 0:
+    if file_exists(blast_file) and not is_file_empty(blast_file):
         try:
             blastn_results = pd.read_csv(blast_file, sep="\t", header=0)
         except Exception as e:
