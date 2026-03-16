@@ -415,11 +415,14 @@ process HTML_REPORT {
     path(configyaml),
     path(samplesheet)
 
+
   output:
     path("*"), optional: true
     path(raw_fastqc)
     path(filtered_fastqc)
     path(qcreport_html)
+    path(bam)
+    path(bai)
 
   script:
   //analyst_name = params.analyst_name.replaceAll(/ /, '_')
@@ -803,16 +806,19 @@ process BRACKEN {
   script:
   def prefix = task.ext.prefix ?: "${meta.id}"
   """
-  c1grep() { grep "\$@" || test \$? = 1; }
+  #c1grep() { grep "\$@" || test \$? = 1; }
 
-  updated_est_abundance.py -i ${kraken_report} \
-                  -k ${params.kraken2_db}/database50mers.kmer_distrib \
-                  -t 1 \
-                  -l S -o ${prefix}_bracken_report.txt
+  #updated_est_abundance.py -i ${kraken_report} \
+  #                -k ${params.kraken2_db}/database50mers.kmer_distrib \
+  #                -t 1 \
+  #                -l S -o ${prefix}_bracken_report.txt
 
+  kraken_lowest_rank.py -i ${kraken_report} \\
+                  -t 3 \\
+                  -o ${prefix}_bracken_report.txt
 
-  c1grep  "taxonomy_id\\|virus\\|viroid" ${prefix}_bracken_report.txt > ${prefix}_bracken_report_viral.txt
-  awk -F'\\t'  '\$7>=0.0001'  ${prefix}_bracken_report_viral.txt > ${prefix}_bracken_report_viral_filtered.txt
+  #c1grep  "taxonomy_id\\|virus\\|viroid" ${prefix}_bracken_report.txt > ${prefix}_bracken_report_viral.txt
+  #awk -F'\\t'  '\$7>=0.0001'  ${prefix}_bracken_report_viral.txt > ${prefix}_bracken_report_viral_filtered.txt
   """
 }
 
@@ -1240,7 +1246,7 @@ workflow {
   SEQTK ( SPADES.out.assembly )
   
 
-  BLASTN( SEQTK.out.filt_fasta.splitFasta(by: 5000, file: true) )
+  BLASTN( SEQTK.out.filt_fasta.splitFasta(by: 2500, file: true) )
   BLASTN.out.blast_results
     .groupTuple()
     .set { ch_blastresults } 
