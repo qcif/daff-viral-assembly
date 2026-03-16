@@ -251,11 +251,11 @@ def main():
     
     # Mask Kraken/Kaiju species to only viral entries and filter for those that passed the term filter
     kraken_viral = kraken_df.loc[
-        (kraken_df["broad_categories"] == "viral") & (kraken_df["term_filter"].str.lower() == "true"),
+        (kraken_df["broad_category"] == "viral") & (kraken_df["term_filter"].str.lower() == "true"),
         "taxon_name"
     ]
     kaiju_viral  = kaiju_df.loc[
-        (kaiju_df["broad_categories"] == "viral") & (kraken_df["term_filter"].str.lower() == "true"),
+        (kaiju_df["broad_category"] == "viral") & (kraken_df["term_filter"].str.lower() == "true"),
         "taxon_name"
     ]
 
