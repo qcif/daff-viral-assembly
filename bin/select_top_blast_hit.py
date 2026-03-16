@@ -7,6 +7,7 @@ from functools import reduce
 import pytaxonkit
 import numpy as np
 import re
+from analyses_config import file_exists
 
 def parse_arguments():
     """Parse command-line arguments."""
@@ -19,7 +20,7 @@ def parse_arguments():
 
 def load_blast_results(path):
     """Load BLASTn results based on mode."""
-    if not os.path.isfile(path):
+    if not file_exists(path):
         raise FileNotFoundError(f"BLASTn results file not found: {path}")
 
     columns = ["qseqid", "sgi", "sacc", "length", "nident", "pident", "mismatch", "gaps", "gapopen", "qstart",
@@ -143,7 +144,7 @@ def main():
     target_organism = args.target_organism
     tk_db_dir = args.taxonkit_database_dir
 
-    if not os.path.isfile(blastn_results_path):
+    if not file_exists(blastn_results_path):
         raise FileNotFoundError(f"{blastn_results_path} does not exist.")
     #elif len(blastn_results_path) == 0:
     #    print("DataFrame is empty!")
