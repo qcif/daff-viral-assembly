@@ -9,6 +9,7 @@ import numpy as np
 import tempfile
 import shutil
 import re
+from analyses_config import file_exists
 
 def parse_arguments():
     """Parse command-line arguments."""
@@ -22,7 +23,7 @@ def parse_arguments():
 
 def load_blast_results(path):
     """Load BLASTn results based on mode."""
-    if not os.path.isfile(path):
+    if not file_exists(path):
         raise FileNotFoundError(f"BLASTn results file not found: {path}")
      # Define expected header (based on your BLAST output fields)
     columns = [
@@ -320,7 +321,7 @@ def main():
     filter_file = args.filter
     headers = args.assembly_headers
 
-    if not os.path.isfile(blastn_results_path):
+    if not file_exists(blastn_results_path):
         raise FileNotFoundError(f"{blastn_results_path} does not exist.")
 
     blastn_results = load_blast_results(blastn_results_path)
