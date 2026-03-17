@@ -359,10 +359,10 @@ def main():
     br["broad_category"] = br.apply(classify_broad_category, axis=1)
 
     filtered_read_counts = parse_bbsplit_log(log)
-    br["new_est_reads"] = pd.to_numeric(br["new_est_reads"], errors="coerce")
+    br["reads"] = pd.to_numeric(br["reads"], errors="coerce")
     br = br.rename(columns={
         "name": "taxon_name",
-        "new_est_reads": "reads",
+    #    "new_est_reads": "reads",
     })
     br["term_filter"] = ~(
         br["taxon_name"].str.contains(pattern, case=False, na=False)
