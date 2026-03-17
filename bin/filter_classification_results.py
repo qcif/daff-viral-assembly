@@ -5,6 +5,7 @@ import os
 import numpy as np
 import re
 from pytaxonkit import lineage
+from analyses_config import file_exists
 
 
 def parse_arguments():
@@ -160,10 +161,10 @@ def main():
 
     pattern = "|".join(exclude_patterns)
 
-    if not os.path.isfile(kaiju_path):
+    if not file_exists(kaiju_path):
         raise FileNotFoundError(f"{kaiju_path} does not exist.")
 
-    if not os.path.isfile(bracken_path):
+    if not file_exists(bracken_path):
         raise FileNotFoundError(f"{bracken_path} does not exist.")
     df = pd.read_csv(kaiju_path, sep="\t", dtype=str)
 
