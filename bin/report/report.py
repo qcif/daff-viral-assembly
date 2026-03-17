@@ -11,7 +11,7 @@ import yaml
 from jinja2 import Environment, FileSystemLoader
 
 from . import config
-# from .bam import render_bam_html
+from .bam import render_bam_html
 from .results import (
     BlastHits,
     ConsensusFASTA,
@@ -73,8 +73,8 @@ def render(
         f.write(rendered_html)
     logger.info(f"HTML document written to {path}")
 
-    # if len(context['blast_hits']):
-    #     render_bam_html()
+    if len(context['blast_hits']):
+        render_bam_html()
 
 
 def _get_static_file_contents():

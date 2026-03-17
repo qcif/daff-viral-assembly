@@ -1,10 +1,16 @@
 <h3>Input data quality report</h3>
+<p>
+  This section provides a quick assessment of overall data quality and helps identify any issues that may affect downstream analyses.<br>
+  No strict pass/fail QC thresholds are applied, as sample quality can vary widely due to factors outside the control of the user (e.g., sample type, collection constraints, handling, storage conditions, and sample age).<br>
+  However, warning flags highlight cases where data quality or sequencing depth may limit reliable detection; in such cases, if no viruses are identified, results should be interpreted with caution, as this may reflect technical limitations rather than true absence.<br>
 
+</p>
+<p class="alert alert-warning small">
+      <strong>Warning:</strong> To reduce runtime and computational cost, the pipeline enforces a default maximum of 60 million reads.
+    </p>
 <table class="table">
   <thead>
     <th></th>
-    <th>Value</th>
-    <th>Outcome</th>
     <th></th>
   </thead>
 

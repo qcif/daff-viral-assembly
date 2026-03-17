@@ -415,11 +415,14 @@ process HTML_REPORT {
     path(configyaml),
     path(samplesheet)
 
+
   output:
     path("*"), optional: true
     path(raw_fastqc)
     path(filtered_fastqc)
     path(qcreport_html)
+    path(bam)
+    path(bai)
 
   script:
   //analyst_name = params.analyst_name.replaceAll(/ /, '_')
@@ -588,9 +591,11 @@ process MAPPING_BACK_TO_REF {
 
   script:
   """
-  bowtie2-build $ref $ref
-  bowtie2 --threads ${task.cpus} --very-sensitive-local -k 100 -x $ref \
-          -1 $fastq1 -2 $fastq2 -S ${sampleid}_ref_aln.sam 2>> ${sampleid}_mapping.log
+  #bowtie2-build $ref $ref
+  #bowtie2 --threads ${task.cpus} --very-sensitive-local -k 100 -x $ref \
+  #        -1 $fastq1 -2 $fastq2 -S ${sampleid}_ref_aln.sam 2>> ${sampleid}_mapping.log
+  bwa index ${ref}
+  bwa mem -t 4 ${ref} $fastq1 $fastq2 > ${sampleid}_ref_aln.sam 2>> ${sampleid}_mapping.log
   """
 }
 
@@ -607,7 +612,7 @@ process MAPPING_BACK_TO_CONTIGS {
   script:
   """
   bwa index ${contigs}
-  bwa mem -t 2 ${contigs} $fastq1 $fastq2 > ${sampleid}_contig_aln.sam 2>> ${sampleid}_mapping.log
+  bwa mem -t 4 ${contigs} $fastq1 $fastq2 > ${sampleid}_contig_aln.sam 2>> ${sampleid}_mapping.log
   """
 }
 
@@ -760,22 +765,43 @@ process BEDTOOLS {
 
 //Explore downtrack downloading krona taxonomy to see if it improves the visualisation
 process KRAKEN2_TO_KRONA {
-  tag "${sampleid}"
+  tag "$meta.id"
   label 'setting_3'
-  publishDir "${params.outdir}/${sampleid}/05_read_classification", mode: 'copy'
+  publishDir "${params.outdir}/${meta.id}/05_read_classification", mode: 'copy'
 
   input:
-  tuple val(sampleid), path(kraken_report)
+  tuple val(meta), path(kraken_report)
 
   output:
-  file("${sampleid}_kraken_krona.html")
-  tuple val(sampleid), path("${sampleid}_kraken_krona.html")
+  file("*_kraken_krona.html")
+  //tuple val(sampleid), path("${sampleid}_kraken_krona.html")
 
+  when:
+    task.ext.when == null || task.ext.when
+  
   script:
+  def prefix = task.ext.prefix ?: "${meta.id}"
   """
-  ktImportText \\
-      -o ${sampleid}_kraken_krona.html \\
-      ${kraken_report}
+  awk '\$1 >= 0.001' ${kraken_report} > filtered_report.txt
+
+  awk -F'\\t' '
+  {
+      name=\$8
+      gsub(/^ +/,"",name)
+
+      indent = match(\$8,/[^ ]/) - 1
+      level = int(indent / 2)
+
+      lineage[level] = name
+
+      path = lineage[0]
+      for(i=1;i<=level;i++)
+          path = path "\\t" lineage[i]
+
+      print \$3 "\\t" path
+  }
+  ' filtered_report.txt \
+  | ktImportText -o ${prefix}_kraken_krona.html -
   """
 }
 
@@ -803,16 +829,19 @@ process BRACKEN {
   script:
   def prefix = task.ext.prefix ?: "${meta.id}"
   """
-  c1grep() { grep "\$@" || test \$? = 1; }
+  #c1grep() { grep "\$@" || test \$? = 1; }
 
-  updated_est_abundance.py -i ${kraken_report} \
-                  -k ${params.kraken2_db}/database50mers.kmer_distrib \
-                  -t 1 \
-                  -l S -o ${prefix}_bracken_report.txt
+  #updated_est_abundance.py -i ${kraken_report} \
+  #                -k ${params.kraken2_db}/database50mers.kmer_distrib \
+  #                -t 1 \
+  #                -l S -o ${prefix}_bracken_report.txt
 
+  kraken_lowest_rank.py -i ${kraken_report} \\
+                  -t 3 \\
+                  -o ${prefix}_bracken_report.txt
 
-  c1grep  "taxonomy_id\\|virus\\|viroid" ${prefix}_bracken_report.txt > ${prefix}_bracken_report_viral.txt
-  awk -F'\\t'  '\$7>=0.0001'  ${prefix}_bracken_report_viral.txt > ${prefix}_bracken_report_viral_filtered.txt
+  #c1grep  "taxonomy_id\\|virus\\|viroid" ${prefix}_bracken_report.txt > ${prefix}_bracken_report_viral.txt
+  #awk -F'\\t'  '\$7>=0.0001'  ${prefix}_bracken_report_viral.txt > ${prefix}_bracken_report_viral_filtered.txt
   """
 }
 
@@ -1212,6 +1241,7 @@ workflow {
   }
   KRAKEN2_KRAKEN2(BBMAP_BBSPLIT.out.all_fastq, params.kraken2_db, params.kraken2_save_classified_reads, params.kraken2_save_unclassified_reads, params.kraken2_save_readclassifications)
   BRACKEN ( KRAKEN2_KRAKEN2.out.report )
+  KRAKEN2_TO_KRONA ( KRAKEN2_KRAKEN2.out.report)
 
   //retrieve reads that were not classified and reads classified as viral by kraken2
   //merge
@@ -1240,7 +1270,7 @@ workflow {
   SEQTK ( SPADES.out.assembly )
   
 
-  BLASTN( SEQTK.out.filt_fasta.splitFasta(by: 5000, file: true) )
+  BLASTN( SEQTK.out.filt_fasta.splitFasta(by: 2500, file: true) )
   BLASTN.out.blast_results
     .groupTuple()
     .set { ch_blastresults } 

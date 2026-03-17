@@ -1,9 +1,11 @@
 colname,label,type,primary_display,tooltip
 taxon,Species,,Y,
-max_mapping_read_count_spp,Max reads mapped to contig,int,Y,Maximum number of reads mapped to a contig among those assigned to the same species
+max_contig_mapping_read_count_spp,Max reads mapped to contig,int,Y,Maximum number of reads mapped to a contig among those assigned to the same species
+max_ref_mapping_read_count_spp,Max reads mapped to reference,int,Y,Maximum number of reads mapped to a reference among those assigned to the same species
 kraken_reads,Kraken reads,int,Y,
 kaiju_reads,Kaiju reads,int,Y,
-max_pc_mapping_reads_spp,Max % reads mapped to contig,float,Y,
+max_pc_contig_mapping_reads_spp,Max % reads mapped to contig,float,Y,
+max_pc_ref_mapping_reads_spp,Max % reads mapped to reference,float,Y,
 kraken_pc_reads,Kraken % reads,float,Y,
 kaiju_pc_reads,Kaiju % reads,float,Y,
 ncontigs_per_spp,# contigs,int,Y,
