@@ -1,11 +1,13 @@
 <h3>Input data quality report</h3>
 <p>
-  This section provides an overview of the quality control (QC) metrics for the raw and cleaned sequencing reads.<br>
-  It offers a quick assessment of overall data quality and highlights any potential issues that may affect downstream analyses.<br>
-  Warning flags indicate when data quality or sequencing depth may be insufficient.<br>
-  In such cases, if no viruses are detected, this may be due to limitations in the data rather than the absence of viruses in the sample.
-</p>
+  This section provides a quick assessment of overall data quality and helps identify any issues that may affect downstream analyses.<br>
+  No strict pass/fail QC thresholds are applied, as sample quality can vary widely due to factors outside the control of the user (e.g., sample type, collection constraints, handling, storage conditions, and sample age).<br>
+  However, warning flags highlight cases where data quality or sequencing depth may limit reliable detection; in such cases, if no viruses are identified, results should be interpreted with caution, as this may reflect technical limitations rather than true absence.<br>
 
+</p>
+<p class="alert alert-warning small">
+      <strong>Warning:</strong> To reduce runtime and computational cost, the pipeline enforces a default maximum of 60 million reads.
+    </p>
 <table class="table">
   <thead>
     <th></th>
