@@ -57,15 +57,6 @@ def parse_bbsplit_log(logfile):
     clean_reads = total_reads - total_mapped_reads
     return clean_reads
 
-#def categorise_kaiju(row):
-#    #lineage = str(row.get("full_lineage", "")).lower()
-#    viral_category = classify_viral_resolution(row)
-#    if viral_category:
-#        return viral_category
-#    name = str(row.get("taxon_name", "")).lower()
-##    if "unclassified" in name:
-#        return "unclassified"
-#    return "other non-viral"
 def categorise_kaiju(row):
     resolution = classify_taxonomic_resolution(row)
 
@@ -80,15 +71,6 @@ def categorise_kaiju(row):
     return "other"
 
 
-#def categorise_bracken(row):
-#    viral_category = classify_viral_resolution(row)
-#    if viral_category:
-#        return viral_category
-#    name = str(row.get("taxon_name", "")).lower()
-#    if "unclassified" in name:
-##        return "unclassified"
-#    return "other non-viral"
-
 def categorise_bracken(row):
     resolution = classify_taxonomic_resolution(row)
 
@@ -102,68 +84,32 @@ def categorise_bracken(row):
 
     return "other"
 
-
-#def classify_viral_resolution(row):
-#    ranks = str(row.get("full_lineage_ranks", "")).lower()
-#    lineage = str(row.get("full_lineage", "")).lower()
-#    if not ranks or ("viruses" not in lineage and "viroids" not in lineage):
-#        return None
-#    rank_list = [r.strip() for r in ranks.split(";") if r.strip()]
-
-    # Find deepest informative viral rank
-#    if "species" in rank_list:
-#        return "viral"
-#    if "genus" in rank_list:
-#        return "genus_unclassified"
-#    if "family" in rank_list:
-#        return "family_unclassified"
-#    if "order" in rank_list:
-#         return "order_unclassified"
-#     if "class" in rank_list:
-#        return "class_unclassified"
-#    return "viral_high_level"
 def classify_taxonomic_resolution(row):
 
     ranks = str(row.get("full_lineage_ranks", "")).lower()
-
-    if not ranks:
-        return "unclassified"
-
     rank_list = [r.strip() for r in ranks.split(";") if r.strip()]
-
     if "species" in rank_list:
         return "species"
-
     if "genus" in rank_list:
         return "genus_unclassified"
-
     if "family" in rank_list:
         return "family_unclassified"
-
     if "order" in rank_list:
         return "order_unclassified"
-
     if "class" in rank_list:
         return "class_unclassified"
-
     if "phylum" in rank_list:
         return "phylum_unclassified"
-
     if "kingdom" in rank_list:
         return "kingdom_unclassified"
-
     return "high_level_unclassified"
 
 def classify_broad_category(row):
-
     lineage = str(row.get("full_lineage", "")).lower()
-
     if "viruses" in lineage or "viroids" in lineage:
         return "viral"
-
     if "unclassified" in str(row.get("taxon_name", "")).lower():
-        return "unclassified_top"
-
+        return "unclassified"
     return "other"
 
 def build_taxonomy_maps(taxids, tk_db_dir):
@@ -185,9 +131,7 @@ def build_taxonomy_maps(taxids, tk_db_dir):
         dict(zip(lin_df["taxid"], lin_df["full_lineage_taxids"]))
     )
 def filter_viral_rows(df, pc_threshold):
-
     cat = df["broad_category"].astype(str).str.strip().str.lower()
-
     viral_labels = {
         "viral",
         "genus_unclassified",
@@ -196,9 +140,7 @@ def filter_viral_rows(df, pc_threshold):
         "class_unclassified",
         "viral_high_level"
     }
-
     is_viral_taxon = cat.isin(viral_labels)
-
     return df[
         ((is_viral_taxon) | (df["pc_reads"].astype(float) >= pc_threshold))
         & (df["reads"].astype(int) > 0)
@@ -232,41 +174,9 @@ def main():
     # Convert taxon_id safely
     # Get lineage only for non-zero taxids
     unique_taxids = df.loc[df["taxon_id"] != 0, "taxon_id"].unique().tolist()
-    #print(f"Unique taxids in Kaiju results: {len(unique_taxids)}")
-
-    # Query lineage (just pass taxid list)
-    # lineage(unique_taxids, data_dir=tk_db_dir)
-    
-    # Convert to DataFrame
-    #lin_df = pd.DataFrame(lin)
-    #print(lin_df.columns)
-    #print(lin_df.iloc[0])
-    # Keep relevant columns and rename
-    #lin_df = lin_df.rename(columns={
-    #    "TaxID": "taxid",
-    #    "FullLineageTaxIDs": "full_lineage_taxids",
-    #    "FullLineage": "full_lineage_names",
-    #    "FullLineageRanks": "full_lineage_ranks",
-    #    "Name": "name"
-    #})
+ 
     taxid_to_lineage_names, taxid_to_lineage_ranks, taxid_to_lineage = \
     build_taxonomy_maps(unique_taxids, tk_db_dir)
-
-
-    # Fill NaNs with 0 and convert to int
-    #lin_df["taxid"] = pd.to_numeric(lin_df["taxid"], errors="coerce").fillna(0).astype(int)
-
-    # Build mapping
-    #taxid_to_lineage = {int(k): str(v) for k, v in zip(lin_df["taxid"], lin_df["full_lineage_taxids"])}
-
-    #taxid_to_lineage_names = dict(zip(
-    #    lin_df["taxid"],
-    #    lin_df["full_lineage_names"]
-    #))
-    #taxid_to_lineage_ranks = dict(zip(
-    #    lin_df["taxid"],
-    #    lin_df["full_lineage_ranks"]
-    #))
 
     # Viral check
     df["taxon_id"] = pd.to_numeric(df["taxon_id"], errors="coerce").fillna(0).astype(int)
@@ -283,6 +193,10 @@ def main():
     df.loc[df["taxon_name"] == "unclassified",
        ["full_lineage", "full_lineage_ranks"]] = "NA"
 
+
+    df.loc[df["taxon_name"].str.lower() == "unclassified",
+       ["resolution_level"]] = "unclassified"
+
     df["term_filter"] = ~(
         df["taxon_name"].str.contains(pattern, case=False, na=False)
         )
@@ -291,7 +205,6 @@ def main():
         "percent": "pc_reads"
     })
     df["cov_filter"] = df["pc_reads"].astype(float) >= 0.002
-
 
     # Ensure reads is numeric, then filter detections with >= 10 reads
     df["reads"] = pd.to_numeric(df["reads"], errors="coerce").fillna(0).astype(int)
@@ -303,19 +216,6 @@ def main():
     # Keep all viral/unclassified-virus rows regardless of reads,
     # but require reads >= 10 for everything else.
     df_subset = filter_viral_rows(df_subset, 0.002)
-    #cat = df_subset["broad_category"].astype(str).str.strip().str.lower()
-
-    #viral_labels = {
-    #    "viral",
-    #    "genus_unclassified",
-    #    "family_unclassified",
-    #    "order_unclassified",
-    #    "class_unclassified",
-    #    "viral_high_level"
-    #}
-    #is_viral_taxon = cat.isin(viral_labels)
-
-    #df_subset = df_subset[is_viral_taxon | (df_subset["pc_reads"].astype(float) >= 0.002)].copy()
     out_kaiju = os.path.join(args.outdir, f"{sample_name}_kaiju_summary.txt")
     df_subset.to_csv(out_kaiju, sep="\t", index=False)
     
@@ -326,28 +226,7 @@ def main():
     br = br.rename(columns={
         "taxonomy_id": "taxon_id"})
     unique_taxids_br = br.loc[br["taxon_id"] != 0, "taxon_id"].unique().tolist()
-    #lin2 = lineage(unique_taxids_br, data_dir=tk_db_dir)
-    #lin2_df = pd.DataFrame(lin2)
-    #lin2_df = lin2_df.rename(columns={
-    #    "TaxID": "taxid",
-    #    "FullLineageTaxIDs": "full_lineage_taxids",
-    #    "FullLineage": "full_lineage_names",
-    #    "FullLineageRanks": "full_lineage_ranks",
-    #    "Name": "name"
-    #})
-    #lin2_df["full_lineage_ranks"] = lin2_df["full_lineage_ranks"].fillna("").astype(str)
-    #lin2_df["taxid"] = pd.to_numeric(lin2_df["taxid"], errors="coerce").fillna(0).astype(int)
-    #lin2_df["full_lineage_taxids"] = lin2_df["full_lineage_taxids"].fillna("")
-    #taxid_to_lineage = {int(k): str(v) for k, v in zip(lin2_df["taxid"], lin2_df["full_lineage_taxids"])}
-    #taxid_to_lineage_names = dict(zip(
-     #   lin2_df["taxid"],
-     #   lin2_df["full_lineage_names"]
-    #))
-    #taxid_to_lineage_ranks = dict(zip(
-    #    lin2_df["taxid"],
-    #    lin2_df["full_lineage_ranks"]
-    #))
-    #br["taxon_id"] = pd.to_numeric(br["taxon_id"], errors="coerce").fillna(0).astype(int)
+  
     taxid_to_lineage_names, taxid_to_lineage_ranks, taxid_to_lineage = \
     build_taxonomy_maps(unique_taxids_br, tk_db_dir)
     
@@ -357,12 +236,10 @@ def main():
     )
     br["resolution_level"] = br.apply(classify_taxonomic_resolution, axis=1)
     br["broad_category"] = br.apply(classify_broad_category, axis=1)
-
     filtered_read_counts = parse_bbsplit_log(log)
     br["reads"] = pd.to_numeric(br["reads"], errors="coerce")
     br = br.rename(columns={
         "name": "taxon_name",
-    #    "new_est_reads": "reads",
     })
     br["term_filter"] = ~(
         br["taxon_name"].str.contains(pattern, case=False, na=False)
@@ -379,6 +256,7 @@ def main():
         "full_lineage": "NA",
         "full_lineage_ranks": "NA",
         "broad_category": "unclassified",
+        "resolution_level": "unclassified",
         "reads": unclassified_reads,
         "term_filter": True
     }
@@ -386,7 +264,6 @@ def main():
     br = pd.concat([br, pd.DataFrame([unclassified_row])], ignore_index=True)
     br["pc_reads"] = (br["reads"] / filtered_read_counts) * 100
     br["cov_filter"] = br["pc_reads"].astype(float) >= 0.001
-    #br_subset = br[['taxon_name', 'taxon_id', 'full_lineage', 'full_lineage_ranks', 'broad_category', 'reads', 'pc_reads', 'term_filter', 'cov_filter']]
     
     #Ensure reads is numeric, then filter detections with >= 10 reads
     br["reads"] = pd.to_numeric(br["reads"], errors="coerce").fillna(0).astype(int)
@@ -398,16 +275,6 @@ def main():
     # Keep all viral/unclassified-virus rows regardless of reads,
     # but require reads >= 10 for everything else.
     br_subset = filter_viral_rows(br_subset, 0.001)
-    #cat = br_subset["broad_category"].astype(str).str.strip().str.lower()
-
-    #viral_labels = {
-    #    "viral",
-    #    "unclassified virus",
-    #    "unclassified viral"
-    #}
-
-    #is_viral_taxon = cat.isin(viral_labels)
-    #br_subset = br_subset[is_viral_taxon | (br_subset["pc_reads"].astype(float) >= 0.001)].copy()
     out_kraken = os.path.join(args.outdir, f"{sample_name}_kraken_summary.txt")
     br_subset.to_csv(out_kraken, sep="\t", index=False)
 
