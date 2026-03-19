@@ -3,11 +3,18 @@
 
 
 <style>
-#summaryTable thead th {
-  position: sticky;
-  top: 0;
-  background: white;
-  z-index: 2;
+/* Disable interaction + hide sort visuals on top header row */
+#summaryTable thead tr:first-child th {
+  pointer-events: none;   /* no clicking */
+  cursor: default;        /* no pointer cursor */
+}
+
+/* Remove DataTables sorting icons */
+#summaryTable thead tr:first-child th.sorting,
+#summaryTable thead tr:first-child th.sorting_asc,
+#summaryTable thead tr:first-child th.sorting_desc {
+  background-image: none !important;
+  
 }
 </style>
 
@@ -103,10 +110,25 @@
 </div>
 
 <script>
-  $(document).ready( () => new DataTable('#summaryTable', {
+$(document).ready(() => {
+  const table = new DataTable('#summaryTable', {
     order: [
-      [ 9, 'desc' ],
+      [9, 'desc'],
       [7, 'desc']
-    ],
-  }) );
+    ]
+  });
+
+  function cleanTopHeader() {
+    const topHeader = $('#summaryTable thead tr:first-child th');
+
+    // Remove tooltips
+    topHeader.removeAttr('title');
+
+    // Remove sorting classes DataTables may add
+    topHeader.removeClass('sorting sorting_asc sorting_desc');
+  }
+
+  cleanTopHeader();
+  table.on('draw', cleanTopHeader);
+});
 </script>
