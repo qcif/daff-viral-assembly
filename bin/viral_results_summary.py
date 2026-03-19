@@ -3,8 +3,6 @@ import argparse
 import pandas as pd
 import re
 
-
-
 # Define PFAMs of interest
 PFAMS = [
     "PF00863.26","PF13608.11","PF00998.29","PF00680.26","PF00078.33","PF00767.23",
@@ -320,6 +318,9 @@ def main():
 
     #ow many times does this taxon_name and sacc pairing appear
     #map2ref_df["ref_count"] = map2ref_df.groupby(["taxon_name", "sacc"])["sacc"].transform("count")
+    map2ref_df["mapping_read_count"] = pd.to_numeric(
+        map2ref_df["mapping_read_count"], errors="coerce"
+    )
     map2ref_df = add_group_max(map2ref_df, "taxon_name", "mapping_read_count", "max_ref_mapping_read_count_spp")
     map2ref_df = add_group_max(map2ref_df, "taxon_name", "pc_mapping_reads", "max_pc_ref_mapping_reads_spp")
     map2ref_df = add_group_max(map2ref_df, "taxon_name", "pc_cov_30X", "max_pc_cov_30X_spp")
