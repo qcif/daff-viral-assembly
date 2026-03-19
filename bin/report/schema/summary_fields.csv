@@ -1,21 +1,21 @@
 colname,label,type,primary_display,tooltip
 taxon,Species,,Y,
-max_contig_mapping_read_count_spp,Max reads mapped to contig,int,Y,Maximum number of reads mapped to a contig among those assigned to the same species
-max_ref_mapping_read_count_spp,Max reads mapped to reference,int,Y,Maximum number of reads mapped to a reference among those assigned to the same species
+max_contig_mapping_read_count_spp,Max reads to contig,int,Y,Maximum number of reads mapped to a contig among those assigned to the same species
+max_ref_mapping_read_count_spp,Max reads to ref,int,Y,Maximum number of reads mapped to a reference among those assigned to the same species
 kraken_reads,Kraken reads,int,Y,
 kaiju_reads,Kaiju reads,int,Y,
-max_pc_contig_mapping_reads_spp,Max % reads mapped to contig,float,Y,
-max_pc_ref_mapping_reads_spp,Max % reads mapped to reference,float,Y,
-kraken_pc_reads,Kraken % reads,float,Y,
-kaiju_pc_reads,Kaiju % reads,float,Y,
+max_pc_contig_mapping_reads_spp,Max % reads mapped to contig,float,,
+max_pc_ref_mapping_reads_spp,Max % reads mapped to ref,float,,
+kraken_pc_reads,Kraken % reads,float,,
+kaiju_pc_reads,Kaiju % reads,float,,
 ncontigs_per_spp,# contigs,int,Y,
 max_pident_spp,Best % identity,float,Y,
 max_qlen_spp,Best contig length (nt),int,Y,
-contig_seq,Contig rep sequence,,Y,Contig representative per species
-normalised_conf_score,Norm conf score for contig rep,float,Y,Normalised confidence score for contig representative
-max_PFAM_total_spp,Best # viral PFAM domains per contig,int,Y,Maximum number of viral PFAM domains detected in a single contig assigned to this species
-species_has_RdRp,RDRP identified,bool,Y,At least one contig assigned to this species contains a predicted RNA-dependent RNA polymerase (RdRp) domain
-max_reference_length_spp,Best reference length (nt),int,Y,Best length of reference sequence identified for this species by blasting contigs
-max_pc_cov_30X_spp,Best % coverage (30X),float,Y,Best % coverage (30X) for this species based on mapping back reads to reference sequences identified by blast
-max_normalised_conf_score_spp,Best norm conf score for reference,float,Y,Best normalised confidence score for this species based on mapping reads back to reference sequences identified by blast
+contig_seq,Contig rep seq,,Y,Contig representative per species
+normalised_conf_score,Conf score (contig rep),float,Y,Normalised confidence score for contig representative
+max_PFAM_total_spp,PFAM domains per contig,int,Y,Maximum number of viral PFAM domains detected in a single contig assigned to this species
+species_has_RdRp,RDRP,bool,Y,At least one contig assigned to this species contains a predicted RNA-dependent RNA polymerase (RdRp) domain
+max_reference_length_spp,Best ref length (nt),int,Y,Best length of reference sequence identified for this species by blasting contigs
+max_pc_cov_30X_spp,Best % cov (30X),float,Y,Best % coverage (30X) for this species based on mapping back reads to reference sequences identified by blast
+max_normalised_conf_score_spp,Best conf score (ref),float,Y,Best normalised confidence score for this species based on mapping reads back to reference sequences identified by blast
 qseqid,Contig name,,,
