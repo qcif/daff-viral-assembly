@@ -34,88 +34,62 @@ def family_has_unresolved_reads(fam):
     return fam.all_reads > child_sum
     
 def prefer_strain_node(node):
-
     s1_node = None
-
     for child in node.children:
         if child.level_id.startswith("S1"):
             s1_node = child
-
     return s1_node
 
 
 def is_viral_node(node):
-
     curr = node
-
     while curr:
-
         if curr.taxid == VIRUS_TAXID or curr.taxid == VIROID_TAXID:
             return True
-
         curr = curr.parent
-
     return False
 
 def find_family_node(node):
-
     curr = node
-
     while curr:
-
         if get_base_rank(curr.level_id) == "F":
             return curr
-
         curr = curr.parent
-
     return None
 
 def process_kraken_report(line):
-
     parts = line.rstrip().split("\t")
     if len(parts) < 6:
         return None
-
     try:
         all_reads = int(parts[1])
         level_reads = int(parts[2])
     except:
         return None
-
     level_id = parts[-3]
     taxid = parts[-2]
     name = parts[-1]
-
     spaces = len(name) - len(name.lstrip())
     level_num = spaces // 2
-
     name = name.strip()
-
     return name, taxid, level_num, level_id, all_reads, level_reads
 
 
 def get_base_rank(level):
-
     if not level:
         return ""
-
     # Treat strain branches as species
     if level.startswith("S"):
         return "S"
-
     if level.startswith("G"):
         return "G"
-
     if level.startswith("F"):
         return "F"
-
     return level[0]
 
 
 def rank_name(level):
-
     base = get_base_rank(level)
-
     mapping = {
         "S": "species",
         "G": "genus",
@@ -126,10 +100,8 @@ def rank_name(level):
         "D": "domain",
         "K": "kingdom"
     }
-
     if base not in mapping:
         return "unclassified"
-
     # Treat strain levels (S1,S2...) as species
     if base == "S":
         return "species"
@@ -143,17 +115,12 @@ def rank_name(level):
 def has_deeper_rank(node, rank_index):
 
     for child in node.children:
-
         base = get_base_rank(child.level_id)
-
         if base in MAIN_RANKS:
-
             if MAIN_RANKS.index(base) > rank_index:
                 return True
-
         if has_deeper_rank(child, rank_index):
             return True
-
     return False
 
 def collect_lowest_nodes(node, thresh):
@@ -192,7 +159,6 @@ def collect_lowest_nodes(node, thresh):
     if node.all_reads >= thresh and not has_deeper_rank(node, rank_index):
         selected.append(node)
 
-    # -------- FAMILY RESCUE --------
     # -------- FAMILY RESCUE --------
     if is_viral_node(node):
 
@@ -301,21 +267,17 @@ def main():
         # report it as family_unclassified.
         if base_rank == "F" and node.lvl_reads > 0 and node.children:
             lowest = "family_unclassified"
-
         elif base_rank == "G" and node.lvl_reads > 0 and node.children:
             lowest = "genus_unclassified"
-
         lvl_taxids[node.taxid] = {
         "name": node.name,
         "rank": base_rank,
         "lowest_rank": lowest,
         "kraken_reads": reads_to_report,
-}
+        }
         total_reads += reads_to_report
 
-
     with open(args.output,"w") as out:
-
         out.write(
             "name\ttaxonomy_id\ttaxonomy_lvl\tlowest_rank\treads\tfraction_total_reads\n"
         )
@@ -336,7 +298,6 @@ def main():
 
     print("OUTPUT WRITTEN:", args.output)
     print("PROGRAM END TIME:", strftime("%Y-%m-%d %H:%M:%S", gmtime()))
-
 
 if __name__ == "__main__":
     main()
