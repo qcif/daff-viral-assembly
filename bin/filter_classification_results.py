@@ -92,17 +92,17 @@ def classify_taxonomic_resolution(row):
     if "species" in rank_list:
         return "species"
     if "genus" in rank_list:
-        return "genus_unclassified"
+        return "species_unclassified"
     if "family" in rank_list:
-        return "family_unclassified"
+        return "genus_unclassified"
     if "order" in rank_list:
-        return "order_unclassified"
+        return "family_unclassified"
     if "class" in rank_list:
-        return "class_unclassified"
+        return "order_unclassified"
     if "phylum" in rank_list:
-        return "phylum_unclassified"
+        return "class_unclassified"
     if "kingdom" in rank_list:
-        return "kingdom_unclassified"
+        return "phylum_unclassified"
     return "high_level_unclassified"
 
 def classify_broad_category(row):
