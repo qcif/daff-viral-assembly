@@ -63,6 +63,12 @@ def process_denovo_contigs(fasta_df, blastn_results, sample_name, blast_file):
         # Save filtered results
         filtered_output = os.path.basename(blast_file).replace("_top_viral_hits.txt", "_top_viral_hits_filtered_with_contigs.txt")
         filtered_df.to_csv(filtered_output, index=False, sep="\t")
+
+        # Save filtered viral contigs as FASTA
+        filtered_fasta = os.path.basename(blast_file).replace("_top_viral_hits.txt", "_filtered_viral_contigs.fasta")
+        with open(filtered_fasta, "w") as fout:
+            for _, row in filtered_df.iterrows():
+                fout.write(f">{row['qseqid']}\n{row['contig_seq']}\n")
         
         # Extract and save reference IDs
         if not filtered_df.empty and len(filtered_df.columns) > 3:
