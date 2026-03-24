@@ -267,6 +267,18 @@ def _parse_by_kingdom_groups(
                     taxon_data['taxon_count'] += 1
                     taxon_data['read_count'] += reads
 
+                if rank != 'family':
+                    # Increment unclassified counts
+                    parent_rank = 'family' if rank == 'genus' else 'genus'
+                    parent_taxon = rank_assignments.get(parent_rank)
+                    resolution = row.get(
+                        'resolution_level', '').strip().lower()
+                    if resolution == f'{rank}_unclassified':
+                        taxon_data = kingdom_data[kingdom_group][rank][
+                            f'Unclassified {parent_taxon}']
+                        taxon_data['taxon_count'] += 1
+                        taxon_data['read_count'] += reads
+
     # Convert to final structure with totals and top N for each rank
     result = {}
 

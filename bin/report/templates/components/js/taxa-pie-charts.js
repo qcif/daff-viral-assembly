@@ -1,4 +1,14 @@
+function titleCase(str) {
+    return str.toLowerCase().split(' ').map(word => {
+        return word.charAt(0).toUpperCase() + word.slice(1);
+    }).join(' ');
+}
+
+
 function initTaxaPieCharts(prefix, taxaByKingdom, tableSelector) {
+    const COLUMN_FULL_LINEAGE = 5;
+    const COLUMN_RESOLUTION_LEVEL = 10;  // ! TODO check this
+
     const KINGDOM_COLORS = {
         'plant': '#4CAF50',
         'animal': '#30b3c7ff',
@@ -224,7 +234,11 @@ function initTaxaPieCharts(prefix, taxaByKingdom, tableSelector) {
 
         document.getElementById(containerId).on('plotly_click', function(data) {
             const selectedTaxon = data.points[0].label;
-            filterTable(selectedTaxon, 5);
+            if (selectedTaxon === 'unclassified') {
+                filterTable(selectedTaxon, COLUMN_FULL_LINEAGE); // full_lineage column
+            } else {
+                filterTableUnclassified(selectedTaxon);
+            }
         });
     }
 
@@ -240,6 +254,16 @@ function initTaxaPieCharts(prefix, taxaByKingdom, tableSelector) {
             dt.column(columnId).search(term);
         }
         dt.draw();
+    }
+
+    function filterTableUnclassified(taxon_unclassified) {
+        const dt = $(tableSelector).DataTable();
+        dt.search('').columns().search('').draw();
+        const taxon = titleCase(taxon_unclassified.split(' ')[1]);
+        const resolution_term = `${currentRank}_unclassified`;
+        dt.column(COLUMN_FULL_LINEAGE).search(taxon)
+            .column(COLUMN_RESOLUTION_LEVEL).search(resolution_term)
+            .draw();
     }
 
     // Create the overview pie chart
