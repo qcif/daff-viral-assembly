@@ -3,6 +3,7 @@ import argparse
 import pandas as pd
 import os.path
 from Bio import SeqIO
+from analyses_config import file_exists, is_file_empty
 
 
 def main():
@@ -20,18 +21,18 @@ def main():
     hmmscan = args.hmmscan
     blast = args.blast
     
-    if os.path.getsize(fasta_file) > 0:
+    if file_exists(fasta_file) and not is_file_empty(fasta_file):
         fasta_df = fasta_to_dataframe(fasta_file)
     else:
         fasta_df = pd.DataFrame(columns=["seq_name", "contig_seq"])
 
-    if os.path.getsize(genomad) > 0:
+    if file_exists(genomad) and not is_file_empty(genomad):
         
         genomad_results = pd.read_csv(genomad, sep="\t", header=0)
         merged_df = pd.merge(fasta_df, genomad_results, on = ['seq_name'], how = 'outer')
 
 
-    if os.path.getsize(hmmscan) > 0:
+    if file_exists(hmmscan) and not is_file_empty(hmmscan):
         
         hmmscan_results = pd.read_csv(hmmscan, sep="\t", header=0)
         merged2_df = pd.merge(merged_df, hmmscan_results, 
@@ -39,7 +40,7 @@ def main():
                               right_on = ['query_name'],
                               how = 'outer')
         
-    if os.path.getsize(blast) > 0:
+    if file_exists(blast) and not is_file_empty(blast):
         
         blast_results = pd.read_csv(blast, sep="\t", header=0)
         merged3_df = pd.merge(merged2_df, blast_results, 
@@ -116,7 +117,6 @@ def fasta_to_dataframe(fasta_file):
     # Create a DataFrame
     df = pd.DataFrame(data, columns=["seq_name", "contig_seq"])
     return df
-
 
 if __name__ == "__main__":
     main()

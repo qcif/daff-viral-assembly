@@ -1,4 +1,7 @@
 {% from "macros/sequence-display.html" import render_view_sequence_button %}
+{% set term_filter_idx = blast_hits.columns_primary_display.index('term_filter') %}
+{% set cov_filter_idx  = blast_hits.columns_primary_display.index('cov_filter') %}
+{% set best_contig_idx = blast_hits.columns_primary_display.index('best_contig_per_sp_filter') %}
 
 <h2>Homology to viral reference sequences</h2>
 
@@ -7,11 +10,11 @@
     <div class="col">
       The <strong>BLAST</strong> analysis compares the sequences assembled from your sample with a reference database of known viral sequences.
 
-      The <strong>Matches keywords</strong> column allows you to filter out sequences that match a
+      The <strong>Terms to exclude</strong> column allows you to filter out sequences that match a 
       <a href="javascript:void(0);" data-bs-toggle="modal" data-bs-target="#filterKeywordsModal">
-        list of excluded terms</a>.
+        pre-defined list of terms</a>.
 
-      The <strong>Meets coverage</strong> column allows you to filter out sequences that are not well supported by the data.
+      The <strong>Low coverage</strong> column allows you to filter out sequences that do not meet minimum coverage requirements.
     </div>
     <div class="col-auto">
       <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#blastInfoModal">
@@ -61,7 +64,7 @@
       {% set contig_id = row['qseqid'] %}
       <tr
         {% if row['bs_class'] %}
-        class="alert-{{ row['bs_class'] }}"
+        class="table-{{ row['bs_class'] }} align-middle"
         {% endif %}
       >
         {% for colname in blast_hits.columns_primary_display %}
@@ -70,6 +73,10 @@
             <span style="white-space: nowrap;">{{ row[colname] }}</span>
           {% elif colname == 'contig_seq' %}
             {{ render_view_sequence_button("Assembled sequence " + contig_id, row[colname]) }}
+          {% elif colname == 'term_filter' %}
+            {{ '' if row[colname] else 'Y' }}
+          {% elif colname == 'cov_filter' %}
+            {{ 'Y' if not row[colname] else '' }}
           {% else %}
             {{ row[colname] }}
           {% endif %}
@@ -100,7 +107,7 @@
   data-bs-toggle="modal"
   data-bs-target="#consensusBlastModal"
 >
-  Consensus statistics
+  Contigs statistics
 </button>
 
 <a
@@ -141,13 +148,13 @@
             The results can be limited to a specific virus genus or species by typing its name in the search box.
           </li>
           <li>
-            The table can also be filtered to only show rows which meet different criteria (i.e. minimum coverage, terminology, and/or best contig per species).
+            The table can also be filtered to only show rows which meet different criteria (i.e. taxon identified by BLAST does not match a pre-defined exclusion list, contig does not pass coverage thresholds, and/or best contig per species).
           </li>
           <li>
-            The <strong>"best contig per species"</strong> is selected based on the BLAST homology search results. Contigs assigned to the same species are ranked using a weighted indicator-based composite score that rewards several key features (% identity, bitscore, evalue, query coverage per subject, k-mer coverage of contig during assembly, contig length, alignment length, and annotation completeness). The contig with the highest score is then selected as the representative for that species.
+            The <strong>"Best contig per species"</strong> is selected based on the BLAST homology search results. Contigs assigned to the same species are ranked using a weighted indicator-based composite score that rewards several key features (% identity, bitscore, evalue, query coverage per subject, k-mer coverage of contig during assembly, contig length, alignment length, and annotation completeness). The contig with the highest score is then selected as the representative for that species.
           </li>
           <li>
-            The reads are also mapped back to the contigs to derive statistics on the number of reads mapped, mean depth, % coverage at 30X, and mean mapping quality. A <strong>confidence score</strong> is calculated based on these statistics to evaluate how well the raw sequencing data supports the assembled contigs.
+            Reads are mapped back to the contigs that pass coverage and term filtering criteria, to derive statistics on the number of reads mapped, mean depth, % coverage at 30X, and mean mapping quality. A <strong>confidence score</strong> is calculated based on these statistics to evaluate how well the raw sequencing data supports the assembled contigs.
           </li>
         </ol>
       </div>
@@ -168,28 +175,72 @@
 $(document).ready(function () {
 
   var table = $('#blastTable').DataTable({
-    orderCellsTop: true,
+  orderCellsTop: true,
+  order: [
+    [18, 'desc'],
+    [3, 'desc']
+    ]
   });
 
-  var booleanColumns = [10, 11, 12];
+  var termFilterIdx = {{ term_filter_idx }};
+  var covFilterIdx = {{ cov_filter_idx }};
+  var bestContigIdx = {{ best_contig_idx }};
 
-  booleanColumns.forEach(function (colIdx) {
-    var column = table.column(colIdx);
-    var cell = $('#blastTable thead tr.filters th').eq(colIdx);
+  // TRUE/FALSE dropdown for best_contig (not cov_filter)
+  (function () {
+    var column = table.column(bestContigIdx);
+    var cell = $('#blastTable thead tr.filters th').eq(bestContigIdx);
 
-    var select = $('<select class="form-select form-select-sm">' +
-                   '<option value="">All</option>' +
-                   '<option value="TRUE">TRUE</option>' +
-                   '<option value="FALSE">FALSE</option>' +
-                   '</select>')
+    $('<select class="form-select form-select-sm">' +
+        '<option value="">All</option>' +
+        '<option value="TRUE">TRUE</option>' +
+        '<option value="FALSE">FALSE</option>' +
+      '</select>')
       .appendTo(cell)
       .on('change', function () {
         var val = $.fn.dataTable.util.escapeRegex($(this).val());
-        column
-          .search(val ? '^' + val + '$' : '', true, false)
-          .draw();
+        column.search(val ? '^' + val + '$' : '', true, false).draw();
       });
-  });
+  })();
+  (function () {
+    var column = table.column(termFilterIdx);
+    var cell = $('#blastTable thead tr.filters th').eq(termFilterIdx);
+
+    $('<select class="form-select form-select-sm">' +
+        '<option value="">All</option>' +
+        '<option value="Y">Y</option>' +
+        '<option value="blank">—</option>' +
+      '</select>')
+      .appendTo(cell)
+      .on('change', function () {
+        var val = $(this).val();
+        if (val === "blank") {
+          column.search('^$', true, false).draw();   // match empty cell
+        } else {
+          column.search(val ? '^' + val + '$' : '', true, false).draw();
+        }
+      });
+  })();
+  (function () {
+    var column = table.column(covFilterIdx);
+    var cell = $('#blastTable thead tr.filters th').eq(covFilterIdx);
+
+    $('<select class="form-select form-select-sm">' +
+        '<option value="">All</option>' +
+        '<option value="Y">Y</option>' +
+        '<option value="blank">—</option>' +
+      '</select>')
+      .appendTo(cell)
+      .on('change', function () {
+        var val = $(this).val();
+        if (val === "blank") {
+          column.search('^$', true, false).draw();   // match empty cell
+        } else {
+          column.search(val ? '^' + val + '$' : '', true, false).draw();
+        }
+      });
+  })();
+
 
 });
 </script>

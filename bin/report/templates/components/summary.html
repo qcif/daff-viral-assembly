@@ -1,15 +1,30 @@
 {% from "macros/sequence-display.html" import render_view_sequence_button %}
 {% from "macros/bool-icon.html" import render_bool_icon %}
 
+
+<style>
+/* Disable interaction + hide sort visuals on top header row */
+#summaryTable thead tr:first-child th {
+  pointer-events: none;   /* no clicking */
+  cursor: default;        /* no pointer cursor */
+}
+
+/* Remove DataTables sorting icons */
+#summaryTable thead tr:first-child th.sorting,
+#summaryTable thead tr:first-child th.sorting_asc,
+#summaryTable thead tr:first-child th.sorting_desc {
+  background-image: none !important;
+  
+}
+</style>
+
 <h3>Summary of results</h3>
 
 <p>
-  The table below shows a brief summary of the candidate viruses and viroids detected by the pipeline which had at least one de novo contig assigned and which passed both coverage and term filters (see Section IV).<br>
-  The table also presents the outcomes of the direct taxonomic read classification searches (i.e. Kraken and Kaiju) for these viruses. See the individual sections for more detailed results and visualisations.
-</p>
-
-<p class="text-danger text-emphasis">
-  Only a selection of columns are currently shown, and only for species with at least one contig assigned. This is to keep the table manageable, but more columns can be added in future if desired.
+  The table below provides a summary of candidate viruses and viroids detected by the pipeline for which at least one de novo assembled contig was assigned and which passed both the coverage and term-based filters (see Section IV).<br>
+  If multiple contigs were assigned to the same virus or viroid species, only a single representative contig is displayed (see Section IV for details).<br>
+  The table also reports the total number of viral domains identified in each contig by HMMER (hmmscan), including whether an RNA-dependent RNA polymerase (RdRP) domain was detected.<br>
+  In addition, the results from direct taxonomic read classification (Kraken and Kaiju) are presented for these viruses. More detailed results and visualisations are provided in the corresponding sections.
 </p>
 
 <div class="my-3" style="overflow-x: auto;">
@@ -17,40 +32,64 @@
   {% if summary | length %}
   <table id="summaryTable" class="table table-lined tight small">
     <thead>
+      <tr class="table-light">
+        <th rowspan="2" class="align-middle">
+          {{ summary.COLUMN_METADATA['taxon']['label'] }}
+        </th>
+        <th colspan="4" class="text-center">Read analysis</th>
+        <th colspan="5" class="text-center">De novo assembly</th>
+        <th colspan="2" class="text-center">Functional analysis</th>
+        <th colspan="3" class="text-center">Reference mapping</th>
+      </tr>
+
       <tr>
         {% for colname in summary.columns_primary_display %}
-        <th
-          {% if summary.COLUMN_METADATA[colname]['tooltip'] %}
-          title="{{ summary.COLUMN_METADATA[colname]['tooltip'] }}"
-          data-bs-toggle="tooltip"
-          data-bs-placement="top"
+          {% if colname != 'taxon' %}
+          <th
+            {% if summary.COLUMN_METADATA[colname]['tooltip'] %}
+            title="{{ summary.COLUMN_METADATA[colname]['tooltip'] }}"
+            data-bs-toggle="tooltip"
+            data-bs-placement="top"
+            {% endif %}
+          >
+            {{ summary.COLUMN_METADATA[colname]['label'] }}
+          </th>
           {% endif %}
-        >
-          {{ summary.COLUMN_METADATA[colname]['label'] }}
-        </th>
         {% endfor %}
       </tr>
     </thead>
-    <tbody>
+      <tbody>
       {% for row in summary %}
       {% set contig_id = row['qseqid'] %}
+      
       <tr
         {% if row['bs_class'] %}
-        class="alert-{{ row['bs_class'] }} align-middle"
+        class="table-{{ row['bs_class'] }} align-middle"
         {% endif %}
       >
+        {% set format_1dp = ['max_pident_spp', 'normalised_conf_score' , 'max_pc_cov_30X_spp', 'max_normalised_conf_score_spp'] %}
+        {% set format_3dp = ['kraken_pc_reads', 'kaiju_pc_reads'] %}
+        
         {% for colname in summary.columns_primary_display %}
         <td class="align-middle">
           {% if colname == 'taxon' %}
-            <span style="white-space: nowrap;">{{ row[colname] }}</span>
+            <strong style="white-space: nowrap;">{{ row[colname] }}</strong>
+          
           {% elif colname == 'evalue' %}
             <span style="white-space: nowrap;">{{ row[colname] }}</span>
+
+          {% elif colname in format_1dp %}
+            {{ "%.1f"|format(row[colname]|float) }}
+          {% elif colname in format_3dp %}
+            {{ "%.3f"|format(row[colname]|float) }}
+
           {% elif colname == 'contig_seq' %}
             {% if row[colname].lower() != 'na' %}
             {{ render_view_sequence_button("Assembled sequence " + contig_id, row[colname]) }}
             {% else %}
-            N/A
+              N/A
             {% endif %}
+
           {% elif row[colname] is boolean %}
             {{ render_bool_icon(row[colname]) }}
           {% else %}
@@ -71,9 +110,25 @@
 </div>
 
 <script>
-  $(document).ready( () => new DataTable('#summaryTable', {
+$(document).ready(() => {
+  const table = new DataTable('#summaryTable', {
     order: [
-      [ 11, 'desc' ],
-    ],
-  }) );
+      [9, 'desc'],
+      [7, 'desc']
+    ]
+  });
+
+  function cleanTopHeader() {
+    const topHeader = $('#summaryTable thead tr:first-child th');
+
+    // Remove tooltips
+    topHeader.removeAttr('title');
+
+    // Remove sorting classes DataTables may add
+    topHeader.removeClass('sorting sorting_asc sorting_desc');
+  }
+
+  cleanTopHeader();
+  table.on('draw', cleanTopHeader);
+});
 </script>

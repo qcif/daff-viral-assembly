@@ -9,6 +9,7 @@ import numpy as np
 import tempfile
 import shutil
 import re
+from analyses_config import file_exists
 
 def parse_arguments():
     """Parse command-line arguments."""
@@ -22,7 +23,7 @@ def parse_arguments():
 
 def load_blast_results(path):
     """Load BLASTn results based on mode."""
-    if not os.path.isfile(path):
+    if not file_exists(path):
         raise FileNotFoundError(f"BLASTn results file not found: {path}")
      # Define expected header (based on your BLAST output fields)
     columns = [
@@ -184,7 +185,6 @@ def filter_and_format(df, sample_name, filter_file, headers):
     best_idx_per_spp_rna = df.groupby("species_updated")["total_score_spp_rna"].idxmax()
     df["best_contig_per_sp_rna_filter"] = df.index.isin(best_idx_per_spp_rna)
 
-
     #apply the same scores per accession number
     df = apply_group_score(df, "sacc", "pident", max_pid, "pident_score_sacc")
     df = apply_group_score(df, "sacc", "bitscore", max_bitscore, "bitscore_score_sacc")
@@ -223,7 +223,7 @@ def filter_and_format(df, sample_name, filter_file, headers):
         df["species_updated"].str.contains(pattern, case=False, na=False)
         | df["stitle"].str.contains(pattern, case=False, na=False)
         )
-    # Filter out rows where cov < 5
+    # Filter out rows where cov < 1
     # Filter out rows where qcovs < 30
     #top_hits_df = top_hits_df[top_hits_df["assembly_kmer_cov"] >= 5].copy()
     #top_hits_df = top_hits_df[top_hits_df["qcovs"] >= 30].copy()    
@@ -321,7 +321,7 @@ def main():
     filter_file = args.filter
     headers = args.assembly_headers
 
-    if not os.path.isfile(blastn_results_path):
+    if not file_exists(blastn_results_path):
         raise FileNotFoundError(f"{blastn_results_path} does not exist.")
 
     blastn_results = load_blast_results(blastn_results_path)
