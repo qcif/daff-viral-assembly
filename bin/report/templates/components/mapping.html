@@ -52,6 +52,16 @@
           <span style="white-space: nowrap;">{{ row[colname] }}</span>
           {% elif colname == 'consensus_seq' %}
           {{ render_view_sequence_button("Assembled sequence matching accession " + accession, row[colname]) }}
+          {% elif colname == 'sacc' and blast_reference_data and row[colname] in blast_reference_data %}
+          {{ row[colname] }}
+          <button
+            type="button"
+            class="btn btn-outline-secondary btn-sm ms-1"
+            data-bs-toggle="modal"
+            data-bs-target="#blastModal_{{ row[colname] | html_id }}"
+          >
+            BLAST alignments
+          </button>
           {% else %}
           {{ row[colname] }}
           {% endif %}
@@ -119,3 +129,29 @@
     </div>
   </div>
 </div>
+
+{% if blast_reference_data %}
+{% for ref_id, ref_data in blast_reference_data.items() %}
+<div class="modal fade" id="blastModal_{{ ref_id | html_id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">BLAST Alignments: {{ ref_id }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        {% if ref_data.svg_b64 %}
+        <div style="text-align: center; margin-bottom: 18px;">
+          <img src="data:image/svg+xml;base64,{{ ref_data.svg_b64 }}" alt="Reference {{ ref_id }} contig alignment" style="max-width: 100%;">
+        </div>
+        {% endif %}
+        {{ ref_data.alignments_html | safe }}
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endfor %}
+{% endif %}
