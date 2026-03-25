@@ -88,6 +88,12 @@
   </tr>
 </table>
 
+{% if read_distribution_chart_src %}
+<div class="my-3">
+  <img src="{{ read_distribution_chart_src }}" alt="Read distribution chart" class=img-fluid">
+</div>
+{% endif %}
+
 <p class="text-center">
   <a
     class="btn btn-primary hide-broken"

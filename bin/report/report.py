@@ -131,6 +131,9 @@ def _get_report_context(
         'run_qc': _get_run_qc(),
         'run_qc_raw_fastqc_filename': config.run_qc_raw_fastqc_path.name,
         'run_qc_clean_fastqc_filename': config.run_qc_clean_fastqc_path.name,
+        'read_distribution_chart_src': get_img_src(
+            config.read_distribution_chart_path
+        ) if config.read_distribution_chart_path.exists() else None,
         'bam_html_file': config.bam_html_path.name,
         'contigs_fasta': contigs_fasta,
         'blast_hits': blast_hits,

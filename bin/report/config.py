@@ -146,6 +146,13 @@ class Config:
     def run_qc_clean_fastqc_path(self) -> Path:
         return self._get_file_by_pattern("*.fastp_1_fastqc.html")
 
+    @property
+    def read_distribution_chart_path(self) -> Path:
+        return self._get_file_by_pattern(
+            "*_read_origin_stacked_pct.png",
+            ignore_missing=True,
+        )
+
     # @property
     # def PLACEHOLDER(self) -> Path:
     #     return self._get_file_by_pattern("*.*")
