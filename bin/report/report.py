@@ -101,6 +101,7 @@ def _get_static_file_contents():
                 f: get_img_src(root / f)
                 for f in sorted(files)
             }
+
     return {'static': static_files}
 
 

@@ -131,17 +131,6 @@ class RunQC(AbstractDataRow):
     def flag(self):
         return colour_to_bs_class(self.QC_FLAG)
 
-        #! Check we don't want a calculated flag?
-        # raw_threshold = self.raw_reads > config.CRITERIA.MIN_RAW_READS
-        # qfiltered_threshold = (
-        #     (self.percent_cleaned or 0 / 100 * self.raw_reads)
-        #     > config.CRITERIA.MIN_FILTERED_READS)
-        # if qfiltered_threshold:
-        #     if raw_threshold:
-        #         return FLAGS.SUCCESS
-        #     return FLAGS.WARNING
-        # return FLAGS.DANGER
-
     @property
     def html_file(self):
         return config.run_qc_html_file

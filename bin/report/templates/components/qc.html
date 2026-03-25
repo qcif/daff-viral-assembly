@@ -1,35 +1,55 @@
 <h3>Input data quality report</h3>
-<p>
-  This section provides a quick assessment of overall data quality and helps identify any issues that may affect downstream analyses.<br>
-  No strict pass/fail QC thresholds are applied, as sample quality can vary widely due to factors outside the control of the user (e.g., sample type, collection constraints, storage conditions, and sample age).<br>
-  However, warning flags highlight cases where data quality or sequencing depth may limit reliable detection; in such cases, if no viruses are identified, results should be interpreted with caution, as this may reflect technical limitations rather than true absence.<br>
 
+<p class="small">
+  Please note, to reduce runtime and computation, input data are limited to <strong>60 million reads</strong>.
 </p>
-<p class="alert alert-warning small">
-      <strong>Warning:</strong> To reduce runtime and computational cost, the pipeline enforces a default maximum of 60 million reads.
-    </p>
-<table class="table">
-  <thead>
-    <th></th>
-    <th></th>
-  </thead>
 
+{% if run_qc.flag == 'danger' %}
+<div class="alert alert-danger">
+  Quality issues were detected with the sample.
+  <a
+    data-bs-toggle="collapse"
+    href="#qcDetailsCollapse"
+    role="button"
+    aria-expanded="false"
+    aria-controls="qcDetailsCollapse"
+  >
+    More info
+  </a>
+  <div class="collapse" id="qcDetailsCollapse">
+    <ul class="mt-2">
+      {% if run_qc.raw_reads_flag %}
+      <li>
+        {{ run_qc.raw_reads_flag }}
+      </li>
+      {% endif %}
+      {% if run_qc.qfiltered_reads_flag %}
+      <li>
+        {{ run_qc.qfiltered_reads_flag }}
+      </li>
+      {% endif %}
+      <li>
+        Poor data quality or sequencing depth may limit reliable detection. If no virus is identified, this may reflect technical limitations rather than true absence of virus in your sample.
+      </li>
+      <li>
+        If virus was detected, this is likely to be a true positive, in spite of low sequencing quality.
+      </li>
+    </ul>
+  </div>
+</div>
+{% endif %}
+
+<table class="table">
   <tr
-    class="alert-{{ run_qc.flag }}"
+    {% if run_qc.raw_reads_flag %}
+    class="fw-bold text-danger"
+    {% endif %}
     title="Raw sequencing reads"
     data-bs-toggle="tooltip"
     data-bs-placement="left"
   >
     <td>Raw reads</td>
     <td>{{  "{:,}".format(run_qc.raw_reads) }}</td>
-    <td>
-      {% if run_qc.raw_reads_flag %}
-      <span class="emoji">❌</span>
-      {{ run_qc.raw_reads_flag }}
-      {% else %}
-      <span class="emoji">✅</span>
-      {% endif %}
-    </td>
     <td>
       <a
         class="btn btn-sm btn-primary hide-broken"
@@ -41,7 +61,9 @@
     </td>
   </tr>
   <tr
-    class="alert-{{ run_qc.flag }}"
+    {% if run_qc.qfiltered_reads_flag %}
+    class="fw-bold text-danger"
+    {% endif %}
     title="Reads left after quality filtering and adapter trimming"
     data-bs-toggle="tooltip"
     data-bs-placement="left"
@@ -52,14 +74,6 @@
       {{ run_qc.percent_cleaned }}%
       {% else %}
       NA
-      {% endif %}
-    </td>
-    <td>
-      {% if run_qc.qfiltered_reads_flag %}
-      <span class="emoji">❌</span>
-      {{ run_qc.qfiltered_reads_flag }}
-      {% else %}
-      <span class="emoji">✅</span>
       {% endif %}
     </td>
     <td>

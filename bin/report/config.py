@@ -2,6 +2,7 @@
 
 import csv
 import os
+import sys
 from datetime import datetime
 from functools import cached_property
 from pathlib import Path
@@ -12,6 +13,13 @@ from .utils import path_safe
 
 PARENT_DIR = Path(__file__).parent
 ROOT_DIR = Path(__file__).parents[2].resolve()
+
+sys.path.append(str(ROOT_DIR / 'bin'))
+# TODO: from analyses_config import (
+#     RAW_READ_THRESHOLD,
+#     QFILTERED_READ_THRESHOLD
+# )
+
 REPO_URL = 'https://github.com/qcif/daff-viral-assembly'
 WF_NAME = 'ViroGen'
 
@@ -43,8 +51,9 @@ class Config:
             f'{WF_NAME} NextFlow workflow</a>.')
 
     class CRITERIA:
-        MIN_RAW_READS = 8000000  # ! confirm with DAFF
-        MIN_FILTERED_READS = 2500000  # ! confirm with DAFF
+        # ! import these from anaylsis config
+        MIN_RAW_READS = 8000000
+        MIN_FILTERED_READS = 2500000
 
     @property
     def default_params(self) -> dict[str, str]:
