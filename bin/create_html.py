@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+import base64
+import io
 import re
 import os
 import matplotlib.pyplot as plt
@@ -286,6 +288,66 @@ def write_reference_html(ref_id, ref_len, contig_blocks, table_rows, output_dir)
     html += "</body></html>"
     with open(f"{output_dir}/{ref_id}.html", "w") as fout:
         fout.write(html)
+
+def generate_reference_svg_b64(ref_lengths, contig_alignments, ref_id):
+    """Generate SVG ruler for a reference and return as a base64-encoded string."""
+    r_len = ref_lengths.get(ref_id)
+    if not r_len:
+        return None
+    relevant_ctgs = [c for c in contig_alignments if c['ref'] == ref_id]
+    fig, ax = plt.subplots(figsize=(8, max(2, 0.25 * (len(relevant_ctgs) + 3))))
+    y0 = 0
+    ax.plot([0, r_len], [y0, y0], lw=10, color='#1267b2')
+    for tick in range(0, r_len + 1, 1000):
+        ax.text(tick, y0 - 0.3, f"{tick // 1000}k" if tick else "0k", ha="center", va="top", fontsize=10)
+        ax.plot([tick, tick], [y0 + 0.2, y0 - 0.2], lw=1, color='black')
+    spacing = 0.6
+    for idx, ca in enumerate(relevant_ctgs):
+        y = y0 + 0.8 + idx * spacing
+        rect = plt.Rectangle((ca['ref_start'], y), ca['ref_end'] - ca['ref_start'], 0.30, color='#e33')
+        ax.add_patch(rect)
+        ax.text((ca['ref_start'] + ca['ref_end']) / 2, y + 0.19, ca["contig"], ha="center", va="bottom", fontsize=9)
+    ax.set_xlim(-0.01 * r_len, r_len * 1.01)
+    ax.set_ylim(y0 - 0.5, y0 + 1.2 + len(relevant_ctgs) * spacing)
+    ax.axis("off")
+    fig.tight_layout()
+    buf = io.BytesIO()
+    fig.savefig(buf, format="svg", bbox_inches="tight")
+    plt.close(fig)
+    buf.seek(0)
+    return base64.b64encode(buf.read()).decode('utf-8')
+
+
+def build_blast_reference_data(blast_file):
+    """Parse BLAST text output and return per-reference data for inline embedding.
+
+    Returns a dict: {ref_id: {'svg_b64': str or None, 'alignments_html': str}}
+    Returns an empty dict if the file cannot be parsed.
+    """
+    try:
+        ref_lengths, all_contig_aligns = parse_blast_for_ruler_continuous(blast_file)
+        rows = extract_top_hit_table_with_alignment(blast_file)
+    except Exception:
+        return {}
+
+    ref_to_contigs = {}
+    ref_to_table_rows = {}
+    for block in all_contig_aligns:
+        ref_to_contigs.setdefault(block['ref'], []).append(block)
+    for row in rows:
+        ref = row[1]
+        ref_to_table_rows.setdefault(ref, []).append(row)
+
+    result = {}
+    for ref_id in ref_to_contigs:
+        svg_b64 = generate_reference_svg_b64(ref_lengths, ref_to_contigs[ref_id], ref_id)
+        align_html = output_alignments_html(ref_to_table_rows.get(ref_id, []))
+        result[ref_id] = {
+            'svg_b64': svg_b64,
+            'alignments_html': align_html,
+        }
+    return result
+
 
 def main():
     import argparse

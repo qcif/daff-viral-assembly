@@ -4,11 +4,14 @@ import csv
 import json
 import logging
 import os
+import re
+import sys
 from datetime import datetime
 from pathlib import Path
 
 import yaml
 from jinja2 import Environment, FileSystemLoader
+from .blast_viz import build_blast_reference_data
 
 from . import config
 from .bam import render_bam_html
@@ -37,7 +40,6 @@ EXCLUDE_JS = [
     'igv-',
 ]
 
-
 def render(
     result_dir: Path,
     samplesheet_file: Path,
@@ -51,6 +53,7 @@ def render(
     config.load(result_dir)
     j2 = Environment(loader=FileSystemLoader(TEMPLATE_DIR))
     j2.filters['css_hash'] = css_hash
+    j2.filters['html_id'] = lambda s: re.sub(r'[^A-Za-z0-9_-]', '_', str(s))
     template = j2.get_template('index.html')
     context = _get_report_context(
         samplesheet_file,
@@ -115,6 +118,10 @@ def _get_report_context(
     """Build the context for the report template."""
     blast_hits = BlastHits.from_csv(config.blast_hits_path)
     contigs_fasta = ConsensusFASTA(config.contigs_fasta_path)
+    blast_reference_data = {}
+    if config.blast_output_path and config.blast_output_path.exists():
+        logger.info(f"Building BLAST reference data from {config.blast_output_path}")
+        blast_reference_data = build_blast_reference_data(config.blast_output_path)
     return {
         'title': config.REPORT.TITLE,
         'subtitle_html': config.REPORT.SUBTITLE,
@@ -153,6 +160,7 @@ def _get_report_context(
         'flags': config.flags,
         'blast_passed': config.blast_passed,
         'filter_keywords': config.filter_keywords.read_text().splitlines(),
+        'blast_reference_data': blast_reference_data,
     }
 
 

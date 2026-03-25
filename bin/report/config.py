@@ -101,6 +101,10 @@ class Config:
         return self._get_file_by_pattern("*_ref_sequences_clustered.fasta")
 
     @property
+    def blast_output_path(self) -> Path:
+        return self._get_file_by_pattern("*_blastn.bls", ignore_missing=True)
+
+    @property
     def blast_hits_path(self) -> Path:
         return self._get_file_by_pattern("*_contigs_with_cov_stats.txt")
 
