@@ -7,28 +7,33 @@
     </button>
   </li>
   <li class="nav-item" role="presentation">
+    <button class="nav-link" id="summary-tab" data-bs-toggle="tab" data-bs-target="#summary" type="button" role="tab" aria-controls="summary" aria-selected="false">
+      2. Summary
+    </button>
+  </li>
+  <li class="nav-item" role="presentation">
     <button class="nav-link" id="kraken-tab" data-bs-toggle="tab" data-bs-target="#kraken" type="button" role="tab" aria-controls="kraken" aria-selected="false">
-      2. Kraken
+      3. Kraken
     </button>
   </li>
   <li class="nav-item" role="presentation">
     <button class="nav-link" id="kaiju-tab" data-bs-toggle="tab" data-bs-target="#kaiju" type="button" role="tab" aria-controls="kaiju" aria-selected="false">
-      3. Kaiju
+      4. Kaiju
     </button>
   </li>
   <li class="nav-item" role="presentation">
     <button class="nav-link" id="blast-tab" data-bs-toggle="tab" data-bs-target="#blast" type="button" role="tab" aria-controls="blast" aria-selected="false">
-      4. BLAST
+      5. BLAST
     </button>
   </li>
   <li class="nav-item" role="presentation">
     <button class="nav-link" id="mapping-tab" data-bs-toggle="tab" data-bs-target="#mapping" type="button" role="tab" aria-controls="mapping" aria-selected="false">
-      5. Reference mapping
+      6. Reference mapping
     </button>
   </li>
   <li class="nav-item" role="presentation">
     <button class="nav-link" id="novel-virus-tab" data-bs-toggle="tab" data-bs-target="#novel-virus" type="button" role="tab" aria-controls="novel-virus" aria-selected="false">
-      6. Novel virus detection
+      7. Novel virus detection
     </button>
   </li>
 </ul>
@@ -39,38 +44,45 @@
     {{ render_subjective_input(1) }}
   </div>
 
+  <div class="tab-pane fade" id="summary" role="tabpanel" aria-labelledby="summary-tab">
+    {% include "components/summary.html" %}
+    <div class="my-5">
+      {{ render_subjective_input(2) }}
+    </div>
+  </div>
+
   <div class="tab-pane fade" id="kraken" role="tabpanel" aria-labelledby="kraken-tab">
     {% include "components/kraken.html" %}
     <div class="my-5">
-      {{ render_subjective_input(2) }}
+      {{ render_subjective_input(3) }}
     </div>
   </div>
 
   <div class="tab-pane fade" id="kaiju" role="tabpanel" aria-labelledby="kaiju-tab">
     {% include "components/kaiju.html" %}
     <div class="my-5">
-      {{ render_subjective_input(3) }}
+      {{ render_subjective_input(4) }}
     </div>
   </div>
 
   <div class="tab-pane fade" id="blast" role="tabpanel" aria-labelledby="blast-tab">
     {% include "components/blast.html" %}
     <div class="my-5">
-      {{ render_subjective_input(4) }}
+      {{ render_subjective_input(5) }}
     </div>
   </div>
 
   <div class="tab-pane fade" id="mapping" role="tabpanel" aria-labelledby="mapping-tab">
     {% include "components/mapping.html" %}
     <div class="my-5">
-      {{ render_subjective_input(5) }}
+      {{ render_subjective_input(6) }}
     </div>
   </div>
 
   <div class="tab-pane fade" id="novel-virus" role="tabpanel" aria-labelledby="novel-virus-tab">
     {% include "components/novel-virus.html" %}
     <div class="my-5">
-      {{ render_subjective_input(6) }}
+      {{ render_subjective_input(7) }}
     </div>
   </div>
 </div>
