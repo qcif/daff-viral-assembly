@@ -328,6 +328,7 @@ class AbstractTaxonomicClassificationResult(AbstractResultRows):
         ]
         self.set_bs_class()
         self.set_null_rows()
+        self.set_unclassified_taxa()
 
     @property
     def positive_hits(self):
@@ -367,6 +368,16 @@ class AbstractTaxonomicClassificationResult(AbstractResultRows):
             taxonomy = dict(zip(ranks, lineage))
             for rank in COLLECT_RANKS:
                 row[rank] = taxonomy.get(rank, '-')
+
+    def set_unclassified_taxa(self):
+        """Set unclassified taxa based on resolution level."""
+        for row in self.rows:
+            resolution = row.get('resolution_level', '').strip().lower()
+            if (
+                resolution.endswith('_unclassified')
+                and 'unclassified' not in row['taxon_name'].lower()
+            ):
+                row['taxon_name'] = 'Unclassified ' + row['taxon_name']
 
 
 class KrakenResults(AbstractTaxonomicClassificationResult):

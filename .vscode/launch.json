@@ -6,8 +6,8 @@
             "request": "launch",
             "program": "${workspaceFolder}/bin/build_report.py",
             "args": [
-                "--result_dir", "output/Dataset_1/",
-                "--samplesheet", "output/Dataset_1/index.csv",
+                "--result_dir", "output/LMJ845/",
+                "--samplesheet", "output/LMJ845/index.csv",
                 "--analyst", "John Doe",
                 "--facility", "Mock facility"
                 // "--params_file", "params/params_mtdt_test.yml",
