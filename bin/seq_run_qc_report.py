@@ -39,6 +39,11 @@ def read_filtered_read_count(fastp_path):
 
 def main():
 
+    parser = argparse.ArgumentParser(description="Generate QC report for sequencing runs")
+    parser.add_argument("--qfiltered_reads_threshold", type=int, default=2500000, help="Threshold for quality filtered reads")
+    parser.add_argument("--raw_reads_threshold", type=int, default=8000000, help="Threshold for raw reads")
+    args = parser.parse_args()
+
     timestr = time.strftime("%Y%m%d-%H%M%S")
     summary_dict = {}
     
@@ -141,18 +146,18 @@ def main():
     )
     
     run_data_df = run_data_df.sort_values("Sample")
-    run_data_df['raw_reads_flag'] = np.where((run_data_df['raw_reads'] < 8000000), "Less than 8M raw reads", "") # ! confirm with DAFF
-    run_data_df['qfiltered_reads_flag'] = np.where((run_data_df['phix_cleaned_reads'] < 2500000), "Less than 2,5M cleaned reads", "") # ! confirm with DAFF
+    run_data_df['raw_reads_flag'] = np.where((run_data_df['raw_reads'] < args.raw_reads_threshold), f"Less than {args.raw_reads_threshold} raw reads", "") # ! confirm with DAFF
+    run_data_df['qfiltered_reads_flag'] = np.where((run_data_df['phix_cleaned_reads'] < args.qfiltered_reads_threshold), f"Less than {args.qfiltered_reads_threshold} cleaned reads", "") # ! confirm with DAFF
     run_data_df["QC_FLAG"] = np.where(
-        (run_data_df['phix_cleaned_reads'] < 2500000), # ! confirm with DAFF
+        (run_data_df['phix_cleaned_reads'] < args.qfiltered_reads_threshold),
         "RED",
         np.where(
-            ((run_data_df['raw_reads'] < 8000000) & # ! confirm with DAFF
-            (run_data_df['phix_cleaned_reads'] >= 2500000)), # ! confirm with DAFF
+            ((run_data_df['raw_reads'] < args.raw_reads_threshold) &
+            (run_data_df['phix_cleaned_reads'] >= args.qfiltered_reads_threshold)),
             "ORANGE",
             np.where(
-                ((run_data_df['raw_reads'] >= 8000000) & # ! confirm with DAFF 
-                (run_data_df['phix_cleaned_reads'] >= 2500000)), # ! confirm with DAFF
+                ((run_data_df['raw_reads'] >= args.raw_reads_threshold) &
+                (run_data_df['phix_cleaned_reads'] >= args.qfiltered_reads_threshold)), 
                 "GREEN",
                 ""
             )

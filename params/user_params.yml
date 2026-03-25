@@ -9,3 +9,6 @@ kaiju_names: /work/eresearch/databases/kaiju_databases/names.dmp
 kaiju_nodes : /work/eresearch/databases/kaiju_databases/nodes.dmp
 rrna_ref: /work/daff_viral_rnaseq/sortmerna/rrna_dbs/smr_v4.3_sensitive_db_DNA.fasta
 kaiju_db_path: /work/eresearch/databases/kaiju_databases
+prot_db: /work/eresearch/databases/phytopipe_dbs/ncbi/rvdb.dmnd
+qfiltered_reads_threshold: 2500000
+raw_reads_threshold: 8000000

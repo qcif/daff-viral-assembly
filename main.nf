@@ -389,7 +389,7 @@ process QCREPORT {
 
   script:
   """
-  seq_run_qc_report.py
+  seq_run_qc_report.py --qfiltered_reads_threshold ${params.qfiltered_reads_threshold} --raw_reads_threshold ${params.raw_reads_threshold}
   """
 }
 
@@ -897,7 +897,7 @@ process RETRIEVE_VIRAL_READS_KRAKEN2 {
 
 process DIAMOND  {
   tag "${sampleid}"
-  label "setting_27"
+  label "setting_30"
   containerOptions "${bindOptions}"
   publishDir "${params.outdir}/${sampleid}/07_annotation", mode: 'copy'
 
@@ -914,7 +914,8 @@ process DIAMOND  {
                  --out ${sampleid}_diamond_matches.tsv \
                  --evalue 1e-3 \
                  --max-target-seqs 1 \
-                 --threads ${task.cpus}
+                 --threads ${task.cpus} \
+                 --outfmt 6 qseqid sseqid stitle pident length mismatch gapopen qstart qend sstart send evalue bitscore
   """
 }
 
