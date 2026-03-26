@@ -1328,11 +1328,7 @@ workflow {
   GENOMAD ( TRIM_ENDS.out.trimmed_contigs.join(EXTRACT_CONTIGS.out.other_fasta )  )
 
   //Enhancement: Option to perform a blastx alignment of contig ORFs?
-  DIAMOND  ( SEQTK.out.filt_fasta )
-  //DIAMOND  ( SEQTK.out.filt_fasta.splitFasta(by: 5000, file: true) )
-  //DIAMOND.out.diamond_results
-  //  .groupTuple()
-  //  .set { ch_blastxresults }                                                    
+  DIAMOND  ( SEQTK.out.filt_fasta )                                              
   CONTIG_COVSTATS(contig_cov_stats_summary_ch)
   //Mapping back to reference sequences retrieved from blast hits
   EXTRACT_REF_FASTA ( FASTA2TABLE.out.ref_ids )
@@ -1385,7 +1381,6 @@ workflow {
       tuple(meta.id, html)
   }
 
-
   files_for_report_ind_samples_ch = fastqc_raw_html_fixed.join(fastqc_trim_html_fixed)
                                                     .join(trim_html_fixed)
                                                     .join(SPADES.out.assembly)
@@ -1405,5 +1400,4 @@ workflow {
             .concat(Channel.from(params.input).map { file(it) }).toList()
   HTML_REPORT(files_for_report_ind_samples_ch
             .combine(files_for_report_global_ch))
-
 }
