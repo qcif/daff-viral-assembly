@@ -57,8 +57,7 @@
 
           {% elif colname == 'sacc' and blast_reference_data %}
 
-            {% set ref_id = row[colname].split('.')[0] %}
-
+            {% set ref_id = row[colname] %}
             {% if ref_id in blast_reference_data %}
               <a href="javascript:void(0);"
                 data-bs-toggle="modal"
@@ -73,7 +72,7 @@
           {% else %}
             {{ row[colname] }}
 
-          {% endif %}   <!-- ✅ THIS WAS MISSING -->
+          {% endif %}
 
         </td>
         {% endfor %}
@@ -165,13 +164,14 @@
             </div>
           {% endif %}
 
-          {% for qseqid, alignment in ref_data.alignments.items() %}
-            <h6>{{ qseqid }}</h6>
-            <pre style="background:#f0fdff; padding:10px;">{{- alignment | safe -}}</pre>
-          {% endfor %}
-
+          {% if ref_data.table_html %}
+            <div style="max-height:70vh; overflow:auto;">
+              {{ ref_data.table_html | safe }}
+            </div>
+          {% else %}
+            <p>No alignment data available.</p>
+          {% endif %}
         </div>
-
       </div>
     </div>
   </div>

@@ -297,42 +297,49 @@ def generate_reference_svg(ref_length, contigs):
 
 
 def build_blast_reference_data(blast_file):
-    """Parse BLAST text output and return per-reference data for inline embedding.
-
-    Returns a dict: {ref_id: {'svg_b64': str or None, 'alignments_html': str}}
-    Returns an empty dict if the file cannot be parsed.
     """
-    try:
-        ref_lengths, all_contig_aligns = parse_blast_for_ruler_continuous(blast_file)
-        rows = extract_top_hit_table_with_alignment(blast_file)
-    except Exception:
-        return {}
+    Return per-reference data for embedding in reports (no file writing)
+    """
+    ref_lengths, all_contig_aligns = parse_blast_for_ruler_continuous(blast_file)
+    rows = extract_top_hit_table_with_alignment(blast_file)
 
+    # --- group by reference ---
     ref_to_contigs = {}
     ref_to_table_rows = {}
+
     for block in all_contig_aligns:
         ref = block['ref']
         ref_clean = ref.split('.')[0]
         ref_to_contigs.setdefault(ref_clean, []).append(block)
+
     for row in rows:
         ref = row[1]
         ref_clean = ref.split('.')[0]
         ref_to_table_rows.setdefault(ref_clean, []).append(row)
-    result = {}
-    for ref_id in ref_to_contigs:
-        #svg_string = generate_reference_svg(ref_lengths, ref_to_contigs[ref_id])
-        svg_string = generate_reference_svg(ref_lengths[ref_id], ref_to_contigs[ref_id])
-    
 
-        svg_b64 = svg_to_b64(svg_string)
+    # --- build output ---
+    result = {}
+
+    for ref_id in ref_to_contigs:
+
+        # 1. SVG (inline string, NOT file)
+        svg_string = generate_reference_svg(
+            ref_lengths[ref_id],
+            ref_to_contigs[ref_id]
+        )
+
+        # 2. Alignment HTML per contig
         alignments_dict = {}
         for row in ref_to_table_rows.get(ref_id, []):
             query = row[0].split()[0].strip()
             alignment_block = row[-1]
+
             alignments_dict[query] = highlight_alignment_block(alignment_block)
-        ref_id_clean = ref_id.split('.')[0]
-        result[ref_id_clean] = {
-            'svg': svg_string,
-            'alignments': alignments_dict,
+
+        result[ref_id] = {
+            "svg": svg_string,
+            "alignments": alignments_dict,
+            "table_html": output_alignments_html(ref_to_table_rows.get(ref_id, []))
         }
+
     return result
