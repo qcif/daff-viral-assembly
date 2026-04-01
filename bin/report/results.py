@@ -131,6 +131,45 @@ class RunQC(AbstractDataRow):
         return colour_to_bs_class(self.QC_FLAG)
 
     @property
+    def screen_data(self):
+        """Return dict of data to create screened reads bar chart."""
+        percent_rrna = round(
+            (self.quality_filtered_reads - self.rRNA_cleaned_reads)
+            / self.raw_reads * 100
+            if self.raw_reads > 0 else 0,
+            1
+        )
+        percent_phix = round(
+            (self.rRNA_cleaned_reads - self.phix_cleaned_reads)
+            / self.raw_reads * 100
+            if self.raw_reads > 0 else 0,
+            1
+        )
+        return [
+            {
+                'value': 100 - self.percent_qfiltered,
+                'name': 'Low-quality reads',
+                'label': 'Low-quality reads'
+                         f' ({round(100 - self.percent_qfiltered, 1)}%)',
+            },
+            {
+                'value': percent_rrna,
+                'name': 'rRNA reads',
+                'label': f'rRNA reads ({percent_rrna}%)',
+            },
+            {
+                'value': percent_phix,
+                'name': 'PhiX reads',
+                'label': f'PhiX reads ({percent_phix}%)',
+            },
+            {
+                'value': self.percent_cleaned,
+                'name': 'Cleaned reads',
+                'label': f'Cleaned reads ({round(self.percent_cleaned, 1)}%)',
+            }
+        ]
+
+    @property
     def html_file(self):
         return config.run_qc_html_file
 

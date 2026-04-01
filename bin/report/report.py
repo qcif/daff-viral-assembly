@@ -40,6 +40,7 @@ EXCLUDE_JS = [
     'igv-',
 ]
 
+
 def render(
     result_dir: Path,
     samplesheet_file: Path,
@@ -76,7 +77,7 @@ def render(
         f.write(rendered_html)
     logger.info(f"HTML document written to {path}")
 
-    if len(context['blast_hits']):
+    if len(context['blast_hits']) and not os.getenv('SKIP_BAM_RENDER'):
         render_bam_html()
 
 
