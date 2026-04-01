@@ -5,6 +5,7 @@ import io
 import re
 import os
 import html
+import pandas as pd
 
 
 # --- Utility: BLAST Parsing to get all reference & per-contig alignment boxes (one per contig/ref) ---
@@ -342,4 +343,118 @@ def build_blast_reference_data(blast_file):
             "table_html": output_alignments_html(ref_to_table_rows.get(ref_id, []))
         }
 
+
     return result
+def wrap_sequence(seq, width=50):
+    return "\n".join(seq[i:i+width] for i in range(0, len(seq), width))
+    
+def build_contig_orf_data(orf_fasta, contig_lengths=None):
+    contigs = {}
+
+    current_header = None
+    current_seq = []
+
+    with open(orf_fasta) as f:
+        for line in f:
+            line = line.strip()
+
+            # --- New header ---
+            if line.startswith(">"):
+                # Save previous ORF before starting new one
+                if current_header:
+                    _store_orf(current_header, "".join(current_seq), contigs, contig_lengths)
+
+                current_header = line[1:]
+                current_seq = []
+
+            else:
+                current_seq.append(line)
+
+        # Save last ORF
+        if current_header:
+            _store_orf(current_header, "".join(current_seq), contigs, contig_lengths)
+
+    return contigs
+
+
+def _store_orf(header, sequence, contigs, contig_lengths):
+    # --- Extract contig ---
+    contig = header.split("_ORF")[0]
+
+    # --- Extract ORF ID ---
+    orf_match = re.search(r"_ORF\.(\d+)", header)
+    orf_id = orf_match.group(1) if orf_match else "?"
+
+    # --- Extract coordinates ---
+    coord_match = re.search(r"\[(\d+)-(\d+)\]\(([+-])\)", header)
+    if not coord_match:
+        return
+
+    start, end, strand = coord_match.groups()
+
+    # --- init contig ---
+    if contig not in contigs:
+        contigs[contig] = {"orfs": []}
+        if contig_lengths:
+            contigs[contig]["length"] = contig_lengths.get(contig)
+
+    # --- add ORF ---
+    contigs[contig]["orfs"].append({
+        "id": orf_id,
+        "start": int(start),
+        "end": int(end),
+        "strand": strand,
+        "sequence": sequence,
+        "sequence_wrapped": wrap_sequence(sequence)
+    })
+
+def parse_contig_lengths(stats_file):
+    df = pd.read_csv(stats_file, sep="\t")
+    df.columns = [c.strip() for c in df.columns]
+
+    # --- normalize contig name ---
+    df["contig"] = df["qseqid"].str.split().str[0]
+
+    return dict(zip(df["contig"], df["qlen"]))
+
+
+
+def parse_hmmscan_domains(hmmscan_file):
+    domains = {}
+
+    with open(hmmscan_file) as f:
+        for line in f:
+            if line.startswith("#") or not line.strip():
+                continue
+
+            parts = line.split()
+
+            target = parts[0]
+            accession = parts[1]
+            query = parts[3]
+
+            # extract contig + ORF
+            m = re.match(r"(.*)_ORF\.(\d+)", query)
+            if not m:
+                continue
+
+            contig, orf_id = m.groups()
+
+            # domain coordinates (ali coord)
+            start = int(parts[17])
+            end   = int(parts[18])
+
+            desc = " ".join(parts[22:])
+            i_evalue = parts[12]
+            if float(i_evalue) > 1e-5:
+                continue
+
+            domains.setdefault(contig, {}).setdefault(orf_id, []).append({
+                "name": target,
+                "accession": accession,
+                "start": start,
+                "end": end,
+                "desc": desc
+            })
+
+    return domains

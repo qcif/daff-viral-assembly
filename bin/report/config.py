@@ -155,7 +155,14 @@ class Config:
         if not path.exists():
             return True
         return 'fail' not in path.read_text().lower()
+    
+    @property
+    def orf_fasta_path(self) -> Path:
+        return self._get_file_by_pattern("*_orfs.fasta")
 
+    @property
+    def hmmscan_output_path(self) -> Path:
+        return self._get_file_by_pattern("*_hmmscan_per_domain_output.txt", ignore_missing=True)
     @cached_property
     def sample_id(self) -> str:
         """Return the sample ID from the result directory."""

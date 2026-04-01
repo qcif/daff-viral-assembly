@@ -21,7 +21,6 @@ COLLECT_RANKS = [
     'species',
 ]
 
-
 class FLAGS:
     SUCCESS = 'success'
     WARNING = 'warning'
