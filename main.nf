@@ -70,6 +70,9 @@ if (params.genomad_db != null) {
 if (params.hmmer_db != null) {
     hmmer_db_dir = file(params.hmmer_db).parent
 }
+if (params.prot_db != null) {
+    prot_db_dir = file(params.prot_db).parent
+}
 
 def isNonEmptyFile(file) {
     return file.exists() && file.size() > 0
@@ -99,7 +102,9 @@ switch (workflow.containerEngine) {
     if (params.hmmer_db != null ) {
       bindbuild = (bindbuild + "-B ${hmmer_db_dir} ")
     }
-
+    if (params.prot_db != null) {
+      bindbuild = (bindbuild + "-B ${prot_db_dir} ")
+    }
     bindOptions = bindbuild;
     break;
   default:
@@ -252,7 +257,7 @@ process FASTA2TABLE {
     file("${sampleid}_megablast_top_viral_hits_with_contigs.txt")
     file("${sampleid}_megablast_top_viral_hits_filtered_with_contigs.txt")
     tuple val(sampleid), file("${sampleid}_ref_ids_to_retrieve.txt"), emit: ref_ids
-    tuple val(sampleid), file("${sampleid}_contig_ids_to_retrieve.txt"), emit: contig_ids
+    tuple val(sampleid), file("${sampleid}*_filtered_viral_contigs.fasta"), emit: contig_fasta
     tuple val(sampleid), file("${sampleid}_megablast_top_viral_hits_filtered_with_contigs.txt"), emit: blast_results
     tuple val(sampleid), file("${sampleid}_megablast_top_viral_hits_with_contigs.txt"), emit: blast_results2
 
@@ -384,7 +389,7 @@ process QCREPORT {
 
   script:
   """
-  seq_run_qc_report.py
+  seq_run_qc_report.py --qfiltered_reads_threshold ${params.qfiltered_reads_threshold} --raw_reads_threshold ${params.raw_reads_threshold}
   """
 }
 
@@ -408,13 +413,12 @@ process HTML_REPORT {
   label 'setting_31'
 
   input:
-    tuple val(sampleid), path(raw_fastqc), path(filtered_fastqc), path(fastp), path(fasta), path(summary_known_viruses), path(kaiju_summary), path(kraken_summary), path(detections_summary), path(ref_mapping_summary), path(consensus), path(bam), path(bai), path(novel_virus_summary),
+    tuple val(sampleid), path(raw_fastqc), path(filtered_fastqc), path(fastp), path(fasta), path(summary_known_viruses), path(kaiju_summary), path(kraken_summary), path(detections_summary), path(ref_mapping_summary), path(consensus), path(bam), path(bai), path(novel_virus_summary), path(blast_contig2ref),path(orfs), path(hmmscan),
     path(timestamp),
     path(qcreport_html),
     path(qcreport_txt),
     path(configyaml),
     path(samplesheet)
-
 
   output:
     path("*"), optional: true
@@ -889,30 +893,32 @@ process RETRIEVE_VIRAL_READS_KRAKEN2 {
   cat ${unc_fastq2} ${prefix}_extracted_reads2.fastq.gz >  ${prefix}_cand_path_R2.fastq.gz
   """
 }
-/*
+
 process DIAMOND  {
   tag "${sampleid}"
-  label "setting_27"
+  label "setting_30"
   containerOptions "${bindOptions}"
-  publishDir "${params.outdir}/${sampleid}/06_annotation", mode: 'copy'
+  publishDir "${params.outdir}/${sampleid}/07_annotation", mode: 'copy'
 
   input:
-    tuple val(sampleid), path(assembly)
+    tuple val(sampleid), path(viral_fasta), path(other_fasta)
   output:
-    tuple val(sampleid), path("${sampleid}_diamond_matches.tsv"), emit: diamond_results
+    file "${sampleid}_diamond_matches*.txt"
+    tuple val(sampleid), path("${sampleid}_diamond_matches_with_alignment.txt"), emit: diamond_results
 
   script:
   """
-  diamond blastx --query ${assembly} \
-                 --db ${params.diamond_db} \
-                 --out ${sampleid}_diamond_matches.tsv \
-                 --outfmt 6 qseqid sgi sacc length pident mismatch gapopen qstart qend qlen sstart send slen evalue bitscore stitle staxids qseq sseq \
-                 --evalue 1e-3 \
-                 --max-target-seqs 5 \
+  cat ${viral_fasta} ${other_fasta} > ${sampleid}_combined_contigs.fasta
+  diamond blastx --query ${sampleid}_combined_contigs.fasta \\
+                 --db ${params.prot_db} \\
+                 --out ${sampleid}_diamond_matches_with_alignment.txt \\
+                 --evalue 1e-3 \\
+                 --max-target-seqs 1 \\
+                 --outfmt 0 \\
                  --threads ${task.cpus}
   """
 }
-*/
+
 process GENOMAD {
   tag "${sampleid}"
   label "setting_27"
@@ -991,6 +997,7 @@ process HMMSCAN {
     file "${sampleid}_orfs.fasta"
     file "${sampleid}_hmmscan*_output.txt"
     tuple val(sampleid), path("${sampleid}_hmmscan_per_target_output.txt"), emit: hmmscan_preds
+    tuple val(sampleid), path("${sampleid}_hmmscan_per_domain_output.txt"), emit: hmmscan_domain_preds
 
   script:
   """
@@ -1078,6 +1085,28 @@ process COUNT_FASTQ_READS {
   """
   FWD=\$(ls ${reads} | grep '_1.merged.fastq.gz')
   zgrep -c '^@' "\$FWD" > ${meta.id}_read_count.txt
+  """
+}
+
+process BLAST_CONTIGS_TO_REF {
+  tag "${sampleid}"
+  containerOptions "${bindOptions}"
+  label "setting_20"
+
+  input:
+    tuple val(sampleid), path(assembly), path(reference)
+  output:
+    tuple val(sampleid), path("${sampleid}*_blastn.bls"), emit: blast_results
+
+  script:
+  """
+  makeblastdb -in ${reference} -parse_seqids -dbtype nucl
+  blastn -query ${assembly} \
+    -db ${reference} \
+    -out ${sampleid}_contig_vs_refs_blastn.bls \
+    -evalue 1e-3 \
+    -num_threads 2 \
+    -max_target_seqs 1
   """
 }
 
@@ -1300,14 +1329,12 @@ workflow {
   GENOMAD ( TRIM_ENDS.out.trimmed_contigs.join(EXTRACT_CONTIGS.out.other_fasta )  )
 
   //Enhancement: Option to perform a blastx alignment of contig ORFs?
-  //DIAMOND  ( SEQTK.out.filt_fasta.splitFasta(by: 5000, file: true) )
-  //DIAMOND.out.diamond_results
-  //  .groupTuple()
-  //  .set { ch_blastxresults }                                                    
+  DIAMOND  ( TRIM_ENDS.out.trimmed_contigs.join(EXTRACT_CONTIGS.out.other_fasta) )
   CONTIG_COVSTATS(contig_cov_stats_summary_ch)
   //Mapping back to reference sequences retrieved from blast hits
   EXTRACT_REF_FASTA ( FASTA2TABLE.out.ref_ids )
   CLUSTER ( EXTRACT_REF_FASTA.out.fasta_files )
+  BLAST_CONTIGS_TO_REF ( FASTA2TABLE.out.contig_fasta.join(CLUSTER.out.clusters) )
   mapping_ch = CLUSTER.out.clusters.join(trial_ch)
   MAPPING_BACK_TO_REF ( mapping_ch )
   SAMTOOLS2 ( MAPPING_BACK_TO_REF.out.aligned_sam )
@@ -1355,7 +1382,6 @@ workflow {
       tuple(meta.id, html)
   }
 
-
   files_for_report_ind_samples_ch = fastqc_raw_html_fixed.join(fastqc_trim_html_fixed)
                                                     .join(trim_html_fixed)
                                                     .join(SPADES.out.assembly)
@@ -1366,6 +1392,9 @@ workflow {
                                                     .join(FASTA2TABLE2.out.detections_summary_final)
                                                     .join(SAMTOOLS2.out.sorted_bam)
                                                     .join(NOVELS.out.novel_virus_candidates)
+                                                    .join(BLAST_CONTIGS_TO_REF.out.blast_results)
+                                                    .join((ORFIPY.out.orf_fasta))
+                                                    .join(HMMSCAN.out.hmmscan_domain_preds)
      
   files_for_report_global_ch = TIMESTAMP_START.out.timestamp
             .concat(QCREPORT.out.qc_report_html)
@@ -1374,5 +1403,4 @@ workflow {
             .concat(Channel.from(params.input).map { file(it) }).toList()
   HTML_REPORT(files_for_report_ind_samples_ch
             .combine(files_for_report_global_ch))
-
 }

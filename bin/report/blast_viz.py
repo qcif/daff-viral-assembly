@@ -1,11 +1,19 @@
 #!/usr/bin/env python
 
+import base64
+import io
 import re
 import os
-import matplotlib.pyplot as plt
 import html
+import pandas as pd
+
 
 # --- Utility: BLAST Parsing to get all reference & per-contig alignment boxes (one per contig/ref) ---
+
+
+def svg_to_b64(svg_string):
+    return base64.b64encode(svg_string.encode()).decode()
+
 def parse_blast_for_ruler_continuous(blast_filename):
     """
     Parses BLAST output and returns:
@@ -34,7 +42,8 @@ def parse_blast_for_ruler_continuous(blast_filename):
             while k < n and not lines[k].startswith(">") and lines[k].strip() != "":
                 m_len = re.match(r"Length\s*=\s*(\d+)", lines[k])
                 if m_len:
-                    ref_lengths[current_ref] = int(m_len.group(1))
+                    ref_clean = current_ref.split('.')[0]
+                    ref_lengths[ref_clean] = int(m_len.group(1))
                     break
                 k += 1
         if line.startswith("Sbjct"):
@@ -155,29 +164,6 @@ def extract_top_hit_table_with_alignment(blast_file):
         i += 1
     return results
 
-# --- Utility: Draw SVG ruler for reference+contigs ---
-def plot_reference_ruler_from_blast(ref_lengths, contig_alignments, ref_id=None, svg_out="reference_contigs.svg"):
-    for r_id, r_len in ref_lengths.items():
-        if ref_id and r_id != ref_id: continue
-        relevant_ctgs = [c for c in contig_alignments if c['ref'] == r_id]
-        fig, ax = plt.subplots(figsize=(8, max(2, 0.25*(len(relevant_ctgs)+3))))
-        y0 = 0
-        ax.plot([0, r_len], [y0, y0], lw=10, color='#1267b2')
-        for tick in range(0, r_len+1, 1000):
-            ax.text(tick, y0-0.3, f"{tick//1000}k" if tick else "0k", ha="center", va="top", fontsize=10)
-            ax.plot([tick, tick], [y0+0.2, y0-0.2], lw=1, color='black')
-        spacing = 0.6
-        for idx, ca in enumerate(relevant_ctgs):
-            y = y0 + 0.8 + idx*spacing
-            rect = plt.Rectangle((ca['ref_start'], y), ca['ref_end']-ca['ref_start'], 0.30, color='#e33')
-            ax.add_patch(rect)
-            ax.text((ca['ref_start']+ca['ref_end'])/2, y+0.19, ca["contig"], ha="center", va="bottom", fontsize=9)
-        ax.set_xlim(-0.01*r_len, r_len*1.01)
-        ax.set_ylim(y0-0.5, y0+1.2+len(relevant_ctgs)*spacing)
-        ax.axis("off")
-        fig.tight_layout()
-        fig.savefig(svg_out, format="svg", bbox_inches="tight")
-        plt.close(fig)
 
 # --- HTML Table Renderer (VirusDetect style) ---
 def output_alignments_html(align_info, svg_filename=None):
@@ -217,7 +203,7 @@ def output_alignments_html(align_info, svg_filename=None):
         out_html += f'''
 <tr>
   <td>{idx}</td>
-  <td style="color:#178cd2;"><a name="{query}">{query}</a></td>
+  <td style="color:#178cd2;"><a id="{query}">{query}</a></td>
   <td>{qs}</td>
   <td>{qe}</td>
   <td>{hs}</td>
@@ -260,65 +246,215 @@ def highlight_alignment_block(alignment_block):
             out.append(line)
     return "\n".join(out)
 
-# --- Index Page Generator ---
-def write_reference_index_html(ref_ids, output_dir):
-    html = ['<h2>References</h2>', '<ul>']
-    for ref in ref_ids:
-        html.append(f'<li><a href="{ref}.html">{ref}</a></li>')
-    html.append('</ul>')
-    with open(f"{output_dir}/index.html", "w") as fout:
-        fout.write('\n'.join(html))
 
-# --- Per-reference detail HTML page generator ---
-def write_reference_html(ref_id, ref_len, contig_blocks, table_rows, output_dir):
-    svg_filename = f"{output_dir}/{ref_id}_ruler.svg"
-    plot_reference_ruler_from_blast({ref_id: ref_len}, contig_blocks, ref_id=ref_id, svg_out=svg_filename)
-    html = f"""<html>
-<head><title>Alignments for {ref_id}</title></head>
-<body>
-<div><a href="index.html">&larr; Back to References</a></div>
-<h2>Reference: {ref_id}</h2>
-<div style="text-align: center; margin-bottom:18px;">
-  <img src="{ref_id}_ruler.svg" alt="Reference {ref_id} ruler" style="max-width:98%;">
-</div>
-"""
-    html += output_alignments_html(table_rows, svg_filename=None)  # img already shown
-    html += "</body></html>"
-    with open(f"{output_dir}/{ref_id}.html", "w") as fout:
-        fout.write(html)
+def generate_reference_svg(ref_length, contigs):
+    width = 900   # or 1000 for safety
+    right_padding = 100
+    scale = (width - right_padding) / ref_length
+    height = 50 + len(contigs) * 20
 
-def main():
-    import argparse
-    parser = argparse.ArgumentParser(description='Generate Per-Reference HTML reports from BLAST output.')
-    parser.add_argument('-i', '--input', type=str, required=True, help='Input BLAST file')
-    parser.add_argument('-o', '--outdir', type=str, required=True, help='Output HTML directory')
-    args = parser.parse_args()
+    scale = width / ref_length
 
-    output_dir = args.outdir
-    os.makedirs(output_dir, exist_ok=True)
+    svg = [f'<svg width="{width}" height="{height}" xmlns="http://www.w3.org/2000/svg">']
 
-    ref_lengths, all_contig_aligns = parse_blast_for_ruler_continuous(args.input)
-    rows = extract_top_hit_table_with_alignment(args.input)
+    # Reference line
+    ref_px = ref_length * scale
 
-    # group contig_blocks and table rows for each reference
-    ref_to_contigs = {}
-    ref_to_table_rows = {}
-    for block in all_contig_aligns:
-        ref_to_contigs.setdefault(block['ref'], []).append(block)
-    for row in rows:
-        ref = row[1]
-        ref_to_table_rows.setdefault(ref, []).append(row)
+    svg.append(
+        f'<line x1="0" y1="20" x2="{ref_px}" y2="20" stroke="#1267b2" stroke-width="14"/>'
+    )
 
-    all_refs = sorted(ref_to_contigs.keys())
-    write_reference_index_html(all_refs, output_dir)
-    for ref in all_refs:
-        write_reference_html(
-            ref_id=ref,
-            ref_len=ref_lengths[ref],
-            contig_blocks=ref_to_contigs[ref],
-            table_rows=ref_to_table_rows.get(ref, []),
-            output_dir=output_dir,
+    # Ticks
+    for pos in range(0, ref_length + 1, 1000):
+        x = pos * scale
+        svg.append(f'<line x1="{x}" y1="15" x2="{x}" y2="25" stroke="black"/>')
+        svg.append(f'<text x="{x}" y="40" font-size="10" text-anchor="middle">{pos//1000}k</text>')
+
+    # Contigs
+    for i, c in enumerate(contigs):
+        y = 60 + i * 20
+        x1 = c['ref_start'] * scale
+        x2 = c['ref_end'] * scale
+
+        svg.append(
+            f'<rect x="{x1}" y="{y}" width="{x2-x1}" height="16" fill="#e33"/>'
+        )
+        x_center = (x1 + x2) / 2
+
+        # If label would overflow right edge
+        if x_center > width - 60:
+            x_text = x2            # anchor to end of contig
+            anchor = "end"
+        else:
+            x_text = x_center
+            anchor = "middle"
+
+        svg.append(
+            f'<text x="{x_text}" y="{y-2}" font-size="9" text-anchor="{anchor}">{c["contig"]}</text>'
         )
 
-if __name__ == "__main__":
-    main()
+    svg.append('</svg>')
+    return ''.join(svg)
+
+
+def build_blast_reference_data(blast_file):
+    """
+    Return per-reference data for embedding in reports (no file writing)
+    """
+    ref_lengths, all_contig_aligns = parse_blast_for_ruler_continuous(blast_file)
+    rows = extract_top_hit_table_with_alignment(blast_file)
+
+    # --- group by reference ---
+    ref_to_contigs = {}
+    ref_to_table_rows = {}
+
+    for block in all_contig_aligns:
+        ref = block['ref']
+        ref_clean = ref.split('.')[0]
+        ref_to_contigs.setdefault(ref_clean, []).append(block)
+
+    for row in rows:
+        ref = row[1]
+        ref_clean = ref.split('.')[0]
+        ref_to_table_rows.setdefault(ref_clean, []).append(row)
+
+    # --- build output ---
+    result = {}
+
+    for ref_id in ref_to_contigs:
+
+        # 1. SVG (inline string, NOT file)
+        svg_string = generate_reference_svg(
+            ref_lengths[ref_id],
+            ref_to_contigs[ref_id]
+        )
+
+        # 2. Alignment HTML per contig
+        alignments_dict = {}
+        for row in ref_to_table_rows.get(ref_id, []):
+            query = row[0].split()[0].strip()
+            alignment_block = row[-1]
+
+            alignments_dict[query] = highlight_alignment_block(alignment_block)
+
+        result[ref_id] = {
+            "svg": svg_string,
+            "alignments": alignments_dict,
+            "table_html": output_alignments_html(ref_to_table_rows.get(ref_id, []))
+        }
+
+
+    return result
+def wrap_sequence(seq, width=50):
+    return "\n".join(seq[i:i+width] for i in range(0, len(seq), width))
+    
+def build_contig_orf_data(orf_fasta, contig_lengths=None):
+    contigs = {}
+
+    current_header = None
+    current_seq = []
+
+    with open(orf_fasta) as f:
+        for line in f:
+            line = line.strip()
+
+            # --- New header ---
+            if line.startswith(">"):
+                # Save previous ORF before starting new one
+                if current_header:
+                    _store_orf(current_header, "".join(current_seq), contigs, contig_lengths)
+
+                current_header = line[1:]
+                current_seq = []
+
+            else:
+                current_seq.append(line)
+
+        # Save last ORF
+        if current_header:
+            _store_orf(current_header, "".join(current_seq), contigs, contig_lengths)
+
+    return contigs
+
+
+def _store_orf(header, sequence, contigs, contig_lengths):
+    # --- Extract contig ---
+    contig = header.split("_ORF")[0]
+
+    # --- Extract ORF ID ---
+    orf_match = re.search(r"_ORF\.(\d+)", header)
+    orf_id = orf_match.group(1) if orf_match else "?"
+
+    # --- Extract coordinates ---
+    coord_match = re.search(r"\[(\d+)-(\d+)\]\(([+-])\)", header)
+    if not coord_match:
+        return
+
+    start, end, strand = coord_match.groups()
+
+    # --- init contig ---
+    if contig not in contigs:
+        contigs[contig] = {"orfs": []}
+        if contig_lengths:
+            contigs[contig]["length"] = contig_lengths.get(contig)
+
+    # --- add ORF ---
+    contigs[contig]["orfs"].append({
+        "id": orf_id,
+        "start": int(start),
+        "end": int(end),
+        "strand": strand,
+        "sequence": sequence,
+        "sequence_wrapped": wrap_sequence(sequence)
+    })
+
+def parse_contig_lengths(stats_file):
+    df = pd.read_csv(stats_file, sep="\t")
+    df.columns = [c.strip() for c in df.columns]
+
+    # --- normalize contig name ---
+    df["contig"] = df["qseqid"].str.split().str[0]
+
+    return dict(zip(df["contig"], df["qlen"]))
+
+
+
+def parse_hmmscan_domains(hmmscan_file):
+    domains = {}
+
+    with open(hmmscan_file) as f:
+        for line in f:
+            if line.startswith("#") or not line.strip():
+                continue
+
+            parts = line.split()
+
+            target = parts[0]
+            accession = parts[1]
+            query = parts[3]
+
+            # extract contig + ORF
+            m = re.match(r"(.*)_ORF\.(\d+)", query)
+            if not m:
+                continue
+
+            contig, orf_id = m.groups()
+
+            # domain coordinates (ali coord)
+            start = int(parts[17])
+            end   = int(parts[18])
+
+            desc = " ".join(parts[22:])
+            i_evalue = parts[12]
+            if float(i_evalue) > 1e-5:
+                continue
+
+            domains.setdefault(contig, {}).setdefault(orf_id, []).append({
+                "name": target,
+                "accession": accession,
+                "start": start,
+                "end": end,
+                "desc": desc
+            })
+
+    return domains

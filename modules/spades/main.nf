@@ -58,9 +58,16 @@ process SPADES {
         ${readstr} \\
         -o spades
 
+    # -----------------------------
+    # Ensure scaffolds always exist
+    # -----------------------------
     if [ -f spades/scaffolds.fasta ]; then
         mv spades/scaffolds.fasta ${prefix}_scaffolds.fasta
+    else
+        echo "[WARNING] scaffolds.fasta missing, using contigs.fasta"
+        cp spades/contigs.fasta ${prefix}_scaffolds.fasta
     fi
+
     if [ -f spades/contigs.fasta ]; then
         mv spades/contigs.fasta ${prefix}_contigs.fasta
         gzip -n ${prefix}_contigs.fasta

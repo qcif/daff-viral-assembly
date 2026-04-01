@@ -71,6 +71,19 @@
         <td class="align-middle">
           {% if colname == 'evalue' %}
             <span style="white-space: nowrap;">{{ row[colname] }}</span>
+          
+          {% elif colname == 'qseqid' %}
+            {% if contig_orf_data and contig_id in contig_orf_data %}
+              <a href="javascript:void(0);"
+                data-bs-toggle="modal"
+                data-bs-target="#orfModal_{{ contig_id | html_id }}"
+                style="color:#178cd2; text-decoration: underline; cursor:pointer;">
+                {{ contig_id }}
+              </a>
+            {% else %}
+              {{ contig_id }}
+            {% endif %}
+
           {% elif colname == 'contig_seq' %}
             {{ render_view_sequence_button("Assembled sequence " + contig_id, row[colname]) }}
           {% elif colname == 'term_filter' %}
@@ -86,6 +99,7 @@
       {% endfor %}
     </tbody>
   </table>
+  
   {% else %}
     {% if not blast_passed %}
     <p class="alert alert-danger">
@@ -99,6 +113,74 @@
     {% endif %}
   {% endif %}
 </div>
+
+
+{% if contig_orf_data %}
+  {% for contig_id, contig in contig_orf_data.items() %}
+
+  <div class="modal fade" id="orfModal_{{ contig_id | html_id }}" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+      <div class="modal-content">
+
+        <div class="modal-header">
+          <h5 class="modal-title">ORFs — {{ contig_id }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+
+          <div style="margin-bottom:10px;">
+            <span style="color:#1f77b4;">■</span> Contig
+            &nbsp;&nbsp;
+            <span style="color:#2ca02c;">■</span> Forward ORF
+            &nbsp;&nbsp;
+            <span style="color:#d62728;">■</span> Reverse ORF
+            &nbsp;&nbsp;
+            <span style="color:#9467bd;">■</span> Domain
+          </div>
+
+          <div style="overflow-x:auto;">
+            {{ contig.svg | safe }}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% for orf in contig.orfs %}
+
+  <div class="modal fade"
+       id="orfModal_{{ contig_id | html_id }}_{{ orf.id }}"
+       tabindex="-1">
+
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+
+        <div class="modal-header">
+          <h5 class="modal-title">
+            ORF {{ orf.id }} — {{ contig_id }}
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+          <p><b>Start:</b> {{ orf.start }}</p>
+          <p><b>End:</b> {{ orf.end }}</p>
+          <p><b>Strand:</b> {{ orf.strand }}</p>
+
+          {% if orf.sequence %}
+            <pre style="white-space: pre-wrap;">{{ orf.sequence_wrapped }}</pre>
+          {% endif %}
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  {% endfor %}
+
+  {% endfor %}
+{% endif %}
 
 {% if blast_hits | length %}
 <button
