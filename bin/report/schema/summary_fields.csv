@@ -11,7 +11,7 @@ kaiju_pc_reads,Kaiju % reads,float,,
 ncontigs_per_spp,Contig #,int,Y,
 max_pident_spp,Best % identity,float,Y,
 max_qlen_spp,Best contig len (nt),int,Y,
-contig_seq,Contig rep seq,,Y,Contig representative per species
+contig_seq,Contig rep seq,,,Contig representative per species
 normalised_conf_score,Conf score (contig rep),float,Y,Normalised confidence score for contig representative
 max_PFAM_total_spp,Viral domain #,int,Y,Maximum number of viral PFAM domains detected in a single contig assigned to this species
 species_has_RdRp,RDRP,bool,Y,At least one contig assigned to this species contains a predicted RNA-dependent RNA polymerase (RdRp) domain
