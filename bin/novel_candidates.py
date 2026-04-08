@@ -60,15 +60,10 @@ def main():
     merged3_df_filt = merged3_df[
         ~(merged3_df[rows_to_check].fillna(0).eq(0).all(axis=1))
     ]
-    # merged3_df_filt = merged3_df_filt[
-    #     (merged3_df_filt["Taxonomy"].str.lower() != "Caudoviricetes") &
-    #     (merged3_df_filt["Taxonomy"].str.lower() != "Iridoviridae") &
-    #     (merged3_df_filt["Taxonomy"].str.lower() != "Retroviridae")
-    # ]
+    #consider filtering the unclassified hits, as these are likely to be false positives?
     merged3_df_filt = merged3_df_filt[
         ~merged3_df_filt["taxonomy"].str.lower().str.contains("caudoviricetes|iridoviridae|retroviridae", na=False)
     ]
-    #merged3_df_filt = merged3_df_filt[merged3_df_filt["taxonomy"].str.lower() != "unclassified"]
     merged3_df_filt = merged3_df_filt[merged3_df_filt["length"] >= 500]
     merged3_df_filt = merged3_df_filt[merged3_df_filt["virus_score"] >= 0.9]
     #Keep only contigs with no blast hits.
