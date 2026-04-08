@@ -35,6 +35,7 @@ influenza a virus
 inoviridae sp.
 leptosphaeria biglobosa letobirnavirus 1 rna2
 magoulivirus
+mammaliicoccus virus
 mitochondrion
 mitovirus
 mitovirus sp.
