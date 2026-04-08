@@ -53,7 +53,7 @@ class Config:
     class CRITERIA:
         # ! import these from anaylsis config
         MIN_RAW_READS = 8000000
-        MIN_FILTERED_READS = 2500000
+        MIN_FILTERED_READS = 25000000
 
     @property
     def default_params(self) -> dict[str, str]:
@@ -150,12 +150,12 @@ class Config:
     def run_qc_clean_fastqc_path(self) -> Path:
         return self._get_file_by_pattern("*.fastp_1_fastqc.html")
 
-    @property
-    def read_distribution_chart_path(self) -> Path:
-        return self._get_file_by_pattern(
-            "*_read_origin_stacked_pct.png",
-            ignore_missing=True,
-        )
+    #@property
+    #def read_distribution_chart_path(self) -> Path:
+    #    return self._get_file_by_pattern(
+    #        "*_read_origin_stacked_pct.png",
+    #        ignore_missing=True,
+    #    )
 
     @property
     def orf_fasta_path(self) -> Path:

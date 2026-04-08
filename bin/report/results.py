@@ -121,8 +121,8 @@ class RunQC(AbstractDataRow):
         ('phix_cleaned_reads', int),
         ('percent_qfiltered', float),
         ('percent_cleaned', float),
-        ('raw_reads_flag', Optional[str]),
         ('qfiltered_reads_flag', Optional[str]),
+        ('clean_reads_flag', Optional[str]),
         ('QC_FLAG', str),
     ]
 

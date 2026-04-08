@@ -11,6 +11,12 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
+def format_millions(x):
+    if pd.isna(x):
+        return x
+    val = x / 1e6
+    return f"{val:.1f}M".replace(".0M", "M") if x >= 1e6 else str(x)
+
 
 def read_filtered_read_count(fastp_path):
     with open(fastp_path) as f:
@@ -40,8 +46,8 @@ def read_filtered_read_count(fastp_path):
 def main():
 
     parser = argparse.ArgumentParser(description="Generate QC report for sequencing runs")
-    parser.add_argument("--qfiltered_reads_threshold", type=int, default=2500000, help="Threshold for quality filtered reads")
-    parser.add_argument("--raw_reads_threshold", type=int, default=8000000, help="Threshold for raw reads")
+    parser.add_argument("--qfiltered_reads_threshold", type=int, default=8000000, help="Threshold for quality filtered reads")
+    parser.add_argument("--clean_reads_threshold", type=int, default=2500000, help="Threshold for clean reads")
     args = parser.parse_args()
 
     timestr = time.strftime("%Y%m%d-%H%M%S")
@@ -146,18 +152,35 @@ def main():
     )
     
     run_data_df = run_data_df.sort_values("Sample")
-    run_data_df['raw_reads_flag'] = np.where((run_data_df['raw_reads'] < args.raw_reads_threshold), f"Less than {args.raw_reads_threshold} raw reads", "") # ! confirm with DAFF
-    run_data_df['qfiltered_reads_flag'] = np.where((run_data_df['phix_cleaned_reads'] < args.qfiltered_reads_threshold), f"Less than {args.qfiltered_reads_threshold} cleaned reads", "") # ! confirm with DAFF
+    #run_data_df['raw_reads_flag'] = np.where((run_data_df['raw_reads'] < args.raw_reads_threshold), f"Less than {format_millions(args.raw_reads_threshold)} raw reads", "")
+    run_data_df['qfiltered_reads_flag'] = np.where((run_data_df['quality_filtered_reads'] < args.qfiltered_reads_threshold), f"Less than {format_millions(args.qfiltered_reads_threshold)} quality filtered reads", "")
+    run_data_df['clean_reads_flag'] = np.where((run_data_df['phix_cleaned_reads'] < args.clean_reads_threshold), f"Less than {format_millions(args.clean_reads_threshold)} clean reads", "")
+    # run_data_df["QC_FLAG"] = np.where(
+    #     (run_data_df['quality_filtered_reads'] < args.qfiltered_reads_threshold),
+    #     "RED",
+    #     np.where(
+    #         ((run_data_df['raw_reads'] < args.raw_reads_threshold) &
+    #         (run_data_df['quality_filtered_reads'] >= args.qfiltered_reads_threshold)),
+    #         "ORANGE",
+    #         np.where(
+    #             ((run_data_df['raw_reads'] >= args.raw_reads_threshold) &
+    #             (run_data_df['quality_filtered_reads'] >= args.qfiltered_reads_threshold)), 
+    #             "GREEN",
+    #             ""
+    #         )
+    #     )
+    # )
+
     run_data_df["QC_FLAG"] = np.where(
-        (run_data_df['phix_cleaned_reads'] < args.qfiltered_reads_threshold),
+        (run_data_df['phix_cleaned_reads'] < args.clean_reads_threshold),
         "RED",
         np.where(
-            ((run_data_df['raw_reads'] < args.raw_reads_threshold) &
-            (run_data_df['phix_cleaned_reads'] >= args.qfiltered_reads_threshold)),
+            ((run_data_df['quality_filtered_reads'] < args.qfiltered_reads_threshold) &
+            (run_data_df['phix_cleaned_reads'] >= args.clean_reads_threshold)),
             "ORANGE",
             np.where(
-                ((run_data_df['raw_reads'] >= args.raw_reads_threshold) &
-                (run_data_df['phix_cleaned_reads'] >= args.qfiltered_reads_threshold)), 
+                ((run_data_df['quality_filtered_reads'] >= args.qfiltered_reads_threshold) &
+                (run_data_df['phix_cleaned_reads'] >= args.clean_reads_threshold)), 
                 "GREEN",
                 ""
             )
@@ -178,7 +201,7 @@ def main():
             <blockquote>
             <p><b> Definitions:</b></p>
             <p><b> raw_reads </b>= total raw reads sequenced </p>
-            <p><b> processed_reads </b>= total reads left-over after adapter trimming and quality filtering </p>
+            <p><b> quality-filtered reads </b>= total reads left-over after adapter trimming and quality filtering </p>
             <p><b> percent_qfiltered </b>= (quality filtered/raw_reads x 100)</p>
             <p><b> percent_cleaned </b>= (cleaned reads/raw_reads x 100)</p>
             </blockquote>
