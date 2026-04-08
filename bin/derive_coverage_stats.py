@@ -132,9 +132,9 @@ def apply_qc_flags(df):
 
     df["30x_cov_flag"] = np.select(
         [
-            df.pc_cov_30X >= 90,
-            df.pc_cov_30X >= 75,
-            df.pc_cov_30X < 75
+            df.pc_cov_30X >= 100,
+            df.pc_cov_30X >= 50,
+            df.pc_cov_30X < 50
         ],
         ["GREEN", "ORANGE", "RED"],
         default="GREY"
@@ -152,9 +152,9 @@ def apply_qc_flags(df):
 
     df["mean_depth_flag"] = np.select(
         [
-            df.mean_depth >= 500,
             df.mean_depth >= 100,
-            df.mean_depth < 100
+            df.mean_depth >= 50,
+            df.mean_depth < 50
         ],
         ["GREEN", "ORANGE", "RED"],
         default="GREY"
