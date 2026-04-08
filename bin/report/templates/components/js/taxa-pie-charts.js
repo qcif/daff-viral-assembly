@@ -1,9 +1,5 @@
-function titleCase(str) {
-    return str.toLowerCase().split(' ').map(word => {
-        return word.charAt(0).toUpperCase() + word.slice(1);
-    }).join(' ');
-}
-
+// Create interactive pie charts for taxa distribution by kingdom and rank,
+// with click events to filter the data table accordingly
 
 function initTaxaPieCharts(prefix, taxaByKingdom, tableSelector) {
     const COLUMN_FULL_LINEAGE = 5;
@@ -234,10 +230,10 @@ function initTaxaPieCharts(prefix, taxaByKingdom, tableSelector) {
 
         document.getElementById(containerId).on('plotly_click', function(data) {
             const selectedTaxon = data.points[0].label;
-            if (selectedTaxon === 'unclassified') {
-                filterTable(selectedTaxon, COLUMN_FULL_LINEAGE); // full_lineage column
-            } else {
+            if (selectedTaxon.toLowerCase().includes('unclassified')) {
                 filterTableUnclassified(selectedTaxon);
+            } else {
+                filterTable(selectedTaxon, COLUMN_FULL_LINEAGE); // full_lineage column
             }
         });
     }
@@ -259,7 +255,8 @@ function initTaxaPieCharts(prefix, taxaByKingdom, tableSelector) {
     function filterTableUnclassified(taxon_unclassified) {
         const dt = $(tableSelector).DataTable();
         dt.search('').columns().search('').draw();
-        const taxon = titleCase(taxon_unclassified.split(' ')[1]);
+        const ix = taxon_unclassified.indexOf(' ');
+        const taxon = taxon_unclassified.slice(ix + 1);
         const resolution_term = `${currentRank}_unclassified`;
         dt.column(COLUMN_FULL_LINEAGE).search(taxon)
             .column(COLUMN_RESOLUTION_LEVEL).search(resolution_term)
