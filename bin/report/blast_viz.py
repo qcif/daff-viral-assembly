@@ -294,7 +294,10 @@ def generate_reference_svg(ref_length, contigs):
         )
 
     svg.append('</svg>')
-    return ''.join(svg)
+    svg = "".join(svg)
+    svg = svg.replace("\n", "")
+
+    return svg
 
 
 def build_blast_reference_data(blast_file):
@@ -405,7 +408,7 @@ def _store_orf(header, sequence, contigs, contig_lengths):
         "end": int(end),
         "strand": strand,
         "sequence": sequence,
-        "sequence_wrapped": wrap_sequence(sequence)
+#        "sequence_wrapped": wrap_sequence(sequence)
     })
 
 def parse_contig_lengths(stats_file):
