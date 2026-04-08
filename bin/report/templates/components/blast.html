@@ -169,7 +169,7 @@
           <p><b>Strand:</b> {{ orf.strand }}</p>
 
           {% if orf.sequence %}
-            <pre style="white-space: pre-wrap;">{{ orf.sequence_wrapped }}</pre>
+            <pre style="white-space: pre-wrap;">{{ orf.sequence | wordwrap(50) }}</pre>
           {% endif %}
         </div>
 
