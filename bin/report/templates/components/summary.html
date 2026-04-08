@@ -96,22 +96,24 @@
           {% elif colname == 'evalue' %}
             <span style="white-space: nowrap;">{{ row[colname] }}</span>
 
-          {% elif colname in format_1dp %}
-            {{ "%.1f"|format(row[colname]|float) }}
-
           {% elif colname in format_3dp %}
             {{ "%.3f"|format(row[colname]|float) }}
 
           {% elif row[colname] is boolean %}
             {{ render_bool_icon(row[colname]) }}
-
-          {% elif colname == 'max_qlen_spp' %}
-            {% if row['contig_seq'].lower() != 'na' %}
-            {{ render_view_sequence_button("Assembled sequence " + contig_id, row['contig_seq'], content=row[colname]) }}
+          {% elif colname == 'normalised_conf_score' %}
+            {% if row['contig_seq'] and row['contig_seq']|lower != 'na' %}
+              {{ render_view_sequence_button(
+                  "Assembled sequence " ~ contig_id,
+                  row['contig_seq'],
+                  "%.1f"|format(row[colname]|float)
+              ) }}
             {% else %}
-            {{ row[colname]}}
+              {{ "%.1f"|format(row[colname]|float) }}
             {% endif %}
 
+          {% elif colname in format_1dp %}
+            {{ "%.1f"|format(row[colname]|float) }}
           {% else %}
             {{ row[colname] }}
           {% endif %}
