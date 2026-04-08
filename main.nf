@@ -389,7 +389,7 @@ process QCREPORT {
 
   script:
   """
-  seq_run_qc_report.py --qfiltered_reads_threshold ${params.qfiltered_reads_threshold} --raw_reads_threshold ${params.raw_reads_threshold}
+  seq_run_qc_report.py --qfiltered_reads_threshold ${params.qfiltered_reads_threshold} --clean_reads_threshold ${params.clean_reads_threshold}
   """
 }
 
@@ -410,7 +410,7 @@ process TIMESTAMP_START {
 process HTML_REPORT {
   publishDir "${params.outdir}/${sampleid}/11_report", mode: 'copy', overwrite: true
   containerOptions "${bindOptions}"
-  label 'setting_31'
+  label 'setting_6'
 
   input:
     tuple val(sampleid), path(raw_fastqc), path(filtered_fastqc), path(fastp), path(fasta), path(summary_known_viruses), path(kaiju_summary), path(kraken_summary), path(detections_summary), path(ref_mapping_summary), path(consensus), path(bam), path(bai), path(novel_virus_summary), path(blast_contig2ref),path(orfs), path(hmmscan),

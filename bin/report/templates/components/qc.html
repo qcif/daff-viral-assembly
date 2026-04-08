@@ -1,6 +1,7 @@
 <h3>Input data quality report</h3>
 
 <p class="small">
+  This section provides an overall data quality assessment and helps identify any issues that may affect downstream analyses. 
   Please note that input data are truncated to
   <strong>40M reads</strong>
   to ensure reasonable run times.
@@ -20,21 +21,21 @@
   </a>
   <div class="collapse" id="qcDetailsCollapse">
     <ul class="mt-2">
-      {% if run_qc.raw_reads_flag %}
-      <li>
-        {{ run_qc.raw_reads_flag }}
-      </li>
-      {% endif %}
       {% if run_qc.qfiltered_reads_flag %}
       <li>
         {{ run_qc.qfiltered_reads_flag }}
+      </li>
+      {% endif %}
+      {% if run_qc.clean_reads_flag %}
+      <li>
+        {{ run_qc.clean_reads_flag }}
       </li>
       {% endif %}
       <li>
         Poor data quality or sequencing depth may limit reliable detection. If no virus is identified, this may reflect technical limitations rather than true absence of virus in your sample.
       </li>
       <li>
-        If virus was detected, this is likely to be a true positive, in spite of low sequencing quality.
+        If a virus was detected, this is likely to be a true positive, in spite of low sequencing quality.
       </li>
     </ul>
   </div>
@@ -43,9 +44,6 @@
 
 <table class="table">
   <tr
-    {% if run_qc.raw_reads_flag %}
-    class="fw-bold text-danger"
-    {% endif %}
     title="Raw sequencing reads"
     data-bs-toggle="tooltip"
     data-bs-placement="left"
@@ -70,12 +68,15 @@
     data-bs-toggle="tooltip"
     data-bs-placement="left"
   >
-    <td>Clean reads</td>
+    <td>Quality-filtered reads</td>
     <td>
-      {% if run_qc.percent_cleaned is not none %}
-      {{ run_qc.percent_cleaned }}%
+      {% if run_qc.quality_filtered_reads is not none %}
+        {{  "{:,}".format(run_qc.quality_filtered_reads) }}
+        {% if run_qc.percent_qfiltered is not none %}
+          ({{ run_qc.percent_qfiltered }}%)
+        {% endif %}
       {% else %}
-      NA
+        NA
       {% endif %}
     </td>
     <td>
@@ -87,6 +88,26 @@
         FastQC report
       </a>
     </td>
+  </tr>
+  <tr
+    {% if run_qc.clean_reads_flag %}
+    class="fw-bold text-danger"
+    {% endif %}
+    title="Reads left after filtering reads for artefacts and rRNAs"
+    data-bs-toggle="tooltip"
+    data-bs-placement="left"
+  >
+    <td>Clean reads</td>
+    <td>
+      {% if run_qc.phix_cleaned_reads is not none %}
+        {{  "{:,}".format(run_qc.phix_cleaned_reads) }}
+        {% if run_qc.percent_cleaned is not none %}
+          ({{ run_qc.percent_cleaned }}%)
+        {% endif %}
+      {% else %}
+        NA
+      {% endif %}
+    </td></td>
   </tr>
 </table>
 
