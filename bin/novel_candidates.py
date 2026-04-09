@@ -65,7 +65,7 @@ def main():
         ~merged3_df_filt["taxonomy"].str.lower().str.contains("caudoviricetes|iridoviridae|retroviridae", na=False)
     ]
     merged3_df_filt = merged3_df_filt[merged3_df_filt["length"] >= 500]
-    merged3_df_filt = merged3_df_filt[merged3_df_filt["virus_score"] >= 0.9]
+    merged3_df_filt = merged3_df_filt[merged3_df_filt["virus_score"] >= 0.99]
     #Keep only contigs with no blast hits.
     merged3_df_filt = merged3_df_filt[
         merged3_df_filt["sacc"].isna() | (merged3_df_filt["sacc"].str.strip() == "")
@@ -81,6 +81,16 @@ def main():
         .astype(bool)
         .astype(int)
     )
+
+    # Drop low-confidence unclassified contigs lacking ORFs and RdRp support.
+    orfs_numeric = pd.to_numeric(merged3_df_filt["ORFs"], errors="coerce").fillna(0)
+    merged3_df_filt = merged3_df_filt[
+        ~(
+            merged3_df_filt["taxonomy"].str.strip().str.lower().eq("unclassified")
+            & orfs_numeric.eq(0)
+            & merged3_df_filt["RdRp"].eq(0)
+        )
+    ]
 
     # FORCE correct dtypes before sorting
     merged3_df_filt["virus_score"] = pd.to_numeric(
