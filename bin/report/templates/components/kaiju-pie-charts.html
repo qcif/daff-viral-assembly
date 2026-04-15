@@ -10,7 +10,7 @@
       <div id="kaiju-taxa-overview-pie"></div>
 
       <div id="kaiju-kingdom-chart-wrapper" style="display: none;">
-        <div class="d-flex align-items-center" style="padding-left: 73px;">
+        <div class="d-flex align-items-center">
           <div id="kaiju-kingdom-chart-container" style="flex: 1;">
             <div class="pie-container" id="kaiju-plant-container" style="display: none;">
               <div id="kaiju-plant-pie"></div>
@@ -42,6 +42,8 @@
             <button type="button" class="btn btn-sm btn-outline-primary kaiju-rank-btn" data-rank="genus">Genus</button>
             <button type="button" class="btn btn-sm btn-outline-primary kaiju-rank-btn" data-rank="species">Species</button>
           </div>
+
+
         </div>
       </div>
 
@@ -49,6 +51,12 @@
         <p class="lead text-center text-muted my-5">
           Select a taxon to view records
         </p>
+      </div>
+
+      <div class="text-center" id="kaiju-reset-wrapper" style="display: none;">
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="kaiju-reset-btn">
+          Reset view
+        </button>
       </div>
     </div>
   </div>
