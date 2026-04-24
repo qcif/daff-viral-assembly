@@ -5,7 +5,7 @@ include { fromSamplesheet } from 'plugin/nf-validation'
 
 def helpMessage () {
     log.info """
-    daff-viral-assembly
+    Virus Integrated Evaluation Workflow
     Marie-Emilie Gauthier
     Cameron Hyde
 
