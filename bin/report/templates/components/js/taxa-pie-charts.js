@@ -144,9 +144,10 @@ function initTaxaPieCharts(prefix, taxaByKingdom, tableSelector) {
         currentKingdom = kingdomKey;
         currentRank = rank || currentRank;
 
-        // Hide default message and show kingdom chart wrapper
+        // Hide default message and show kingdom chart wrapper + reset button
         $(`#${prefix}-default-message`).hide();
         $(`#${prefix}-kingdom-chart-wrapper`).show();
+        $(`#${prefix}-reset-wrapper`).show();
 
         // Hide all kingdom containers, then show the selected one
         $(`#${prefix}-kingdom-chart-container .pie-container`).hide();
@@ -263,8 +264,31 @@ function initTaxaPieCharts(prefix, taxaByKingdom, tableSelector) {
             .draw();
     }
 
+    function resetView() {
+        // Reset state
+        currentKingdom = null;
+        currentRank = 'family';
+
+        // Hide kingdom chart, show default message
+        $(`#${prefix}-kingdom-chart-wrapper`).hide();
+        $(`#${prefix}-kingdom-chart-container .pie-container`).hide();
+        $(`#${prefix}-default-message`).show();
+        $(`#${prefix}-reset-wrapper`).hide();
+
+        // Reset rank toggle buttons
+        $(`.${rankBtnClass}`).removeClass('active');
+        $(`.${rankBtnClass}[data-rank="family"]`).addClass('active');
+
+        // Clear all table filters
+        const dt = $(tableSelector).DataTable();
+        dt.search('').columns().search('').draw();
+    }
+
     // Create the overview pie chart
     createOverviewPieChart();
+
+    // Set up reset button event listener
+    $(`#${prefix}-reset-btn`).on('click', resetView);
 
     // Set up rank toggle button event listeners
     $(`.${rankBtnClass}`).on('click', function() {

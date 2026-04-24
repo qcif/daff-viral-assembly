@@ -100,3 +100,15 @@ td.column-flag_name {
   opacity: 0.9;
   cursor: pointer;
 }
+
+#kraken-kingdom-chart-wrapper > div,
+#kaiju-kingdom-chart-wrapper > div {
+  padding-left: 73px;
+}
+
+@media (max-width: 1399px) {
+  #kraken-kingdom-chart-wrapper > div,
+  #kaiju-kingdom-chart-wrapper > div {
+    padding-left: 35px;
+  }
+}
