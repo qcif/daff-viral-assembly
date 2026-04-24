@@ -20,7 +20,7 @@ MIN_BASELINE = 20
 data = defaultdict(list)
 
 # Parse pileup
-with open(pileup_file) as f:
+with open(pileup_file, "r", encoding="latin-1") as f:
     for line in f:
         ctg, pos, ref, dp, bases, qual = line.strip().split("\t")
         pos = int(pos)
