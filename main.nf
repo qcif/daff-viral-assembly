@@ -3,7 +3,6 @@
 nextflow.enable.dsl = 2
 include { fromSamplesheet } from 'plugin/nf-validation'
 
-
 def helpMessage () {
     log.info """
     daff-viral-assembly
@@ -534,7 +533,31 @@ process SUMMARISE_READ_CLASSIFICATION {
   filter_classification_results.py --kaiju ${kaiju_results} --sample_name ${sampleid} --bracken ${bracken_results} --taxonkit_database_dir ${params.taxdump} --stats ${stats} --filter ${params.filter_terms}
   """
 }
+/*
+process NOVEL_SUMMARY {
+  tag "${sampleid}"
+  label "setting_1"
+  publishDir "${params.outdir}/${sampleid}/10_results_summary", mode: 'copy'
 
+  input:
+    tuple val(sampleid), path(kaiju_summary), path(kraken_summary), path(megablast_summary), path(novel_candidates)
+
+  output:
+    path("${sampleid}_summary_novel.txt")
+    tuple val(sampleid), path("${sampleid}_summary_novel.txt"), emit: support_summary
+
+  script:
+  """
+  python3 ${projectDir}/bin/summary_novel.py \
+    --sample-name ${sampleid} \
+    --kaiju-input ${kaiju_summary} \
+    --kraken-input ${kraken_summary} \
+    --megablast-input ${megablast_summary} \
+    --novel-input ${novel_candidates} \
+    --min-reads 2000
+  """
+}
+*/
 process EXTRACT_REF_FASTA {
   tag "$sampleid"
   label "setting_1"
@@ -904,17 +927,17 @@ process DIAMOND  {
     tuple val(sampleid), path(viral_fasta), path(other_fasta)
   output:
     file "${sampleid}_diamond_matches*.txt"
-    tuple val(sampleid), path("${sampleid}_diamond_matches_with_alignment.txt"), emit: diamond_results
+    tuple val(sampleid), path("${sampleid}_diamond_matches.txt"), emit: diamond_results
 
   script:
   """
   cat ${viral_fasta} ${other_fasta} > ${sampleid}_combined_contigs.fasta
   diamond blastx --query ${sampleid}_combined_contigs.fasta \\
                  --db ${params.prot_db} \\
-                 --out ${sampleid}_diamond_matches_with_alignment.txt \\
+                 --out ${sampleid}_diamond_matches.txt \\
                  --evalue 1e-3 \\
                  --max-target-seqs 1 \\
-                 --outfmt 0 \\
+                 --outfmt 6 qseqid sseqid pident length qlen slen qstart qend sstart send evalue bitscore stitle \\
                  --threads ${task.cpus}
   """
 }
@@ -1012,42 +1035,41 @@ process HMMSCAN {
 
 process SUMMARISE_RESULTS {
   tag "${sampleid}"
-  label "setting_2"
+  label "setting_22"
   publishDir "${params.outdir}/${sampleid}/10_results_summary", mode: 'copy', pattern: '{*summary_viral_results.tsv}'
+  publishDir "${params.outdir}/${sampleid}/10_results_summary", mode: 'copy', pattern: '{*novel_virus_candidates.tsv}'
+  publishDir "${params.outdir}/${sampleid}/10_results_summary", mode: 'copy', pattern: '{*evidence_summary_novel.txt}'
   publishDir "${params.outdir}/${sampleid}/07_annotation", mode: 'copy', pattern: '{*hmm_domain_summary_counts.tsv}'
   containerOptions "${bindOptions}"
 
   input:
-    tuple val(sampleid), path(kraken_results), path(kaiju_results), path(blast), path(hmmscan), path(map2ref)
+    tuple val(sampleid), path(kraken_results), path(kaiju_results), path(blast), path(hmmscan), path(map2ref), path(contigs), path(genomad), path(blast_novel), path(diamond_results), path(taxonomy)
 
   output:
     path("${sampleid}_summary_viral_results.tsv")
     path("${sampleid}_hmm_domain_summary_counts.tsv")
+    path("${sampleid}_novel_virus_candidates.tsv")
+    path("${sampleid}_evidence_summary_novel.txt")
     tuple val(sampleid), path("${sampleid}_hmm_domain_summary_counts.tsv"), emit: domain_count
     tuple val(sampleid), path("${sampleid}_summary_viral_results.tsv"), emit: summary_known_viruses
-
-  script:
-  """
-  viral_results_summary.py --kaiju ${kaiju_results} --sample_name ${sampleid} --kraken ${kraken_results} --blast ${blast} --hmmscan ${hmmscan} --map2ref ${map2ref}
-  """
-}
-
-process NOVELS {
-  tag "${sampleid}"
-  label "setting_1"
-  publishDir "${params.outdir}/${sampleid}/10_results_summary", mode: 'copy'
-  containerOptions "${bindOptions}"
-
-  input:
-    tuple val(sampleid), path(contigs), path(hmmscan), path(genomad), path(blast)
-
-  output:
-    path("${sampleid}_novel_virus_candidates.tsv")
     tuple val(sampleid), path("${sampleid}_novel_virus_candidates.tsv"), emit: novel_virus_candidates
+    tuple val(sampleid), path("${sampleid}_evidence_summary_novel.txt"), emit: support_summary
 
   script:
   """
-  novel_candidates.py --sample_name ${sampleid} --fasta ${contigs} --genomad ${genomad} --hmmscan ${hmmscan} --blast ${blast}
+  viral_results_summary.py \
+    --sample_name ${sampleid} \
+    --kaiju ${kaiju_results} \
+    --kraken ${kraken_results} \
+    --blast ${blast} \
+    --hmmscan ${hmmscan} \
+    --map2ref ${map2ref} \
+    --genomad ${genomad} \
+    --blast_novel ${blast_novel} \
+    --diamond ${diamond_results} \
+    --taxonomy ${taxonomy} \
+    --min-reads 2000 \
+    --fasta ${contigs}
   """
 }
 
@@ -1361,15 +1383,28 @@ workflow {
                       .collect()
 
   QCREPORT(ch_multiqc_files)
-  SUMMARISE_RESULTS ( SUMMARISE_READ_CLASSIFICATION.out.kraken_summary.join(SUMMARISE_READ_CLASSIFICATION.out.kaiju_summary)
-                                                                      .join(CONTIG_COVSTATS.out.detections_summary) 
-                                                                      .join(HMMSCAN.out.hmmscan_preds)
-                                                                      .join(FASTA2TABLE2.out.detections_summary_final)
-                                                                      )
-  NOVELS ( SEQTK.out.filt_fasta.join(SUMMARISE_RESULTS.out.domain_count)
-                    .join(GENOMAD.out.virus_preds)
-                    .join(EXTRACT_VIRAL_BLAST_HITS.out.viral_blast_results)
-         )
+  summarise_results_input_ch = SUMMARISE_READ_CLASSIFICATION.out.kraken_summary
+    .join(SUMMARISE_READ_CLASSIFICATION.out.kaiju_summary)
+    .join(CONTIG_COVSTATS.out.detections_summary)
+    .join(HMMSCAN.out.hmmscan_preds)
+    .join(FASTA2TABLE2.out.detections_summary_final)
+    .join(SEQTK.out.filt_fasta)
+    .join(GENOMAD.out.virus_preds)
+    .join(EXTRACT_VIRAL_BLAST_HITS.out.viral_blast_results)
+    .join(DIAMOND.out.diamond_results)
+    .map { sampleid, kraken_results, kaiju_results, blast, hmmscan, map2ref, contigs, genomad, blast_novel, diamond_results ->
+      tuple(sampleid, kraken_results, kaiju_results, blast, hmmscan, map2ref, contigs, genomad, blast_novel, diamond_results, file(params.rvdb_taxonomy))
+    }
+
+  SUMMARISE_RESULTS(summarise_results_input_ch)
+  /*
+  NOVEL_SUMMARY (
+    SUMMARISE_READ_CLASSIFICATION.out.kaiju_summary
+      .join(SUMMARISE_READ_CLASSIFICATION.out.kraken_summary)
+      .join(CONTIG_COVSTATS.out.detections_summary)
+      .join(SUMMARISE_RESULTS.out.novel_virus_candidates)
+  )
+  */
   fastqc_raw_html_fixed = fastqc_raw_html.map { meta, html ->
     tuple(meta.id, html)
   }
@@ -1391,7 +1426,7 @@ workflow {
                                                     .join(CONTIG_COVSTATS.out.detections_summary)
                                                     .join(FASTA2TABLE2.out.detections_summary_final)
                                                     .join(SAMTOOLS2.out.sorted_bam)
-                                                    .join(NOVELS.out.novel_virus_candidates)
+                                                    .join(SUMMARISE_RESULTS.out.novel_virus_candidates)
                                                     .join(BLAST_CONTIGS_TO_REF.out.blast_results)
                                                     .join((ORFIPY.out.orf_fasta))
                                                     .join(HMMSCAN.out.hmmscan_domain_preds)
