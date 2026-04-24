@@ -8,5 +8,6 @@ kraken2_db: /full/path/to/kraken_databases/core_nt
 kaiju_dbname: /full/path/to/kaiju_databases/kaiju_db_nr_euk.fmi
 kaiju_names: /full/path/to/kaiju_databases/names.dmp
 kaiju_nodes: /full/path/to/kaiju_databases/nodes.dmp
+rrna_ref: /full/path/to/rrna_reference.fasta
 help: false
 outdir: results
