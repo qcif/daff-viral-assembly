@@ -24,8 +24,8 @@ A [Nextflow](https://www.nextflow.io/) pipeline for viral genome assembly and id
 4. De novo viral genome assembly (SPAdes)
 5. BLAST-based contig annotation
 6. Reference mapping and consensus generation
-7. ORF prediction and protein domain annotation
-8. Novel virus candidate identification
+7. ORF prediction and protein domain annotation (HMMER, GeNomad, DIAMOND)
+8. Novel virus candidate identification (within results summary)
 9. Per-sample HTML report generation
 
 ## Requirements
@@ -122,7 +122,7 @@ Input FASTQ files
  CAT_FASTQ ──────── Concatenate files from the same sample
       │
       ▼
- (optional) SEQTK_SAMPLE ── Subsample to 60 M reads (default)
+ (optional) SEQTK_SAMPLE ── Subsample to 40 M reads (default)
       │
       ├──► FASTQC_RAW ──── Raw read quality control
       │
@@ -189,10 +189,11 @@ Input FASTQ files
       │
       ├──► GENOMAD ─────────── Virus / provirus classification
       │
+      ├──► DIAMOND ─────────── Protein-level contig alignment (RVDB)
+      │
       ▼
  SUMMARISE_RESULTS ── Combine all evidence into per-sample summary table
-      │
- NOVELS ──────────── Identify novel virus candidates
+                       (includes novel virus candidate identification)
       │
  QCREPORT ────────── Run-level QC report
       │
@@ -204,7 +205,7 @@ Input FASTQ files
 | Step | Tool | Description |
 |------|------|-------------|
 | Read concatenation | `cat` | Merges multiple FASTQ files per sample |
-| Subsampling | seqtk | Randomly subsample reads to a target depth (default 60 M reads) |
+| Subsampling | seqtk | Randomly subsample reads to a target depth (default 40 M reads) |
 | Raw QC | FastQC | Quality metrics for raw reads |
 | Adapter trimming | fastp | Trims adapters, low-quality bases, and short reads |
 | Trimmed QC | FastQC | Quality metrics after trimming |
@@ -227,8 +228,8 @@ Input FASTQ files
 | ORF prediction | orfipy | Predicts open reading frames from assembled contigs |
 | Protein domain annotation | HMMER (hmmscan) | Searches ORFs against Pfam protein domain database |
 | Virus/provirus prediction | GeNomad | Classifies contigs as viral or proviral |
-| Results summary | custom script | Integrates evidence from all tools into a summary table |
-| Novel virus detection | custom script | Identifies potential novel virus candidates |
+| Protein-level alignment | DIAMOND (blastx) | Protein-level alignment of contigs against a protein database (e.g. RVDB) |
+| Results summary | custom script | Integrates evidence from all tools into a summary table (including novel virus candidates) |
 | QC report | custom script | Generates run-level quality control report |
 | HTML report | custom script | Generates interactive per-sample HTML report |
 
@@ -260,12 +261,16 @@ Parameters can be provided via a YAML params file (`-params-file`) or on the com
 | `--outdir` | `results` | Output directory |
 | `--blast_threads` | `2` | Number of CPU threads for BLASTN |
 | `--subsample_enabled` | `true` | Enable/disable read subsampling before processing |
-| `--subsample_size` | `60000000` | Target number of reads after subsampling (60 M) |
+| `--subsample_size` | `40000000` | Target number of reads after subsampling (40 M) |
 | `--kraken2_save_classified_reads` | `false` | Save Kraken2-classified reads to output |
 | `--kraken2_save_unclassified_reads` | `true` | Save Kraken2-unclassified reads to output |
 | `--kraken2_save_readclassifications` | `true` | Save per-read Kraken2 classification output |
 | `--save_trimmed_fail` | `false` | Save reads that failed fastp quality trimming |
 | `--save_merged` | `false` | Save fastp-merged reads |
+| `--qfiltered_reads_threshold` | `8000000` | Minimum number of quality-filtered reads required per sample |
+| `--clean_reads_threshold` | `2500000` | Minimum number of clean reads (after decontamination) required per sample |
+| `--prot_db` | `null` | Path to DIAMOND protein database (e.g. RVDB) for blastx alignment |
+| `--rvdb_taxonomy` | `null` | Path to RVDB taxonomy file for DIAMOND results annotation |
 | `--publish_dir_mode` | `copy` | Nextflow output publish mode (`copy`, `symlink`, `link`, etc.) |
 | `--help` | `false` | Print help message and exit |
 
@@ -302,6 +307,8 @@ results/
     │   ├── <sample_id>_orfs.fasta                            # Predicted ORFs (orfipy)
     │   ├── <sample_id>_hmmscan_per_target_output.txt         # HMMER per-target results
     │   ├── <sample_id>_hmmscan_per_domain_output.txt         # HMMER per-domain results
+    │   ├── <sample_id>_hmm_domain_summary_counts.tsv         # HMM domain summary counts
+    │   ├── <sample_id>_diamond_matches.txt                   # DIAMOND protein alignment results
     │   └── genomad/                                          # GeNomad virus predictions
     │
     ├── 08_mapping_to_contigs/
@@ -323,7 +330,7 @@ results/
     ├── 10_results_summary/
     │   ├── <sample_id>_summary_viral_results.tsv             # Known virus summary table
     │   ├── <sample_id>_novel_virus_candidates.tsv            # Novel virus candidates table
-    │   └── <sample_id>_hmm_domain_summary_counts.tsv        # HMM domain summary
+    │   └── <sample_id>_evidence_summary_novel.txt            # Novel virus evidence summary
     │
     └── 11_report/
         └── <sample_id>_report.html                           # Interactive per-sample report
@@ -351,7 +358,9 @@ Multiple profiles can be combined with commas, e.g. `-profile singularity,mtdt_t
 | [bcftools](https://samtools.github.io/bcftools/) | 1.19 | Variant calling and consensus generation |
 | [bedtools](https://bedtools.readthedocs.io/) | 2.27.1 | Coverage masking |
 | [BLASTN](https://blast.ncbi.nlm.nih.gov/) | 2.16.0 | Nucleotide sequence alignment |
+| [BWA](https://github.com/lh3/bwa) | 0.7.19 | Short-read alignment to reference sequences |
 | [CD-HIT](https://sites.google.com/view/cd-hit) | 4.8.1 | Reference sequence clustering |
+| [DIAMOND](https://github.com/bbuchfink/diamond) | 2.1.24 | Protein-level contig alignment (blastx) |
 | [Entrez Direct](https://www.ncbi.nlm.nih.gov/books/NBK179288/) | 22.4 | NCBI sequence retrieval |
 | [FastQC](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/) | 0.12.1 | Read quality control |
 | [fastp](https://github.com/OpenGene/fastp) | 1.0.1 | Adapter trimming and quality filtering |

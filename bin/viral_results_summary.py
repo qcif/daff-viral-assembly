@@ -2,6 +2,9 @@
 import argparse
 import pandas as pd
 import re
+import os.path
+from Bio import SeqIO
+from analyses_config import file_exists, is_file_empty
 
 # Define PFAMs of interest
 PFAMS = [
@@ -159,7 +162,9 @@ def standardize_viroid_names(df, column, df_name=""):
     if column not in df.columns:
         return df
 
-    df[column] = df[column].replace(VIROID_RENAME)
+    #df[column] = df[column].replace(VIROID_RENAME)
+    df = df.copy()
+    df.loc[:, column] = df[column].replace(VIROID_RENAME)
 
     remaining = df[column].isin(VIROID_RENAME.keys())
     if remaining.any():
@@ -167,6 +172,359 @@ def standardize_viroid_names(df, column, df_name=""):
         print(f"WARNING: {df_name} still contains outdated viroid names in '{column}': {remaining_vals}")
 
     return df
+
+# Function to convert FASTA file to DataFrame
+def fasta_to_dataframe(fasta_file):
+    records = SeqIO.parse(fasta_file, "fasta")
+    
+    # List to hold the sequence data
+    data = []
+    
+    for record in records:
+        # Append ID and sequence to the list
+        data.append([record.id, str(record.seq)])
+    
+    # Create a DataFrame
+    df = pd.DataFrame(data, columns=["seq_name", "contig_seq"])
+    return df
+
+
+def enrich_with_taxonomy(df, taxonomy):
+    """Add family from the taxonomy file using accession (version-agnostic)."""
+
+    if df.empty:
+        df["family"] = ""
+        return df
+
+    # Load taxonomy
+    taxonomy_df = pd.read_csv(
+        taxonomy,
+        sep="\t",
+        dtype=str,
+        comment="#",
+        low_memory=False,
+    )
+
+    # Clean column names
+    taxonomy_df.columns = (
+        taxonomy_df.columns
+        .str.strip()
+        .str.lower()
+    )
+
+    # Fix known header typo
+    taxonomy_df = taxonomy_df.rename(
+        columns={"phylumphylum_taxon_id": "phylum_taxon_id"}
+    )
+
+    # Validate required columns
+    if "accession" not in taxonomy_df.columns or "family" not in taxonomy_df.columns:
+        raise ValueError(
+            f"Missing required columns. Found: {taxonomy_df.columns.tolist()}"
+        )
+
+    # Build lookup table
+    lookup_df = taxonomy_df[["accession", "family"]].copy()
+
+    lookup_df["accession"] = (
+        lookup_df["accession"]
+        .fillna("")
+        .astype(str)
+        .str.strip()
+        .str.upper()
+        .str.replace(r"\.\d+$", "", regex=True)  # remove version suffix
+    )
+
+    lookup_df["family"] = (
+        lookup_df["family"]
+        .fillna("")
+        .astype(str)
+        .str.strip()
+    )
+
+    # Drop duplicates after normalisation
+    lookup_df = lookup_df.drop_duplicates(subset=["accession"], keep="first")
+
+    accession_map = dict(zip(lookup_df["accession"], lookup_df["family"]))
+
+    # Apply to input df
+    enriched_df = df.copy()
+
+    enriched_df["accession"] = (
+        enriched_df["accession"]
+        .fillna("")
+        .astype(str)
+        .str.strip()
+        .str.upper()
+        .str.replace(r"\.\d+$", "", regex=True)  # ensure same format
+    )
+
+    enriched_df["family"] = (
+        enriched_df["accession"]
+        .map(accession_map)
+        .fillna("")
+    )
+
+    return enriched_df
+
+
+def filter_support(df, min_reads):
+    work = df.copy()
+    work["reads"] = pd.to_numeric(work.get("reads"), errors="coerce").fillna(0).astype(int)
+    target_levels = ["species_unclassified", "genus_unclassified"]
+    resolution = work.get("resolution_level", pd.Series([""] * len(work)))
+    return work[
+        (resolution.isin(target_levels)) & (work["reads"] > min_reads)
+    ].copy()
+
+
+
+def load_diamond_results(path):
+    """Load diamond results based on mode."""
+    #if not file_exists(path):
+    #    raise FileNotFoundError(f"Diamond results file not found: {path}")
+     # Define expected header (based on your Diamond output fields)
+    columns = [
+        "qseqid", "sseqid", "pident", "alignment_length", "qlen", "slen", "qstart", "qend", "sstart", "send", "evalue", "bitscore", "stitle"
+    ]
+        # Create a temporary file with header + original content
+    df = pd.read_csv(path, sep="\t", header=None, dtype=str)
+    if df.shape[1] != len(columns):
+        raise ValueError(
+            f"Expected {len(columns)} columns (BLAST output), but found {df.shape[1]} in {path}"
+        )
+    df.columns = columns
+
+    dtype = {
+        "qseqid": 'str', "sseqid": 'str', "pident": 'float64', "alignment_length": 'int64', 
+        "qlen": 'int64', "slen": 'int64', "qstart": 'int64', "qend": 'int64', "sstart": 'int64', 
+        "send": 'int64', "evalue": 'float64', "bitscore": 'int64', "stitle": 'str'
+    }
+
+    # Load DataFrame
+    for col, dtype_ in dtype.items():
+        if col in df.columns:
+            if dtype_ in ("int64", "float64"):
+                df[col] = pd.to_numeric(df[col], errors="coerce").astype(dtype_)
+            else:
+                df[col] = df[col].astype(str)
+    df = df[df["stitle"].str.contains("virus", case=False, na=False)].copy()
+    df = df[
+        ~df["stitle"].str.contains("retrovirus-related|mitovirus|hypothetical|putative|retrovirus|Caulimovirus sp|mito-like|ambiguivirus|narna-like|picorna-like|Plasmopara|Mimivirus|tombus-like|Solanum tuberosum", case=False, na=False)
+    ].copy()
+    #df["stitle_short"] = df["stitle"].astype(str).str.rsplit("|", n=1).str[-1].str.strip()
+    df["taxon"] = (
+        df["stitle"]
+        .astype(str)
+        .str.extract(r"\[([^\[\]]+)\]\s*$")[0]   # last [...] at end of string
+        .fillna("")
+        .str.strip()
+    )
+    df["desc"] = (
+        df["stitle"]
+        .astype(str)
+        .str.split("|")
+        .str[-1]                              # last pipe element only
+        .str.replace(r"\s*\[[^\[\]]+\]\s*$", "", regex=True)  # remove trailing [..]
+        .str.strip()
+    )
+    df["accession"] = (
+        df["stitle"]
+        .astype(str)
+        .str.split("|")
+        .str[-2]
+        .fillna("")
+        .str.strip()
+    )
+    
+    df["qcovs"] = (df["alignment_length"] * 3  / df["qlen"]) * 100
+    #df = (df["qcovs"] > 75).astype(int)
+    df = df[df["qcovs"] >= 50].copy()
+    df = df[df["pident"] >= 50].copy()
+    df = df.sort_values(by="pident", ascending=False)
+    df2 = df[(df["pident"] < 90) & (df["qlen"] >= 500)].copy()
+
+    final_columns_filt = [
+        "qseqid",
+        "taxon",
+        "accession",
+        "desc",
+        "pident",
+        "qlen",
+        "alignment_length",
+        "evalue",
+        "bitscore",
+        "qcovs",
+    ]
+    
+    return df[final_columns_filt], df2[final_columns_filt]
+
+def build_rows(Method, filtered_df):
+    if filtered_df.empty:
+        return [
+            {
+                "Method": Method,
+                "Evidence": "",
+                "Details": "0 reads",
+                "Taxonomy_classification": "",
+            }
+        ]
+
+    grouped = (
+        filtered_df.assign(
+            taxon_name=filtered_df.get("taxon_name", "").fillna("").astype(str).str.strip(),
+            resolution_level=filtered_df.get("resolution_level", "").fillna("").astype(str).str.strip(),
+            reads=filtered_df["reads"].astype(int),
+        )
+        .groupby(["resolution_level", "taxon_name"], dropna=False, as_index=False)["reads"]
+        .sum()
+    )
+
+    level_labels = {
+        "genus_unclassified": "genus unresolved",
+        "species_unclassified": "species unresolved",
+    }
+
+    rows = []
+    for _, row in grouped.iterrows():
+        taxon = row["taxon_name"]
+        reads = int(row["reads"])
+        level_label = level_labels.get(row["resolution_level"], row["resolution_level"])
+
+        rows.append(
+            {
+                "Method": Method,
+                "Evidence": "High read counts assigned to viral taxa at higher taxonomic level",
+                "Details": f"{reads} reads",
+                "Taxonomy_classification": f"{taxon} ({level_label})",
+            }
+        )
+
+
+    return rows
+
+def build_megablast_rows(megablast_df):
+    work = megablast_df.copy()
+    work["pident"] = pd.to_numeric(work.get("pident"), errors="coerce").fillna(0)
+    work["qlen"] = pd.to_numeric(work.get("qlen"), errors="coerce").fillna(0)
+    work["mapping_read_count"] = pd.to_numeric(
+        work.get("mapping_read_count"), errors="coerce"
+    ).fillna(0).astype(int)
+    work["taxon_name"] = work.get("taxon_name", "").fillna("").astype(str).str.strip()
+    work["qseqid"] = work.get("qseqid", "").fillna("").astype(str).str.strip()
+    work["qlen"] = pd.to_numeric(work.get("qlen"), errors="coerce").fillna(0).astype(int)
+    work["pc_cov_30X"] = pd.to_numeric(work.get("pc_cov_30X"), errors="coerce").fillna(0).astype(float)
+    work["normalised_conf_score"] = pd.to_numeric(work.get("normalised_conf_score"), errors="coerce").fillna(0).astype(float)
+    #extract lineage from family downwards
+    work["lineage"] = (
+        work["full_lineage"]
+        .fillna("")
+        .astype(str)
+        .apply(lambda x: ";".join(x.split(";")[6:]) if ";" in x else "")
+    )
+   
+    filtered = work[(work["pident"] <= 90) & (work["qlen"] >= 1000) & (work["pc_cov_30X"] >= 70)].copy()
+
+    if filtered.empty:
+        return [
+            {
+                "Method": "Megablast",
+                "Evidence": "",
+                "Details": "",
+                "Taxonomy_classification": "",
+            }
+        ]
+
+    grouped = (
+        filtered.assign(pident=filtered["pident"].round(2))
+        .groupby(["lineage", "taxon_name", "pident", "qseqid", "qlen", "pc_cov_30X", "normalised_conf_score"], as_index=False)["mapping_read_count"]
+        .sum()
+    )
+
+    rows = []
+    for _, row in grouped.iterrows():
+        rows.append(
+            {
+                "Method": "Megablast",
+                "Evidence": f"Support for low-identity viral match",
+                "Details": f"{row['qseqid']}; {row['pident']}% id; {row['qlen']} nt; {int(row['mapping_read_count'])} mapping reads; {row['pc_cov_30X']}% 30X; {row['normalised_conf_score']} norm_conf_score",
+                "Taxonomy_classification": f"{row['lineage']}",
+            }
+        )
+
+    return rows
+#"Details": f"contig={row['qseqid']}; pident={row['pident']}, qlen={row['qlen']}, reads={int(row['mapping_read_count'])}, pc_cov_30X={row['pc_cov_30X']}, normalised_conf_score={row['normalised_conf_score']}",
+
+def build_diamond_rows(diamond_df):
+    if diamond_df.empty:
+        return [
+            {
+                "Method": "Diamond",
+                "Evidence": "",
+                "Details": "",
+                "Taxonomy_classification": "",
+            }
+        ]
+
+    rows = []
+    for _, row in diamond_df.iterrows():
+        #family = str(row.get("family", "")).strip()
+        #taxon = str(row.get("taxon", "")).strip()
+        #taxonomy_label = f"{family}; {taxon}" if family else taxon
+        rows.append(
+            {
+                "Method": "Diamond",
+                "Evidence": f"Low-identity viral match with contig length >= 500 nt",
+                "Details": f"{row['qseqid']}; {row['pident']}% id; {row['qlen']} nt; {row['qcovs']:.1f}% qcovs",
+                "Taxonomy_classification": f"{row['family']}; {row['taxon']}",
+            }
+        )
+    return rows
+
+
+def build_novel_rows(novel_df):
+    work = novel_df.copy()
+    work["virus_score"] = pd.to_numeric(work.get("virus_score"), errors="coerce").fillna(0)
+    work["ORFs"] = pd.to_numeric(work.get("ORFs"), errors="coerce").fillna(0)
+    work["RdRp"] = pd.to_numeric(work.get("RdRp"), errors="coerce").fillna(0)
+    work["PFAM_total"] = pd.to_numeric(work.get("PFAM_total"), errors="coerce").fillna(0)
+    work["taxonomy"] = work.get("taxonomy", "").fillna("").astype(str).str.strip()
+
+    def taxonomy_last(value):
+        parts = [x.strip() for x in str(value).split(";") if x and x.strip()]
+        return parts[-1] if parts else ""
+
+    filtered = work[
+        (work["virus_score"] > 0.99) & (work["ORFs"] >= 1) & (work["RdRp"] >= 1)
+    ].copy()
+
+    if filtered.empty:
+        return [
+            {
+                "Method": "Genomad",
+                "Evidence": "",
+                "Details": "",
+                "Taxonomy_classification": "",
+            }
+        ]
+
+    rows = []
+    for _, row in filtered.iterrows():
+        rows.append(
+            {
+                "Method": "Genomad",
+                "Evidence": "Functional evidence for a putative novel virus in a contig returning no megablast hit",
+                "Details": (
+                    f"{row['seq_name']}; "
+                    f"virus_score={row['virus_score']:.3f}; "
+                    f"ORFs={int(row['ORFs'])}; RdRp={int(row['RdRp'])}; "
+                    f"PFAM_total={int(row['PFAM_total'])}"
+                ),
+                "Taxonomy_classification": taxonomy_last(row["taxonomy"]),
+            }
+        )
+    return rows
+
 
 
 def main():
@@ -178,6 +536,13 @@ def main():
     parser.add_argument("--kaiju", type=str, required=True, help='provide kaiju file')
     parser.add_argument("--hmmscan", type=str, required=True, help='provide hmmscan file')
     parser.add_argument("--map2ref", type=str, required=True, help='provide coverage stats to reference')
+    parser.add_argument("--fasta", type=str, required=True, help='provide fasta file')
+    parser.add_argument("--genomad", type=str, required=True, help='provide genomad results')
+    parser.add_argument("--blast_novel", type=str, required=False, help='provide output file name')
+    parser.add_argument("--diamond", required=True, help="Diamond matches file (*diamond_matches.txt)")
+    parser.add_argument("--min-reads", type=int, default=2000, help="Strict minimum reads threshold (reads > min_reads)")
+    parser.add_argument("--taxonomy", required=True, help="Path to the taxonomy file")
+
     args = parser.parse_args()
     sample_name = args.sample_name
     blast = args.blast
@@ -185,7 +550,14 @@ def main():
     kaiju = args.kaiju
     hmmscan = args.hmmscan
     map2ref = args.map2ref
+    fasta = args.fasta
+    genomad = args.genomad
+    blast_novel = args.blast_novel
+    diamond = args.diamond
+    min_reads = args.min_reads
+    taxonomy = args.taxonomy
     
+
     df = parse_hmmscan_per_target(hmmscan)
     df_filtered = filter_hmmscan(df)
     print("Number of matching hits:", len(df_filtered))
@@ -221,7 +593,7 @@ def main():
     )
     blast_df2 = add_group_max(blast_df2, "species", "PFAM_total", "max_PFAM_total_spp")
     # ensure RdRp is boolean
-    blast_df2["RdRp"] = blast_df2["RdRp"].fillna(False)
+    blast_df2["RdRp"] = blast_df2["RdRp"].fillna(False).infer_objects(copy=False)
 
     # species-level flag: any contig of this species has RdRp
     blast_df2["species_has_RdRp"] = (
@@ -253,7 +625,7 @@ def main():
         "taxon_name"
     ]
     kaiju_viral  = kaiju_df.loc[
-        (kaiju_df["broad_category"] == "viral") & (kraken_df["term_filter"].str.lower() == "true"),
+        (kaiju_df["broad_category"] == "viral") & (kaiju_df["term_filter"].str.lower() == "true"),
         "taxon_name"
     ]
 
@@ -374,6 +746,124 @@ def main():
     
     output_file = f"{sample_name}_summary_viral_results.tsv"
     merged_df4.to_csv(output_file, index=False, sep="\t")
+
+    #derive novel virus candidates summary table, by merging the fasta, genomad, hmmscan and blast results and applying filters to identify novel candidates
+    if file_exists(fasta) and not is_file_empty(fasta):
+        fasta_df = fasta_to_dataframe(fasta)
+    else:
+        fasta_df = pd.DataFrame(columns=["seq_name", "contig_seq"])
+
+    if file_exists(genomad) and not is_file_empty(genomad):
+        
+        genomad_results = pd.read_csv(genomad, sep="\t", header=0)
+        fasta_genomad_df = pd.merge(fasta_df, genomad_results, on = ['seq_name'], how = 'outer')
+
+
+    #if file_exists(hmmscan) and not is_file_empty(hmmscan):
+        
+    #    hmmscan_results = pd.read_csv(hmmscan, sep="\t", header=0)
+    fasta_genomad_hmmscan_df = pd.merge(fasta_genomad_df, hmm_df, 
+            left_on = ['seq_name'], 
+            right_on = ['query_name'],
+            how = 'left')
+        
+    if file_exists(blast_novel) and not is_file_empty(blast_novel):
+        
+        blast_results = pd.read_csv(blast_novel, sep="\t", header=0)
+        fasta_genomad_hmmscan_blast_df = pd.merge(fasta_genomad_hmmscan_df, blast_results, 
+                              left_on = ['seq_name'], 
+                              right_on = ['qseqid'],
+                              how = 'outer')
+
+    num_cols = ["length", "virus_score", "PFAM_total"]
+    fasta_genomad_hmmscan_blast_df[num_cols] = fasta_genomad_hmmscan_blast_df[num_cols].apply(pd.to_numeric, errors="coerce")
+    # Force integer columns
+    int_cols = ["n_genes", "length", "n_hallmarks", "genetic_code"]
+    for col in int_cols:
+        fasta_genomad_hmmscan_blast_df[col] = pd.to_numeric(fasta_genomad_hmmscan_blast_df[col], errors="coerce").astype("Int64")
+
+    rows_to_check = ["PFAM_total", "virus_score"]
+
+    df_filt = fasta_genomad_hmmscan_blast_df[
+        ~(fasta_genomad_hmmscan_blast_df[rows_to_check].fillna(0).eq(0).all(axis=1))
+    ]
+    #consider filtering the unclassified hits, as these are likely to be false positives?
+    df_filt = df_filt[
+        ~df_filt["taxonomy"].str.lower().str.contains("caudoviricetes|iridoviridae|retroviridae", na=False)
+    ]
+    df_filt = df_filt[df_filt["length"] >= 500]
+    df_filt = df_filt[df_filt["virus_score"] >= 0.99]
+    #Keep only contigs with no blast hits.
+    df_filt = df_filt[
+        df_filt["sacc"].isna() | (df_filt["sacc"].str.strip() == "")
+    ]
+
+
+    df_filt["ORFs"] = df_filt["ORFs"].fillna("NA")
+
+    # Convert RdRp to numeric (True=1, False=0)
+    df_filt["RdRp"] = (
+        df_filt["RdRp"]
+        .fillna(False)
+        .astype(bool)
+        .astype(int)
+    )
+
+    # Drop low-confidence unclassified contigs lacking ORFs and RdRp support.
+    orfs_numeric = pd.to_numeric(df_filt["ORFs"], errors="coerce").fillna(0)
+    df_filt = df_filt[
+        ~(
+            df_filt["taxonomy"].str.strip().str.lower().eq("unclassified")
+            & orfs_numeric.eq(0)
+            & df_filt["RdRp"].eq(0)
+        )
+    ]
+
+    # FORCE correct dtypes before sorting
+    df_filt["virus_score"] = pd.to_numeric(
+        df_filt["virus_score"], errors="coerce"
+    ).fillna(0)
+
+    df_filt["PFAM_total"] = pd.to_numeric(
+        df_filt["PFAM_total"], errors="coerce"
+    ).fillna(0)
+
+
+    final_columns_filt = ["seq_name", "contig_seq", "length", "n_genes", "genetic_code", "virus_score", "n_hallmarks", "marker_enrichment", "taxonomy", "ORFs", "RdRp", "PFAM_total"]
+
+    df_filt = df_filt[final_columns_filt]
+    df_filt.sort_values(
+        by=["virus_score", "RdRp", "PFAM_total"],
+        ascending=[False, False, False],
+        inplace=True
+    )
+
+    output_file = f"{sample_name}_novel_virus_candidates.tsv"
+    df_filt.to_csv(output_file, index=False, sep="\t")
+
+    #derive summary table for evidence of novel viruses, by merging the kaiju, kraken, megablast, hmmscan and diamond results and applying filters to identify novel candidates. This is more focused on summarising evidence for novel viruses, whereas the previous table is focused on summarising all viral hits including known viruses.
+    kaiju_df = pd.read_csv(kaiju, sep="\t", dtype=str)
+    kraken_df = pd.read_csv(kraken, sep="\t", dtype=str)
+    megablast_df = pd.read_csv(blast, sep="\t", dtype=str)
+    #novel_df = pd.read_csv(args., sep="\t", dtype=str)
+    #diamond_df = pd.read_csv(args.diamond, sep="\t", dtype=str)
+    diamond_results_path = diamond
+    diamond_results, diamond_novel_candidate_results = load_diamond_results(diamond_results_path)
+    diamond_results.to_csv(f"{args.sample_name}_filtered_diamond_results.txt", sep="\t", index=False)
+    #diamond_novel_candidate_results.to_csv(f"{args.sample_name}_novel_candidate_diamond_results.txt", sep="\t", index=False)
+    kaiju_filtered = filter_support(kaiju_df, min_reads)
+    kraken_filtered = filter_support(kraken_df, min_reads)
+
+    support_rows = []
+    support_rows.extend(build_rows("Kaiju", kaiju_filtered))
+    support_rows.extend(build_rows("Kraken", kraken_filtered))
+    support_rows.extend(build_megablast_rows(megablast_df))
+    enriched_df = enrich_with_taxonomy(diamond_novel_candidate_results, taxonomy)
+    #print(enriched_df)
+    support_rows.extend(build_diamond_rows(enriched_df))
+    support_rows.extend(build_novel_rows(df_filt))
+    support_df = pd.DataFrame(support_rows)
+    support_df.to_csv(f"{args.sample_name}_evidence_summary_novel.txt", sep="\t", index=False)
 
 if __name__ == "__main__":
     main()

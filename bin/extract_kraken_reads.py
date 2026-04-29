@@ -429,7 +429,6 @@ def main():
         #End Program
         sys.stdout.write('\r\t%i read IDs found (%0.2f mill reads processed)\n' % (count_output, float(count_seqs/1000000.)))
     
-    #End Program
     sys.stdout.write('\t' + str(count_output) + ' reads printed to file\n')
     sys.stdout.write('\tGenerated file: %s\n' % args.output_file)
     if args.output_file2 != '':
@@ -440,11 +439,6 @@ def main():
     sys.stdout.write("PROGRAM END TIME: " + time + '\n')
     sys.exit(0)
 
-#################################################################################
 
 if __name__ == "__main__":
     main()
-
-#################################################################################
-#################################END OF PROGRAM##################################
-#################################################################################

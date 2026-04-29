@@ -21,7 +21,7 @@ sys.path.append(str(ROOT_DIR / 'bin'))
 # )
 
 REPO_URL = 'https://github.com/qcif/daff-viral-assembly'
-WF_NAME = 'ViroGen'
+WF_NAME = 'VIEW (Virus Integrated Evaluation Workflow)'
 
 
 class Config:
@@ -48,7 +48,7 @@ class Config:
         SUBTITLE = (
             "Results generated through the"
             f' <a href="{REPO_URL}" target="_blank">'
-            f'{WF_NAME} NextFlow workflow</a>.')
+            f'{WF_NAME} NextFlow pipeline</a>.')
 
     class CRITERIA:
         # ! import these from anaylsis config
