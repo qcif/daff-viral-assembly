@@ -139,6 +139,13 @@ class Config:
         return self._get_file_by_pattern("*_novel_virus_candidates.tsv")
 
     @property
+    def novel_evidence_summary_path(self) -> Path:
+        return self._get_file_by_pattern(
+            "*_multi_method_novel_evidence_summary.txt",
+            ignore_missing=True,
+        )
+
+    @property
     def filter_keywords(self) -> Path:
         return self._get_file_by_pattern("filterKeyWords.txt")
 

@@ -521,6 +521,16 @@ class SummaryResults(AbstractResultRows):
         ]
 
 
+class NovelEvidenceSummary(AbstractResultRows):
+    COLUMNS = ['Method', 'Evidence', 'Details', 'Taxonomy_classification']
+
+    @classmethod
+    def from_csv(cls, path, delimiter='\t'):
+        if path is None or not path.exists():
+            return cls([])
+        return super().from_csv(path, delimiter=delimiter)
+
+
 class NovelVirusResults(AbstractResultRows):
     COLUMN_METADATA = _csv_to_dict(config.SCHEMA.NOVEL_VIRUS_FIELD_CSV)
     COLUMNS = list(COLUMN_METADATA.keys())

@@ -22,9 +22,10 @@ from .results import (
     KrakenResults,
     MappingResults,
     Metadata,
+    NovelEvidenceSummary,
+    NovelVirusResults,
     RunQC,
     SummaryResults,
-    NovelVirusResults,
 )
 from .filters.css_hash import css_hash
 from .utils import get_img_src, serialize
@@ -174,6 +175,9 @@ def _get_report_context(
         'mapping': MappingResults.from_csv(config.ref_mapping_path),
         'summary': SummaryResults.from_csv(config.summary_path),
         'novel_viruses': NovelVirusResults.from_csv(config.novel_viruses_path),
+        'novel_evidence_summary': NovelEvidenceSummary.from_csv(
+            config.novel_evidence_summary_path,
+        ),
         'kraken_taxa_by_kingdom': parse_kraken_taxonomy(
             config.kraken_hits_path,
             group_kingdoms=True,

@@ -132,6 +132,38 @@
   {% endif %}
 </div>
 
+<section>
+  <h4>Evidence for novel viruses</h4>
+  {% if novel_evidence_summary | length %}
+  <div class="my-3" style="overflow-x: auto;">
+    <table id="novelEvidenceSummaryTable" class="table table-lined tight small">
+      <thead>
+        <tr class="table-light">
+          <th>Method</th>
+          <th>Evidence</th>
+          <th>Details</th>
+          <th>Taxonomy classification</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in novel_evidence_summary %}
+        <tr>
+          <td>{{ row['Method'] }}</td>
+          <td>{{ row['Evidence'] }}</td>
+          <td>{{ row['Details'] }}</td>
+          <td>{{ row['Taxonomy_classification'] }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% else %}
+
+<p class="alert alert-info">No evidence of novel viruses to show.</p>
+
+{% endif %}
+
 <script>
 $(document).ready(() => {
   const table = new DataTable('#summaryTable', {
