@@ -34,7 +34,7 @@ process FILTER_CONTROL {
 process BBMAP_BBSPLIT {
     tag "$meta.id"
     label "setting_22"
-    publishDir "${params.outdir}/${meta.id}/04_cleaned", mode: 'copy', pattern: '{*cleaned*fastq.gz,*bbsplit.log,*bbsplit_stats.txt}'
+    publishDir { "${params.outdir}/${meta.id}/04_cleaned" }, mode: 'copy', pattern: '{*cleaned*fastq.gz,*bbsplit.log,*bbsplit_stats.txt}'
     //label 'error_retry'
 
     conda "${moduleDir}/environment.yml"
@@ -74,8 +74,8 @@ process BBMAP_BBSPLIT {
     }
 
     def other_refs = []
-    other_ref_names.eachWithIndex { name, index ->
-        other_refs << "ref_${name}=${other_ref_paths[index]}"
+    other_ref_names.eachWithIndex { name, i ->
+        other_refs << "ref_${name}=${other_ref_paths[i]}"
     }
 
     def fastq_in=''
@@ -160,7 +160,7 @@ process BBMAP_BBSPLIT {
     stub:
     def prefix = task.ext.prefix ?: "${meta.id}"
     def other_refs = ''
-    other_ref_names.eachWithIndex { name, index ->
+    other_ref_names.eachWithIndex { name, i ->
         other_refs += "echo '' | gzip > ${prefix}_${name}.fastq.gz"
     }
     def will_build_index = only_build_index || (!index && primary_ref && other_ref_names && other_ref_paths)

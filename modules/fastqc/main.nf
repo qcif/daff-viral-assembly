@@ -1,8 +1,13 @@
+def strip_gz(f) {
+    def n = f.getBaseName()
+    return n.replaceAll(/\.f(ast)?q$/, "")
+}
+
 process FASTQC {
     tag "$meta.id"
     label "setting_11"
-    publishDir "${params.outdir}/$meta.id/03_fastqc_trimmed", mode: 'copy', pattern: '*fastp_*_fastqc.{zip,html}'
-    publishDir "${params.outdir}/$meta.id/01_fastqc_raw", mode: 'copy', pattern: '*merged_*_fastqc.{zip,html}'
+    publishDir { "${params.outdir}/$meta.id/03_fastqc_trimmed" }, mode: 'copy', pattern: '*fastp_*_fastqc.{zip,html}'
+    publishDir { "${params.outdir}/$meta.id/01_fastqc_raw" }, mode: 'copy', pattern: '*merged_*_fastqc.{zip,html}'
     
 
     conda "bioconda::fastqc=0.12.1"
@@ -26,10 +31,6 @@ process FASTQC {
     //def prefix = task.ext.prefix ?: "${meta.id}"
     // Make list of old name and new name pairs to use for renaming in the bash while loop
     // Function to keep the name before .fastq.gz or .fq.gz
-    def strip_gz = { f ->
-    def n = f.getBaseName()    // removes .gz
-    n.replaceAll(/\.f(ast)?q$/, "")   // removes .fastq or .fq
-    }
     
     //def old_new_pairs = reads instanceof Path || reads.size() == 1 ? [[ reads, "${prefix}.${reads.extension}" ]] : reads.withIndex().collect { entry, index -> [ entry, "${prefix}_${index + 1}.${entry.extension}" ] }
     // Generate renaming pairs (keep original filename prefix)

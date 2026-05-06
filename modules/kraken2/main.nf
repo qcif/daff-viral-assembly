@@ -110,11 +110,11 @@ process KRAKEN2_KRAKEN2 {
 
     """
     touch ${prefix}.kraken2.report.txt
-    if [ "$save_output_fastqs" == "true" ]; then
+    if ${save_classified_output_fastqs} || ${save_unclassified_output_fastqs}; then
         touch $classified
         touch $unclassified
     fi
-    if [ "$save_reads_assignment" == "true" ]; then
+    if ${save_reads_assignment}; then
         touch ${prefix}_kraken2_classified_reads.txt
     fi
 

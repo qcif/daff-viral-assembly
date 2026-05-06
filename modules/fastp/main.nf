@@ -40,7 +40,7 @@ process FASTP {
     tag "$meta.id"
     label "setting_4"
     //publishDir "${params.outdir}/$meta.id/02_qtrimmed", mode: 'copy', pattern: '{*fastq.gz}'
-    publishDir "${params.outdir}/$meta.id/02_qtrimmed", mode: 'copy', pattern: '{*fastp.html,*fastp.json}'
+    publishDir { "${params.outdir}/$meta.id/02_qtrimmed" }, mode: 'copy', pattern: '{*fastp.html,*fastp.json}'
 
     conda "bioconda::fastp=0.23.4"
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
