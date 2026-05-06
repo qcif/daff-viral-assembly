@@ -554,7 +554,6 @@ process PILEUP {
   """
 }
 
-
 process BCFTOOLS {
   publishDir { "${params.outdir}/${sampleid}/09_mapping_to_ref" }, mode: 'copy'
   tag "${sampleid}"

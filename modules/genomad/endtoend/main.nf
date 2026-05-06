@@ -1,13 +1,13 @@
 process GENOMAD_ENDTOEND {
-  tag "${sampleid}"
-  label "setting_27"
-  publishDir { "${params.outdir}/${sampleid}/07_annotation/genomad" }, mode: 'copy'
+    tag "${sampleid}"
+    label "setting_27"
+    publishDir { "${params.outdir}/${sampleid}/07_annotation/genomad" }, mode: 'copy'
 
-  input:
+    input:
     tuple val(sampleid), path(viral_fasta), path(other_fasta)
     path(genomad_db)
 
-  output:
+    output:
     file "*_summary/*_virus.fna"
     file "*_summary/*_virus_summary.tsv"
     file "*_summary/*_virus_genes.tsv"
@@ -21,9 +21,9 @@ process GENOMAD_ENDTOEND {
     file "*_annotate/*_taxonomy.tsv"
     file "${sampleid}_genomad.log"
     tuple val(sampleid), path("${sampleid}_combined_contigs_virus_summary.tsv"), emit: virus_preds
-    
-  script:
-  """
+      
+    script:
+    """
     cat ${viral_fasta} ${other_fasta} > ${sampleid}_combined_contigs.fasta
     genomad \\
       end-to-end \\
@@ -35,5 +35,5 @@ process GENOMAD_ENDTOEND {
       --splits 1 \\
       > ${sampleid}_genomad.log 2>&1
       cp ${sampleid}_combined_contigs_summary/${sampleid}_combined_contigs_virus_summary.tsv .
-  """
+    """
 }

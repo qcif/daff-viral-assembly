@@ -3,12 +3,12 @@ process BLASTN {
     label "setting_20"
     containerOptions "--bind ${file(params.blastn_db).parent}"
 
-
     input:
-        tuple val(sampleid), path(assembly)
-        val(db)
+    tuple val(sampleid), path(assembly)
+    val(db)
+    
     output:
-        tuple val(sampleid), path("${sampleid}*_blastn.bls"), emit: blast_results
+    tuple val(sampleid), path("${sampleid}*_blastn.bls"), emit: blast_results
 
     script:
     def blastdb_dir  = file(db).parent
@@ -17,12 +17,12 @@ process BLASTN {
     """
     export BLASTDB=${blastdb_dir}
     
-    blastn -query ${assembly} \
-        -db ${blastdb_name} \
-        -out ${blastoutput} \
-        -evalue 1e-3 \
-        -num_threads ${params.blast_threads} \
-        -outfmt '6 qseqid sgi sacc length pident mismatch gapopen qstart qend qlen sstart send slen sstrand evalue bitscore qcovhsp stitle staxids qseq sseq sseqid qcovs qframe sframe' \
+    blastn -query ${assembly} \\
+        -db ${blastdb_name} \\
+        -out ${blastoutput} \\
+        -evalue 1e-3 \\
+        -num_threads ${params.blast_threads} \\
+        -outfmt '6 qseqid sgi sacc length pident mismatch gapopen qstart qend qlen sstart send slen sstrand evalue bitscore qcovhsp stitle staxids qseq sseq sseqid qcovs qframe sframe' \\
         -max_target_seqs 5
     """
 }
