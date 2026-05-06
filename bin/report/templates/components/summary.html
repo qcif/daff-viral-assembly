@@ -150,8 +150,16 @@
         <tr>
           <td>{{ row['Method'] }}</td>
           <td>{{ row['Evidence'] }}</td>
-          <td>{{ row['Details'] }}</td>
-          <td>{{ row['Taxonomy_classification'] }}</td>
+          <td>
+            {% for item in row['Details'].split(';') %}
+              <div class="badge bg-secondary">{{ item }}</div>
+            {% endfor %}
+          </td>
+          <td>
+            {% for item in row['Taxonomy_classification'].split(';') %}
+              <div class="badge bg-secondary">{{ item }}</div>
+            {% endfor %}
+          </td>
         </tr>
         {% endfor %}
       </tbody>
