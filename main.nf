@@ -200,28 +200,7 @@ process FASTA2TABLE2 {
   """
 }
 
-process MOSDEPTH {
-  tag "$sampleid"
-  label "setting_2"
 
-  input:
-    tuple val(sampleid), path(consensus), path(bam), path(bai), path(bed)
-
-  output:
-    tuple val(sampleid), path("${sampleid}.thresholds.bed"), emit: mosdepth_results
-
-  script:
-  """
-  if [[ ! -s ${consensus} ]]; then
-    touch ${sampleid}.thresholds.bed
-
-  else
-    mosdepth --by ${bed} --thresholds 30 -t ${task.cpus} ${sampleid} ${bam}
-    gunzip *.per-base.bed.gz
-    gunzip *.thresholds.bed.gz
-  fi
-  """
-}
 
 process MOSDEPTH_CONTIGS {
   tag "$sampleid"
@@ -353,8 +332,6 @@ process HTML_REPORT {
   build_report.py --samplesheet ${samplesheet} --result_dir . --params_file ${configyaml} --analyst ${analyst_name} --facility ${facility} --versions versions.yml --default_params_file default_params.yml
   """
 }
-
-
 
 process EXTRACT_VIRAL_BLAST_HITS {
   tag "${sampleid}"
@@ -551,38 +528,6 @@ process PILEUP {
   samtools view -@ ${task.cpus} -Sb -F 4 ${sam} | samtools sort -@ ${task.cpus} -o ${sampleid}_contig_aln.sorted.bam
   samtools index ${sampleid}_contig_aln.sorted.bam
   samtools mpileup -aa -f ${ref} ${sampleid}_contig_aln.sorted.bam > ${sampleid}_contig_pileup.txt  
-  """
-}
-
-process BCFTOOLS {
-  publishDir { "${params.outdir}/${sampleid}/09_mapping_to_ref" }, mode: 'copy'
-  tag "${sampleid}"
-  label 'setting_3'
-
-  input:
-   tuple val(sampleid), path(ref), path(bam), path(bai)
-
-  output:
-    path("${sampleid}_vcf_applied.fasta")
-    path("${sampleid}_annotated.vcf.gz")
-    tuple val(sampleid), path(ref), path(bam), path(bai), path("${sampleid}_vcf_applied.fasta"), emit: vcf_applied_fasta
-
-  script:
-  """
-  awk '/^>/ {print; next} {gsub(/[WSMKRYBDHVNwsmskrybdhvn]/, "N"); print}' "${ref}" > "${sampleid}_ref_cleaned.fasta"
-  bcftools mpileup -Ou -f ${sampleid}_ref_cleaned.fasta ${bam} | bcftools call -Ou -mv --ploidy=1 | bcftools norm -f ${sampleid}_ref_cleaned.fasta -Oz -o ${sampleid}_raw.vcf.gz
-  # -M, --keep-masked-ref           keep sites with masked reference allele (REF=N)
-  #-c, --check-ref <e|w|x|s>         check REF alleles and exit (e), warn (w), exclude (x), or set (s) bad sites [e]
-  bcftools reheader ${sampleid}_raw.vcf.gz -s <(echo '${sampleid}') \\
-  | bcftools filter \\
-      -e 'INFO/DP < 20' \\
-      -s LOW_DEPTH \\
-      --IndelGap 5 \\
-      -Oz -o ${sampleid}_annotated.vcf.gz
-  
-  bcftools index ${sampleid}_annotated.vcf.gz
-  # create consensus
-  bcftools consensus -f ${sampleid}_ref_cleaned.fasta ${sampleid}_annotated.vcf.gz -o ${sampleid}_vcf_applied.fasta
   """
 }
 
@@ -812,6 +757,33 @@ process TRIM_ENDS {
   """
 }
 
+process HMMSCAN {
+    tag "${sampleid}"
+    label "setting_20"
+    publishDir { "${params.outdir}/${sampleid}/07_annotation" }, mode: 'copy'
+    containerOptions "${params.bindOptions}"
+
+    input:
+    tuple val(sampleid), path(fasta)
+    val(hmmer_db)
+    
+    output:
+    file "${sampleid}_orfs.fasta"
+    file "${sampleid}_hmmscan*_output.txt"
+    tuple val(sampleid), path("${sampleid}_hmmscan_per_target_output.txt"), emit: hmmscan_preds
+    tuple val(sampleid), path("${sampleid}_hmmscan_per_domain_output.txt"), emit: hmmscan_domain_preds
+
+    script:
+    """
+    hmmscan --cpu ${task.cpus} \\
+            --domtblout ${sampleid}_hmmscan_per_domain_output.txt \\
+            --tblout ${sampleid}_hmmscan_per_target_output.txt \\
+            --pfamtblout ${sampleid}_hmmscan_succinct_output.txt \\
+            ${hmmer_db} ${fasta} \\
+            > ${sampleid}_hmmscan.log 2>&1
+    """
+}
+
 include { CAT_FASTQ } from './modules/cat_fastq/main'
 include { FASTQC as FASTQC_RAW  } from './modules/fastqc/main'
 include { FASTQC as FASTQC_TRIM } from './modules/fastqc/main'
@@ -832,8 +804,12 @@ include { GENOMAD_ENDTOEND } from './modules/genomad/endtoend/main'
 include { ORFIPY } from './modules/orfipy/main'
 include { SEQTK_SEQ } from './modules/seqtk/seq/main'
 include { SEQTK_SUBSEQ as EXTRACT_CONTIGS} from './modules/seqtk/subseq/main'
-include { HMMSCAN } from './modules/hmmscan/main'
+//include { HMMSCAN } from './modules/hmmscan/main'
 include { BEDTOOLS } from './modules/bedtools/main'
+include {BCFTOOLS} from './modules/bcftools/main'
+include { MOSDEPTH as MOSDEPTH_CONTIGS } from './modules/mosdepth/main'
+include { MOSDEPTH as MOSDEPTH_REF } from './modules/mosdepth/main'
+
 
 
 
@@ -1042,8 +1018,8 @@ workflow {
   BCFTOOLS ( SAMTOOLS2.out.sorted_bam )
   BEDTOOLS ( BCFTOOLS.out.vcf_applied_fasta )
   PYFAIDX ( EXTRACT_REF_FASTA.out.fasta_files )
-  MOSDEPTH (SAMTOOLS2.out.sorted_bam.join(PYFAIDX.out.bed))
-  cov_stats_summary_ch = MOSDEPTH.out.mosdepth_results.join(FASTA2TABLE.out.blast_results)
+  MOSDEPTH_REF (SAMTOOLS2.out.sorted_bam.join(PYFAIDX.out.bed))
+  cov_stats_summary_ch =  MOSDEPTH_REF.out.mosdepth_results.join(FASTA2TABLE.out.blast_results)
                                                       .join(stats_ch)
                                                       .join(BEDTOOLS.out.bcftools_masked_consensus_fasta)
                                                       .join(SAMTOOLS2.out.coverage)
