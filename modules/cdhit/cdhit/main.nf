@@ -1,6 +1,6 @@
 process CDHIT_CDHIT {
     tag "${sampleid}"
-    label "setting_21"
+    label 'setting_21'
 
     input:
     tuple val(sampleid), path(ref)

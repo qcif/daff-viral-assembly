@@ -1,6 +1,6 @@
 process SEQTK_SEQ {
     tag "${sampleid}"
-    label "setting_1"
+    label 'setting_1'
     publishDir { "${params.outdir}/${sampleid}/06_assembly" }, mode: 'copy', pattern: '{*_spades_scaffolds.fasta}'
 
     input:

@@ -1,6 +1,6 @@
 process DIAMOND_BLASTX {
     tag "${sampleid}"
-    label "setting_30"
+    label 'setting_30'
     publishDir { "${params.outdir}/${sampleid}/07_annotation" }, mode: 'copy'
     container "${workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container
           ? 'https://depot.galaxyproject.org/singularity/diamond:2.1.24--hf93d47f_0'

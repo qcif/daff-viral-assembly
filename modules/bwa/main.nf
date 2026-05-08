@@ -1,6 +1,6 @@
 process BWA {
     tag "${sampleid}"
-    label "setting_21"
+    label 'setting_21'
 
     input:
     tuple val(sampleid), path(contigs), path(fastq1), path(fastq2)
@@ -11,7 +11,7 @@ process BWA {
     script:
     """
     bwa index ${contigs}
-    bwa mem -t 4 ${contigs} $fastq1 $fastq2 > ${sampleid}_contig_aln.sam 2>> ${sampleid}_mapping.log
+    bwa mem -t ${task.cpus} ${contigs} $fastq1 $fastq2 > ${sampleid}_contig_aln.sam 2>> ${sampleid}_mapping.log
     """
 }
 

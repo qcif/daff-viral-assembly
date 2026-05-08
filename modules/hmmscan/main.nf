@@ -1,9 +1,12 @@
 process HMMSCAN {
     tag "${sampleid}"
-    label "setting_20"
+    label 'setting_20'
     publishDir { "${params.outdir}/${sampleid}/07_annotation" }, mode: 'copy'
-    containerOptions "${params.bindOptions}"
-
+    //container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
+    //    'https://community-cr-prod.seqera.io/docker/registry/v2/blobs/sha256/07/07c4cbd91c4459dc86b13b5cd799cacba96b27d66c276485550d299c7a4c6f8a/data' :
+    //   'community.wave.seqera.io/library/hmmer:3.4--cb5d2dd2e85974ca' }"
+    containerOptions "--bind ${file(params.hmmer_db).parent}"
+    
     input:
     tuple val(sampleid), path(fasta)
     val(hmmer_db)

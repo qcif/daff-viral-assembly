@@ -5,7 +5,7 @@ def strip_gz(f) {
 
 process FASTQC {
     tag "$meta.id"
-    label "setting_11"
+    label 'setting_11'
     publishDir { "${params.outdir}/$meta.id/03_fastqc_trimmed" }, mode: 'copy', pattern: '*fastp_*_fastqc.{zip,html}'
     publishDir { "${params.outdir}/$meta.id/01_fastqc_raw" }, mode: 'copy', pattern: '*merged_*_fastqc.{zip,html}'
     

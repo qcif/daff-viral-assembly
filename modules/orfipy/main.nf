@@ -1,6 +1,6 @@
 process ORFIPY {
     tag "${sampleid}"
-    label "setting_1"
+    label 'setting_1'
     publishDir { "${params.outdir}/${sampleid}/07_annotation" }, mode: 'copy'
 
     input:

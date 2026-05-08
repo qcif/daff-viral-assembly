@@ -1,6 +1,6 @@
 process GENOMAD_ENDTOEND {
     tag "${sampleid}"
-    label "setting_27"
+    label 'setting_27'
     publishDir { "${params.outdir}/${sampleid}/07_annotation/genomad" }, mode: 'copy'
 
     input:

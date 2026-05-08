@@ -1,6 +1,6 @@
 process SEQTK_SUBSEQ {
     tag "${sampleid}"
-    label "setting_1"
+    label 'setting_1'
 
     input:
     tuple val(sampleid), path(viral_contig_ids), path(other_contig_ids), path(contigs)
