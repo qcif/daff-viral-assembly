@@ -13,7 +13,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description="Load taxonomic classification and summarise.")
     parser.add_argument("--kaiju", required=True, type=str)
     parser.add_argument("--sample_name", required=True, type=str)
-    parser.add_argument("--bracken", required=True, type=str)
+    parser.add_argument("--kraken2", required=True, type=str)
     parser.add_argument("--taxonkit_database_dir", required=True, type=str)
     parser.add_argument("--stats", required=True, type=str, help="path to bbsplit stats file")
     parser.add_argument("--filter", required=True, type=str, help="path to file with terms to filter out")
@@ -72,7 +72,7 @@ def categorise_kaiju(row):
     return "other"
 
 
-def categorise_bracken(row):
+def categorise_kraken2(row):
     resolution = classify_taxonomic_resolution(row)
 
     if resolution:
@@ -151,7 +151,7 @@ def main():
     args = parse_arguments()
     kaiju_path = args.kaiju
     sample_name = args.sample_name
-    bracken_path = args.bracken
+    kraken2_path = args.kraken2
     tk_db_dir = args.taxonkit_database_dir
     log = args.stats
     filter_file = args.filter
@@ -164,8 +164,8 @@ def main():
     if not file_exists(kaiju_path):
         raise FileNotFoundError(f"{kaiju_path} does not exist.")
 
-    if not file_exists(bracken_path):
-        raise FileNotFoundError(f"{bracken_path} does not exist.")
+    if not file_exists(kraken2_path):
+        raise FileNotFoundError(f"{kraken2_path} does not exist.")
     df = pd.read_csv(kaiju_path, sep="\t", dtype=str)
 
     # ------------------------------------
@@ -223,7 +223,7 @@ def main():
     # ------------------------------------
     # Load KRAKEN/BRAKEN summary table
     # ------------------------------------
-    br = pd.read_csv(bracken_path, sep="\t", dtype=str)
+    br = pd.read_csv(kraken2_path, sep="\t", dtype=str)
     br = br.rename(columns={
         "taxonomy_id": "taxon_id"})
     unique_taxids_br = br.loc[br["taxon_id"] != 0, "taxon_id"].unique().tolist()
@@ -245,7 +245,7 @@ def main():
     br["term_filter"] = ~(
         br["taxon_name"].str.contains(pattern, case=False, na=False)
         )
-    # Sum of all classified reads in Bracken table
+    # Sum of all classified reads in kraken2 table
     classified_reads = br["reads"].sum()
     # Compute unclassified reads
     unclassified_reads = filtered_read_counts - classified_reads
