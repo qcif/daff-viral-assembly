@@ -1,0 +1,2 @@
+sample,fastq_1,fastq_2,sample_information,sample_type,sample_receipt_date,storage_location
+test,/work/daff_viral_rnaseq/github/daff-viral-assembly/tests/test_1.fastq.gz,/work/daff_viral_rnaseq/github/daff-viral-assembly/tests/test_2.fastq.gz
