@@ -196,7 +196,9 @@ process EXTRACT_VIRAL_BLAST_HITS {
     filter_blast.py --blastn_results ${sampleid}_blastn.txt --sample_name ${sampleid} --taxonkit_database_dir ${taxonkit_db} --filter ${params.filter_terms} --assembly_headers ${assembly_headers}
     cut -f2 ${sampleid}_megablast_top_viral_hits.txt | sed '1d' | sed 's/ //g' | sort | uniq > ${sampleid}_viral_candidate_contig_ids.txt
     grep '>' ${fasta} | sed 's/>//g' | sed 's/ /_/g' | sort | uniq > ${sampleid}_all_contigs.txt
-    grep -F -x -v -f ${sampleid}_viral_candidate_contig_ids.txt ${sampleid}_all_contigs.txt > ${sampleid}_other_contig_ids.txt
+    grep -F -x -v -f ${sampleid}_viral_candidate_contig_ids.txt \
+      ${sampleid}_all_contigs.txt \
+      > ${sampleid}_other_contig_ids.txt || touch ${sampleid}_other_contig_ids.txt
     """
 }
 
