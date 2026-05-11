@@ -6,7 +6,7 @@ process BWA {
     tuple val(sampleid), path(contigs), path(fastq1), path(fastq2)
 
     output:
-    tuple val(sampleid), path(contigs), file("${sampleid}_contig_aln.sam"), emit: contig_aligned_sam
+    tuple val(sampleid), path(contigs), path("${sampleid}_contig_aln.sam"), emit: contig_aligned_sam
 
     script:
     """

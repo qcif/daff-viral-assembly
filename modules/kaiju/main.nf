@@ -100,7 +100,8 @@ process KAIJU_KAIJU {
     def input = meta.single_end ? "-i ${reads}" : "-i ${reads[0]} -j ${reads[1]}"
     """
     dbnodes=`find -L ${db} -name "*nodes.dmp"`
-    dbname=`find -L ${db} -name "*kaiju_db_nr_euk.fmi" -not -name "._*"`
+    #dbname=`find -L ${db} -name "*kaiju_db_nr_euk.fmi" -not -name "._*"`
+    dbname=`find -L ${db} -name "*.fmi" -not -name "._*"`
     dbnames=`find -L ${db} -name "*names.dmp"`
     
 
