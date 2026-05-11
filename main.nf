@@ -54,7 +54,6 @@ def isNonEmptyFile(file) {
     return file.exists() && file.size() > 0
 }
 
-
 def buildBindOptions() {
   def bindOptions = "" 
   if (workflow.containerEngine == "singularity") {
@@ -86,9 +85,8 @@ process REF_COVSTATS {
     
     output:
     path("*reference_with_cov_stats.txt")
-    tuple val(sampleid), path("*reference_with_cov_stats.txt"), emit: detections_summary
-    tuple val(sampleid), path(consensus), path("*reference_with_cov_stats.txt"), emit: detections_summary3
-    path("*reference_with_cov_stats.txt"), emit: detections_summary2
+    //tuple val(sampleid), path("*reference_with_cov_stats.txt"), emit: detections_summary
+    tuple val(sampleid), path("*reference_with_cov_stats.txt"), path(consensus), emit: detections_summary
 
     script:
     """
@@ -163,104 +161,6 @@ process EXTRACT_BLAST_HITS {
     """
 }
 
-process FASTA2TABLE {
-    tag "$sampleid"
-    label 'setting_1'
-
-    input:
-    tuple val(sampleid), path(tophits), path(fasta)
-    output:
-    file("${sampleid}_megablast_top_viral_hits_with_contigs.txt")
-    file("${sampleid}_megablast_top_viral_hits_filtered_with_contigs.txt")
-    tuple val(sampleid), file("${sampleid}_ref_ids_to_retrieve.txt"), emit: ref_ids
-    tuple val(sampleid), file("${sampleid}*_filtered_viral_contigs.fasta"), emit: contig_fasta
-    tuple val(sampleid), file("${sampleid}_megablast_top_viral_hits_filtered_with_contigs.txt"), emit: blast_results
-    tuple val(sampleid), file("${sampleid}_megablast_top_viral_hits_with_contigs.txt"), emit: blast_results2
-
-    script:
-    """
-    fasta2table.py --fasta ${fasta} --sample ${sampleid} --tophits ${tophits} --mode contigs
-    cut -f2 ${sampleid}_megablast_top_viral_hits_filtered_with_contigs.txt | sed '1d' | sed 's/ //g' | sort | uniq > ${sampleid}_contig_ids_to_retrieve.txt
-    """
-}
-
-process FASTA2TABLE2 {
-    tag "$sampleid"
-    label 'setting_1'
-    publishDir { "${params.outdir}/${sampleid}/09_mapping_to_ref" }, mode: 'copy'
-
-    input:
-    tuple val(sampleid), path(fasta), path(stats)
-    
-    output:
-    file("${sampleid}_reference_with_cov_stats_final.txt")
-    tuple val(sampleid), file("${sampleid}_reference_with_cov_stats_final.txt"), emit: detections_summary_final
-
-    script:
-    """
-    fasta2table.py --fasta ${fasta} --sample ${sampleid} --tophits ${stats} --mode reference
-    """
-}
-
-process PYFAIDX {
-    tag "$sampleid"
-    label 'setting_1'
-
-    input:
-    tuple val(sampleid), path(fasta)
-
-    output:
-    tuple val(sampleid), path("${sampleid}.bed"), emit: bed
-
-    script:
-    """
-    if [[ ! -s ${fasta} ]]; then
-      touch ${sampleid}.bed
-    else
-      faidx --transform bed ${fasta} > ${sampleid}.bed
-    fi
-    """
-}
-
-process PYFAIDX_CONTIGS {
-    tag "$sampleid"
-    label 'setting_1'
-
-    input:
-    tuple val(sampleid), path(fasta)
-
-    output:
-    tuple val(sampleid), path("${sampleid}_contigs.bed"), emit: bed
-
-    script:
-    """
-    if [[ ! -s ${fasta} ]]; then
-      touch ${sampleid}_contigs.bed
-    else
-      faidx --transform bed ${fasta} > ${sampleid}_contigs.bed
-    fi
-    """
-}
-
-process QCREPORT {
-    label 'setting_1'
-    publishDir "${params.outdir}/02_qc_report", mode: 'copy', overwrite: true
-
-    input:
-    path multiqc_files
-
-    output:
-    path("run_qc_report_*txt")
-    path("run_qc_report_*html")
-    path("run_qc_report_*html"), emit: qc_report_html
-    path("run_qc_report_*txt"), emit: qc_report_txt
-
-    script:
-    """
-    seq_run_qc_report.py --qfiltered_reads_threshold ${params.qfiltered_reads_threshold} --clean_reads_threshold ${params.clean_reads_threshold}
-    """
-}
-
 process TIMESTAMP_START {
     publishDir "${params.outdir}/01_pipeline_logs", mode: 'copy', overwrite: true
     cache false
@@ -276,42 +176,10 @@ process TIMESTAMP_START {
     """
 }
 
-process HTML_REPORT {
-    publishDir { "${params.outdir}/${sampleid}/11_report" }, mode: 'copy', overwrite: true
-    label 'setting_6'
-
-    input:
-    tuple val(sampleid), path(raw_fastqc), path(filtered_fastqc), path(fastp), path(fasta), path(summary_known_viruses), path(kaiju_summary), path(kraken_summary), path(detections_summary), path(ref_mapping_summary), path(consensus), path(bam), path(bai), path(novel_virus_summary), path(blast_contig2ref),path(orfs), path(hmmscan),
-    path(timestamp),
-    path(qcreport_html),
-    path(qcreport_txt),
-    path(configyaml),
-    path(samplesheet)
-
-    output:
-    path("*"), optional: true
-    path(raw_fastqc)
-    path(filtered_fastqc)
-    path(qcreport_html)
-    path(bam)
-    path(bai)
-
-    script:
-    analyst_name = params.analyst_name ? params.analyst_name.replaceAll(/ /, '_') : "unknown"
-    facility = params.facility ? params.facility.replaceAll(/ /, '_') : "unknown"
-    """
-    #cp ${qcreport_html} .
-    cp ${params.tool_versions} versions.yml
-    cp ${params.default_params} default_params.yml
-    cp ${params.filter_terms} filterKeyWords.txt
-
-    build_report.py --samplesheet ${samplesheet} --result_dir . --params_file ${configyaml} --analyst ${analyst_name} --facility ${facility} --versions versions.yml --default_params_file default_params.yml
-    """
-}
-
 process EXTRACT_VIRAL_BLAST_HITS {
     tag "${sampleid}"
     label 'setting_2'
+    containerOptions "--bind ${file(params.taxdump)}"
 
     input:
     tuple val(sampleid), path(blast_results), path(assembly_headers), path(fasta)
@@ -349,26 +217,6 @@ process EXTRACT_VIRAL_BLAST_HITS_ROUND2 {
     """
     cat ${blast_results} > ${sampleid}_blastn.txt
     filter_blast.py --blastn_results ${sampleid}_blastn.txt --sample_name ${sampleid} --taxonkit_database_dir ${taxonkit_db} --filter ${params.filter_terms} --assembly_headers ${assembly_headers}
-    """
-}
-process SUMMARISE_READ_CLASSIFICATION {
-    tag "${sampleid}"
-    label 'setting_1'
-    publishDir { "${params.outdir}/${sampleid}/05_read_classification" }, mode: 'copy'
-
-    input:
-    tuple val(sampleid), path(kaiju_results), path(bracken_results), path(stats)
-    path(taxonkit_db)
-
-    output:
-    path("${sampleid}_kaiju_summary.txt")
-    path("${sampleid}_kraken_summary.txt")
-    tuple val(sampleid), path("${sampleid}_kaiju_summary.txt"), emit: kaiju_summary
-    tuple val(sampleid), path("${sampleid}_kraken_summary.txt"), emit: kraken_summary
-
-    script:
-    """
-    filter_classification_results.py --kaiju ${kaiju_results} --sample_name ${sampleid} --bracken ${bracken_results} --taxonkit_database_dir ${taxonkit_db} --stats ${stats} --filter ${params.filter_terms}
     """
 }
 
@@ -506,156 +354,6 @@ process PILEUP {
     """
 }
 
-//Explore downtrack downloading krona taxonomy to see if it improves the visualisation
-process KRAKEN2_TO_KRONA {
-    tag "$meta.id"
-    label 'setting_3'
-    publishDir { "${params.outdir}/${meta.id}/05_read_classification" }, mode: 'copy'
-
-    input:
-    tuple val(meta), path(kraken_report)
-
-    output:
-    file("*_kraken_krona.html")
-
-    when:
-    task.ext.when == null || task.ext.when
-    
-    script:
-    def prefix = task.ext.prefix ?: "${meta.id}"
-    """
-    awk '\$1 >= 0.001' ${kraken_report} > filtered_report.txt
-
-    awk -F'\\t' '
-    {
-        name=\$8
-        gsub(/^ +/,"",name)
-
-        indent = match(\$8,/[^ ]/) - 1
-        level = int(indent / 2)
-
-        lineage[level] = name
-
-        path = lineage[0]
-        for(i=1;i<=level;i++)
-            path = path "\\t" lineage[i]
-
-        print \$3 "\\t" path
-    }
-    ' filtered_report.txt \\
-    | ktImportText -o ${prefix}_kraken_krona.html -
-    """
-}
-
-//the logic of the original est_abundance.py had to be modified as it was not working as intended for viral species 
-// only defined at S1 (strain) level but not S level, these would just not appear in the bracken report. 
-// Hence the updated_est_abundance.py script is used here instead.
-//It will rescue the abundance estimates for such species by summing up all S1 level abundances to S level.
-process BRACKEN {
-    tag "$meta.id"
-    label 'setting_1'
-
-    input:
-    tuple val(meta), path(kraken_report)
-
-    output:
-    file("*_bracken_report*.txt")
-    tuple val(meta.id), path("*_bracken_report.txt"), emit: bracken_results
-
-    when:
-    task.ext.when == null || task.ext.when
-  
-    script:
-    def prefix = task.ext.prefix ?: "${meta.id}"
-    """
-    kraken_lowest_rank.py -i ${kraken_report} \\
-                    -t 3 \\
-                    -o ${prefix}_bracken_report.txt
-    """
-}
-
-//Explore downtrack downloading krona taxonomy to see if it improves the visualisation
-process KRONA {
-    publishDir { "${params.outdir}/${sampleid}/05_read_classification" }, mode: 'link'
-    label 'setting_31'
-    tag "${sampleid}"
-
-    input:
-    tuple val(sampleid), path(krona_input)
-
-    output:
-    file "${sampleid}_kaiju_krona.html"
-
-    script:
-    """
-    ktImportText -o ${sampleid}_kaiju_krona.html ${krona_input}
-    """
-}
-
-process RETRIEVE_VIRAL_READS_KRAKEN2 {
-    tag "$meta.id"
-    label 'setting_11'
-    publishDir { "${params.outdir}/${meta.id}/05_read_classification" }, mode: 'copy'
-
-    input:
-    tuple val(meta), path(kraken_report), path(kraken_output), path(fastq1), path(fastq2), path(unc_fastq1), path(unc_fastq2)
-    output:
-    tuple val(meta), path("*_cand_path_R*.fastq.gz"), emit: fastq
-
-    script:
-    def prefix = task.ext.prefix ?: "${meta.id}"
-    """
-    extract_kraken_reads.py -k ${kraken_output} -r ${kraken_report} \\
-                            -t 10239 --include-children \\
-                            -s1 ${fastq1} -s2 ${fastq2} \\
-                            --fastq-output \\
-                            -o ${prefix}_extracted_reads1.fastq -o2 ${prefix}_extracted_reads2.fastq
-    gzip ${prefix}_extracted_reads1.fastq
-    gzip ${prefix}_extracted_reads2.fastq
-    cat ${unc_fastq1} ${prefix}_extracted_reads1.fastq.gz > ${prefix}_cand_path_R1.fastq.gz
-    cat ${unc_fastq2} ${prefix}_extracted_reads2.fastq.gz >  ${prefix}_cand_path_R2.fastq.gz
-    """
-}
-
-process SUMMARISE_RESULTS {
-    tag "${sampleid}"
-    label 'setting_22'
-    publishDir { "${params.outdir}/${sampleid}/10_results_summary" }, mode: 'copy', pattern: '{*summary_viral_results.tsv}'
-    publishDir { "${params.outdir}/${sampleid}/10_results_summary" }, mode: 'copy', pattern: '{*novel_virus_candidates.tsv}'
-    publishDir { "${params.outdir}/${sampleid}/10_results_summary" }, mode: 'copy', pattern: '{*evidence_summary_novel.txt}'
-    publishDir { "${params.outdir}/${sampleid}/07_annotation" }, mode: 'copy', pattern: '{*hmm_domain_summary_counts.tsv}'
-
-    input:
-    tuple val(sampleid), path(kraken_results), path(kaiju_results), path(blast), path(hmmscan), path(map2ref), path(contigs), path(genomad), path(blast_novel), path(diamond_results), path(taxonomy)
-
-    output:
-    path("${sampleid}_summary_viral_results.tsv")
-    path("${sampleid}_hmm_domain_summary_counts.tsv")
-    path("${sampleid}_novel_virus_candidates.tsv")
-    path("${sampleid}_evidence_summary_novel.txt")
-    tuple val(sampleid), path("${sampleid}_hmm_domain_summary_counts.tsv"), emit: domain_count
-    tuple val(sampleid), path("${sampleid}_summary_viral_results.tsv"), emit: summary_known_viruses
-    tuple val(sampleid), path("${sampleid}_novel_virus_candidates.tsv"), emit: novel_virus_candidates
-    tuple val(sampleid), path("${sampleid}_evidence_summary_novel.txt"), emit: support_summary
-
-    script:
-    """
-    viral_results_summary.py \\
-      --sample_name ${sampleid} \\
-      --kaiju ${kaiju_results} \\
-      --kraken ${kraken_results} \\
-      --blast ${blast} \\
-      --hmmscan ${hmmscan} \\
-      --map2ref ${map2ref} \\
-      --genomad ${genomad} \\
-      --blast_novel ${blast_novel} \\
-      --diamond ${diamond_results} \\
-      --taxonomy ${taxonomy} \\
-      --min-reads 2000 \\
-      --fasta ${contigs}
-    """
-}
-
 process COUNT_FASTQ_READS {
     tag "$meta.id"
     label 'setting_1'
@@ -695,67 +393,48 @@ process BLAST_CONTIGS_TO_REF {
     """
 }
 
-process IDENTIFY_ERRORS {
-    tag "${sampleid}"
-    label 'setting_2'
-    publishDir { "${params.outdir}/${sampleid}/08_mapping_to_contigs" }, mode: 'copy'
-
-    input:
-    tuple val(sampleid), path(pileup), path(ref)
-
-    output:
-    tuple val(sampleid), path("${sampleid}_trim_coords.tsv"), path(ref), emit: trimmed_coords
-
-    script:
-    """
-    trim_contig_ends.py ${pileup} > ${sampleid}_trim_coords.tsv
-    """
-}
-
-process TRIM_ENDS {
-    tag "${sampleid}"
-    label 'setting_2'
-    publishDir { "${params.outdir}/${sampleid}/08_mapping_to_contigs" }, mode: 'copy'
-
-    input:
-    tuple val(sampleid), path(trimmed_coords), path(ref)
-
-    output:
-    tuple val(sampleid), path("${sampleid}_contigs.trimmed.fa"), emit: trimmed_contigs
-
-    script:
-    """
-    samtools faidx ${ref}
-    #while read ctg L R; do samtools faidx ${ref} "\${ctg}:\${L}-\${R}" | sed "1s/.*/>\${ctg}_trimmed_\${L}_\${R}/" >> ${sampleid}_contigs.trimmed.fa; done < ${trimmed_coords}
-    while read ctg L R; do samtools faidx ${ref} "\${ctg}:\${L}-\${R}" | sed "1s/.*/>\${ctg}/" >> ${sampleid}_contigs.trimmed.fa; done < ${trimmed_coords}
-    """
-}
-
-include { CAT_FASTQ } from './modules/cat_fastq/main'
-include { FASTQC as FASTQC_RAW  } from './modules/fastqc/main'
-include { FASTQC as FASTQC_TRIM } from './modules/fastqc/main'
-include { FASTP } from './modules/fastp/main'
 include { BBMAP_BBDUK } from './modules/bbmap/bbduk/main'
 include { BBMAP_BBSPLIT } from './modules/bbmap/bbsplit/main'
-include { KRAKEN2_KRAKEN2 } from './modules/kraken2/main'
-include { KAIJU_KAIJU } from './modules/kaiju/main'
-include { SPADES} from './modules/spades/main'
-include { FQ_SUBSAMPLE } from './modules/fq/subsample/main'
-include { SEQTK_SAMPLE } from './modules/seqtk/sample/main'
+include { BCFTOOLS } from './modules/bcftools/main'
+include { BEDTOOLS } from './modules/bedtools/main'
 include { BLASTN as MEGABLAST } from './modules/blastn/main'
 include { BLASTN as MEGABLAST_ROUND2 } from './modules/blastn/main'
 include { BWA as MAP_TO_CONTIGS } from './modules/bwa/main'
+include { CAT_FASTQ } from './modules/cat_fastq/main'
 include { CDHIT_CDHIT as CLUSTER } from './modules/cdhit/cdhit/main'
 include { DIAMOND_BLASTX } from './modules/diamond/blastx/main'
+include { FASTA2TABLE_CONTIGS } from './modules/fasta2table_contigs/main'
+include { FASTA2TABLE_REF } from './modules/fasta2table_ref/main'
+include { FASTP } from './modules/fastp/main'
+include { FASTQC as FASTQC_RAW } from './modules/fastqc/main'
+include { FASTQC as FASTQC_TRIM } from './modules/fastqc/main'
+include { FQ_SUBSAMPLE } from './modules/fq/subsample/main'
 include { GENOMAD_ENDTOEND } from './modules/genomad/endtoend/main'
-include { ORFIPY } from './modules/orfipy/main'
-include { SEQTK_SEQ } from './modules/seqtk/seq/main'
-include { SEQTK_SUBSEQ as EXTRACT_CONTIGS} from './modules/seqtk/subseq/main'
 include { HMMSCAN } from './modules/hmmscan/main'
-include { BEDTOOLS } from './modules/bedtools/main'
-include {BCFTOOLS} from './modules/bcftools/main'
+include { HTML_REPORT } from './modules/html_report/main'
+include { IDENTIFY_ERRORS } from './modules/identify_errors/main'
+include { KAIJU_KAIJU } from './modules/kaiju/main'
+include { KRAKEN2_ABUNDANCE_ESTIMATE } from './modules/kraken2_abundance_estimate/main'
+include { KRAKEN2_KRAKEN2 } from './modules/kraken2/main'
+include { KRAKEN2_TO_KRONA } from './modules/kraken2_to_krona/main'
+include { KRONA_KTIMPORTTEXT } from './modules/krona/ktimporttext/main'
 include { MOSDEPTH as MOSDEPTH_CONTIGS } from './modules/mosdepth/main'
 include { MOSDEPTH as MOSDEPTH_REF } from './modules/mosdepth/main'
+include { ORFIPY } from './modules/orfipy/main'
+include { PYFAIDX as PYFAIDX_CONTIGS } from './modules/pyfaidx/main'
+include { PYFAIDX as PYFAIDX_REF } from './modules/pyfaidx/main'
+include { QC_REPORT } from './modules/qc_report/main'
+include { RETRIEVE_VIRAL_READS_KRAKEN2 } from './modules/retrieve_viral_reads_kraken2/main'
+include { SEQTK_SAMPLE } from './modules/seqtk/sample/main'
+include { SEQTK_SEQ } from './modules/seqtk/seq/main'
+include { SEQTK_SUBSEQ as EXTRACT_CONTIGS } from './modules/seqtk/subseq/main'
+include { SPADES } from './modules/spades/main'
+include { SUMMARISE_RESULTS} from './modules/summarise_results/main'
+include { SUMMARISE_READ_CLASSIFICATION } from './modules/summarise_read_classification/main'
+include { TRIM_ENDS } from './modules/trim_ends/main'
+
+
+
 
 workflow {
   // Show help message
@@ -815,7 +494,7 @@ workflow {
   ch_versions = ch_versions.mix(CAT_FASTQ.out.versions.first().ifEmpty(null))
 
   configyaml = Channel.fromPath(workflow.commandLine.split(" -params-file ")[1].split(" ")[0])
-
+  //configyaml = Channel.fromPath(params.config_yaml)
   //Probably best place to perform subsampling
   //Subsampling to 60M reads is as slow using the nf-core subsample module or seqtk sample (40-50 minutes)
   if ( params.subsample_enabled ) {
@@ -884,7 +563,14 @@ workflow {
       tuple(sampleid, stats1)
   }
   KRAKEN2_KRAKEN2(BBMAP_BBSPLIT.out.all_fastq, params.kraken2_db, params.kraken2_save_classified_reads, params.kraken2_save_unclassified_reads, params.kraken2_save_readclassifications)
-  BRACKEN ( KRAKEN2_KRAKEN2.out.report )
+  
+  //the logic of the original Bracken est_abundance.py had to be modified as it was not working as intended for viral species 
+  // only defined at S1 (strain) level but not S level, these would just not appear in the bracken report. 
+  // Hence the updated_est_abundance.py script is used here instead.
+  //It will rescue the abundance estimates for such species by summing up all S1 level abundances to S level.
+  KRAKEN2_ABUNDANCE_ESTIMATE ( KRAKEN2_KRAKEN2.out.report )
+  
+  //explore downtrack downloading krona taxonomy to see if it improves the visualisation
   KRAKEN2_TO_KRONA ( KRAKEN2_KRAKEN2.out.report)
 
   //retrieve reads that were not classified and reads classified as viral by kraken2
@@ -896,14 +582,16 @@ workflow {
       def unclassified2 = unclassified[1]
       tuple(meta, report, output, read1, read2, unclassified1, unclassified2)
   }
+
   RETRIEVE_VIRAL_READS_KRAKEN2 ( kraken_ch )
 
   //read classification with kaiju
   //incorporate a separate module for kaiju2krona and kaiju2table?
   KAIJU_KAIJU ( BBMAP_BBSPLIT.out.all_fastq, params.kaiju_db_path )
-  KRONA ( KAIJU_KAIJU.out.krona_results )
+  //Explore downtrack downloading krona taxonomy to see if it improves the visualisation
+  KRONA_KTIMPORTTEXT ( KAIJU_KAIJU.out.krona_results )
   
-  read_classification_ch = KAIJU_KAIJU.out.kaiju_results.join(BRACKEN.out.bracken_results)
+  read_classification_ch = KAIJU_KAIJU.out.kaiju_results.join(KRAKEN2_ABUNDANCE_ESTIMATE.out.kraken2_results)
                                                     .join(stats_ch)
 
   SUMMARISE_READ_CLASSIFICATION ( read_classification_ch, params.taxdump )
@@ -928,13 +616,19 @@ workflow {
   TRIM_ENDS ( IDENTIFY_ERRORS.out.trimmed_coords )
   REALIGN ( TRIM_ENDS.out.trimmed_contigs.join(trial_ch) )
   SAMTOOLS_CONTIGS ( REALIGN.out.contig_aligned_sam )
-  PYFAIDX_CONTIGS ( TRIM_ENDS.out.trimmed_contigs )
-  MOSDEPTH_CONTIGS (SAMTOOLS_CONTIGS.out.sorted_bam.join(PYFAIDX_CONTIGS.out.bed))
+  pyfaidx_contigs_input_ch = TRIM_ENDS.out.trimmed_contigs.map { sampleid, fasta ->
+          tuple(sampleid, fasta, 'contigs')
+  }
+  pyfaidx_contigs = PYFAIDX_CONTIGS ( pyfaidx_contigs_input_ch )
+  MOSDEPTH_CONTIGS (SAMTOOLS_CONTIGS.out.sorted_bam.join(pyfaidx_contigs.bed))
   MEGABLAST_ROUND2 ( TRIM_ENDS.out.trimmed_contigs, file(params.blastn_db) )
   extract_viral_blast_hits_round2_ch = MEGABLAST_ROUND2.out.blast_results.join(SEQTK_SEQ.out.filt_headers) 
   EXTRACT_VIRAL_BLAST_HITS_ROUND2 ( extract_viral_blast_hits_round2_ch, params.taxdump )
-  FASTA2TABLE ( EXTRACT_VIRAL_BLAST_HITS_ROUND2.out.viral_blast_results.join(TRIM_ENDS.out.trimmed_contigs) )
-  contig_cov_stats_summary_ch = MOSDEPTH_CONTIGS.out.mosdepth_results.join(FASTA2TABLE.out.blast_results2)
+  fasta2table_contigs_input_ch = EXTRACT_VIRAL_BLAST_HITS_ROUND2.out.viral_blast_results
+      .join(TRIM_ENDS.out.trimmed_contigs)
+      .map { sampleid, tophits, fasta -> tuple(sampleid, tophits, fasta, 'contigs') }
+  fasta2table_contigs = FASTA2TABLE_CONTIGS ( fasta2table_contigs_input_ch )
+  contig_cov_stats_summary_ch = MOSDEPTH_CONTIGS.out.mosdepth_results.join(fasta2table_contigs.blast_results2)
       .join(stats_ch)
       .join(SAMTOOLS_CONTIGS.out.coverage)
       .join(SAMTOOLS_CONTIGS.out.mapping_quality)
@@ -953,24 +647,29 @@ workflow {
   DIAMOND_BLASTX ( diamond_ch, params.prot_db )
   CONTIG_COVSTATS(contig_cov_stats_summary_ch)
   //Mapping back to reference sequences retrieved from blast hits
-  EXTRACT_REF_FASTA ( FASTA2TABLE.out.ref_ids )
+  EXTRACT_REF_FASTA ( fasta2table_contigs.ref_ids )
   CLUSTER ( EXTRACT_REF_FASTA.out.fasta_files )
-  BLAST_CONTIGS_TO_REF ( FASTA2TABLE.out.contig_fasta.join(CLUSTER.out.clusters) )
+  BLAST_CONTIGS_TO_REF ( fasta2table_contigs.contig_fasta.join(CLUSTER.out.clusters) )
   mapping_ch = CLUSTER.out.clusters.join(trial_ch)
   MAPPING_BACK_TO_REF ( mapping_ch )
   SAMTOOLS2 ( MAPPING_BACK_TO_REF.out.aligned_sam )
   BCFTOOLS ( SAMTOOLS2.out.sorted_bam )
   BEDTOOLS ( BCFTOOLS.out.vcf_applied_fasta )
-  PYFAIDX ( EXTRACT_REF_FASTA.out.fasta_files )
-  MOSDEPTH_REF (SAMTOOLS2.out.sorted_bam.join(PYFAIDX.out.bed))
-  cov_stats_summary_ch =  MOSDEPTH_REF.out.mosdepth_results.join(FASTA2TABLE.out.blast_results)
+  pyfaidx_ref_input_ch = EXTRACT_REF_FASTA.out.fasta_files.map { sampleid, fasta ->
+          tuple(sampleid, fasta, 'reference')
+  }
+  pyfaidx_ref = PYFAIDX_REF ( pyfaidx_ref_input_ch )
+  MOSDEPTH_REF (SAMTOOLS2.out.sorted_bam.join(pyfaidx_ref.bed))
+  cov_stats_summary_ch =  MOSDEPTH_REF.out.mosdepth_results.join(fasta2table_contigs.blast_results)
       .join(stats_ch)
       .join(BEDTOOLS.out.bcftools_masked_consensus_fasta)
       .join(SAMTOOLS2.out.coverage)
       .join(SAMTOOLS2.out.mapping_quality)
 
   REF_COVSTATS(cov_stats_summary_ch)
-  FASTA2TABLE2  ( REF_COVSTATS.out.detections_summary3)
+  fasta2table_ref_input_ch = REF_COVSTATS.out.detections_summary
+      .map { sampleid, stats, fasta -> tuple(sampleid, stats, fasta, 'reference') }
+  fasta2table_ref = FASTA2TABLE_REF ( fasta2table_ref_input_ch )
   
   //Derive QC report
   // Merge all the  files into one channel
@@ -981,12 +680,12 @@ workflow {
       .mix(BBMAP_BBDUK.out.log2)
       .collect()
 
-  QCREPORT(ch_multiqc_files)
+  QC_REPORT(ch_multiqc_files)
   summarise_results_input_ch = SUMMARISE_READ_CLASSIFICATION.out.kraken_summary
       .join(SUMMARISE_READ_CLASSIFICATION.out.kaiju_summary)
       .join(CONTIG_COVSTATS.out.detections_summary)
       .join(HMMSCAN.out.hmmscan_preds)
-      .join(FASTA2TABLE2.out.detections_summary_final)
+      .join(fasta2table_ref.detections_summary_final)
       .join(SEQTK_SEQ.out.filt_fasta)
       .join(GENOMAD_ENDTOEND.out.virus_preds)
       .join(EXTRACT_VIRAL_BLAST_HITS.out.viral_blast_results)
@@ -1016,7 +715,7 @@ workflow {
       .join(SUMMARISE_READ_CLASSIFICATION.out.kaiju_summary)
       .join(SUMMARISE_READ_CLASSIFICATION.out.kraken_summary)
       .join(CONTIG_COVSTATS.out.detections_summary)
-      .join(FASTA2TABLE2.out.detections_summary_final)
+      .join(fasta2table_ref.detections_summary_final)
       .join(SAMTOOLS2.out.sorted_bam)
       .join(SUMMARISE_RESULTS.out.novel_virus_candidates)
       .join(BLAST_CONTIGS_TO_REF.out.blast_results)
@@ -1024,8 +723,8 @@ workflow {
       .join(HMMSCAN.out.hmmscan_domain_preds)
      
   files_for_report_global_ch = TIMESTAMP_START.out.timestamp
-      .concat(QCREPORT.out.qc_report_html)
-      .concat(QCREPORT.out.qc_report_txt)
+      .concat(QC_REPORT.out.qc_report_html)
+      .concat(QC_REPORT.out.qc_report_txt)
       .concat(configyaml)
       .concat(Channel.from(params.input).map { file(it) }).toList()
   HTML_REPORT(files_for_report_ind_samples_ch
