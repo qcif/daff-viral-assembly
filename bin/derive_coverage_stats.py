@@ -11,9 +11,7 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description="Generate coverage statistics for contigs or references"
     )
-
     parser.add_argument("--mode", choices=["contig", "reference"], required=True)
-
     parser.add_argument("--sample", required=True)
     parser.add_argument("--blastn_results", required=True)
     parser.add_argument("--bbsplit_stats", required=True)
