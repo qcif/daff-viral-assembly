@@ -14,7 +14,6 @@ from jinja2 import Environment, FileSystemLoader
 #from .blast_viz import build_blast_reference_data, parse_contig_lengths, build_contig_orf_data, _store_orf
 from . import blast_viz
 from . import config
-from .bam import render_bam_html
 from .results import (
     BlastHits,
     ConsensusFASTA,
@@ -77,10 +76,6 @@ def render(
     with open(path, 'w') as f:
         f.write(rendered_html)
     logger.info(f"HTML document written to {path}")
-
-    if len(context['blast_hits']) and not os.getenv('SKIP_BAM_RENDER'):
-        render_bam_html()
-
 
 def _get_static_file_contents():
     """Return the static files content as strings."""
@@ -163,7 +158,6 @@ def _get_report_context(
         #'read_distribution_chart_src': get_img_src(
         #    config.read_distribution_chart_path
         #) if config.read_distribution_chart_path.exists() else None,
-        'bam_html_file': config.bam_html_path.name,
         'contigs_fasta': contigs_fasta,
         'blast_hits': blast_hits,
         'blast_stats': _calculate_blast_stats(

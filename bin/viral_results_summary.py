@@ -577,8 +577,27 @@ def main():
     blast_df["qlen"] = pd.to_numeric(blast_df["qlen"], errors="coerce")
     blast_df["mapping_read_count"] = pd.to_numeric(blast_df["mapping_read_count"], errors="coerce")
     blast_df["pc_mapping_reads"] = pd.to_numeric(blast_df["pc_mapping_reads"], errors="coerce")
-    blast_df = add_group_max(blast_df, "species", "pident", "max_pident_spp")
-    blast_df = add_group_max(blast_df, "species", "qlen", "max_qlen_spp")
+    # Derive species-level pident from rows flagged as best representative contig.
+    best_rep_pident = (
+        blast_df.loc[
+            blast_df["best_contig_per_sp_filter"].astype(str) == "True",
+            ["species", "pident"],
+        ]
+        .dropna(subset=["species"])
+        .drop_duplicates(subset=["species"], keep="first")
+        .rename(columns={"pident": "best_rep_pident"})
+    )
+    blast_df = blast_df.merge(best_rep_pident, on="species", how="left")
+    best_rep_length = (
+        blast_df.loc[
+            blast_df["best_contig_per_sp_filter"].astype(str) == "True",
+            ["species", "qlen"],
+        ]
+        .dropna(subset=["species"])
+        .drop_duplicates(subset=["species"], keep="first")
+        .rename(columns={"qlen": "best_rep_length"})
+    )
+    blast_df = blast_df.merge(best_rep_length, on="species", how="left")
     blast_df = add_group_max(blast_df, "species", "mapping_read_count", "max_contig_mapping_read_count_spp")
     blast_df = add_group_max(blast_df, "species", "pc_mapping_reads", "max_pc_contig_mapping_reads_spp")
 
@@ -650,7 +669,7 @@ def main():
 
     merged_df = summary_df.merge(
         filtered_blast_df[["species", "qseqid", "qlen", "sacc", "pident", "bitscore", "evalue", "contig_seq", "ncontigs_per_spp", 
-                           "max_pident_spp","max_qlen_spp", "max_contig_mapping_read_count_spp",  "max_pc_contig_mapping_reads_spp", "total_score_spp", "mapping_read_count", "pc_mapping_reads", "mean_depth", "pc_cov_30X", 
+                           "best_rep_pident","best_rep_length", "max_contig_mapping_read_count_spp",  "max_pc_contig_mapping_reads_spp", "total_score_spp", "mapping_read_count", "pc_mapping_reads", "mean_depth", "pc_cov_30X", 
                             "mean_mapping_quality", "read_count_flag", "mean_depth_flag", "30x_cov_flag", "mean_mq_flag", "species_has_RdRp", "max_PFAM_total_spp",
                             "total_conf_score","normalised_conf_score"]],
         left_on="taxon",
@@ -722,14 +741,14 @@ def main():
                           "max_ref_mapping_read_count_spp", "max_pc_ref_mapping_reads_spp",
                           "kaiju_reads", "kaiju_pc_reads", 
                           "mapping_read_count","pc_mapping_reads",
-                          "ncontigs_per_spp", "qseqid", "contig_seq", "max_pident_spp", "max_qlen_spp",
+                          "ncontigs_per_spp", "qseqid", "contig_seq", "best_rep_pident", "best_rep_length",
                           "mean_depth", "pc_cov_30X", "normalised_conf_score", "max_PFAM_total_spp", "species_has_RdRp", 
                           "max_reference_length_spp", "max_normalised_conf_score_spp", "max_pc_cov_30X_spp"]
 
     merged_df4 = merged_df4[final_columns_filt]
     text_cols = ["qseqid", "contig_seq","species_has_RdRp" ]
     #text_cols = ["qseqid", "contig_seq", "sacc", "read_count_flag", "mean_depth_flag", "30x_cov_flag", "mean_mq_flag", "RdRp" ]
-    num_cols = ["ncontigs_per_spp","mapping_read_count", "pc_mapping_reads", "mean_depth", "pc_cov_30X", "normalised_conf_score" , "max_PFAM_total_spp",  "max_pident_spp", "max_qlen_spp"]
+    num_cols = ["ncontigs_per_spp","mapping_read_count", "pc_mapping_reads", "mean_depth", "pc_cov_30X", "normalised_conf_score" , "max_PFAM_total_spp",  "best_rep_pident", "best_rep_length"]
 
     # fill values
     merged_df4 = merged_df4[merged_df4["contig_seq"].notna()]

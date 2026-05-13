@@ -9,8 +9,8 @@ max_pc_ref_mapping_reads_spp,Max % reads mapped to ref,float,,
 kraken_pc_reads,Kraken % reads,float,,
 kaiju_pc_reads,Kaiju % reads,float,,
 ncontigs_per_spp,Contigs,int,Y,Number of assembled contigs matching this species
-max_pident_spp,Best ID,float,Y,Highest % identity of contigs matching this species
-max_qlen_spp,Best length,int,Y,Longest contig matching this species (nt)
+best_rep_pident,%ID,float,Y,% identity of the best representative contig for this species
+best_rep_length,Length,int,Y,Length of the best representative contig for this species (nt)
 contig_seq,,,,
 normalised_conf_score,Score,float,Y,Normalised confidence score for representative contig
 max_PFAM_total_spp,Domains,int,Y,Maximum number of viral PFAM domains detected in a single contig matching this species

@@ -6,8 +6,6 @@ genomad_db: null
 hmmer_db: null
 kraken2_db: null
 kaiju_dbname: null
-kaiju_names: null
-kaiju_nodes: null
 help: false
 outdir: results
 rrna_ref: null

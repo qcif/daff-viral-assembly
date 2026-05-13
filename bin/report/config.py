@@ -41,14 +41,13 @@ class Config:
 
     class OUTPUTS:
         REPORT_FILE_TEMPLATE = '{sample_id}_report.html'
-        BAM_HTML_FILE_TEMPLATE = '{sample_id}_bam-alignment.html'
 
     class REPORT:
         TITLE = "Viral genome assembly report"
         SUBTITLE = (
             "Results generated through the"
             f' <a href="{REPO_URL}" target="_blank">'
-            f'{WF_NAME} NextFlow pipeline</a>.')
+            f'{WF_NAME} Nextflow pipeline</a>.')
 
     class CRITERIA:
         # ! import these from anaylsis config
@@ -69,13 +68,6 @@ class Config:
     @property
     def report_path(self) -> Path:
         path = self.result_dir / self.OUTPUTS.REPORT_FILE_TEMPLATE.format(
-            sample_id=path_safe(self.sample_id),
-        )
-        return path.absolute()
-
-    @property
-    def bam_html_path(self) -> Path:
-        path = self.result_dir / self.OUTPUTS.BAM_HTML_FILE_TEMPLATE.format(
             sample_id=path_safe(self.sample_id),
         )
         return path.absolute()
