@@ -11,7 +11,8 @@ process CAT_FASTQ {
     tuple val(meta), path(reads, stageAs: "input*/*")
 
     output:
-    tuple val(meta), path("*.merged.fastq.gz"), path("*read_count.txt"), emit: reads
+    //tuple val(meta), path("*.merged.fastq.gz"), path("*read_count.txt"), emit: reads
+    tuple val(meta), path("*.merged.fastq.gz"), emit: reads
     path "versions.yml"                       , emit: versions
 
     when:
@@ -42,7 +43,8 @@ process CAT_FASTQ {
             cat ${read2.join(' ')} > ${prefix}_2.merged.fastq.gz
 
             #zgrep -c '^@' ${prefix}_1.merged.fastq.gz > ${prefix}_read_count.txt
-            echo \$(( \$(zcat ${prefix}_1.merged.fastq.gz | wc -l) / 4 )) > ${prefix}_read_count.txt
+            #zgrep -c '^@.*' ${prefix}_1.merged.fastq.gz > ${prefix}_read_count.txt
+            #echo \$(( \$(zcat ${prefix}_1.merged.fastq.gz | wc -l) / 4 )) > ${prefix}_read_count.txt
             
             cat <<-END_VERSIONS > versions.yml
             "${task.process}":

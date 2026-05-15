@@ -246,6 +246,7 @@ include { BWA as MAP_TO_CONTIGS } from './modules/bwa/main'
 include { CAT_FASTQ } from './modules/cat_fastq/main'
 include { CDHIT_CDHIT as CLUSTER } from './modules/cdhit/cdhit/main'
 include { COVSTATS as CONTIG_COVSTATS} from './modules/covstats/main'
+include { COUNT_FASTQ_READS } from './modules/count_fastq_reads/main'
 include { COVSTATS as REF_COVSTATS} from './modules/covstats/main'
 include { DIAMOND_BLASTX } from './modules/diamond/blastx/main'
 include { ENTREZDIRECT_EFETCH as EXTRACT_REF_FASTA } from './modules/entrezdirect/efetch/main'
@@ -343,6 +344,26 @@ workflow {
   //configyaml = Channel.fromPath(params.config_yaml)
   //Probably best place to perform subsampling
   //Subsampling to 60M reads is as slow using the nf-core subsample module or seqtk sample (40-50 minutes)
+    if ( params.subsample_enabled ) {
+        //Check size of fastq file first before subsampling!
+        //FQ_SUBSAMPLE ( BBMAP_BBSPLIT.out.all_fastq )
+        ch_with_counts = CAT_FASTQ.out.reads \
+            | COUNT_FASTQ_READS
+
+        SEQTK_SAMPLE(
+            ch_with_counts,
+            params.subsample_size
+        )
+
+        ch_versions = ch_versions.mix( SEQTK_SAMPLE.out.versions.first() )
+        merged_fastq = SEQTK_SAMPLE.out.reads.ifEmpty {
+            CAT_FASTQ.out.reads
+        }
+    } else {
+        merged_fastq = CAT_FASTQ.out.reads
+    }
+
+  /*
   if ( params.subsample_enabled ) {
       //Check size of fastq file first before subsampling!
       //FQ_SUBSAMPLE ( BBMAP_BBSPLIT.out.all_fastq )
@@ -366,6 +387,7 @@ workflow {
   } else {
       merged_fastq = CAT_FASTQ.out.reads
   }
+  */
 
   FASTP ( merged_fastq, params.save_trimmed_fail, params.save_merged )
   trim_html         = FASTP.out.html
