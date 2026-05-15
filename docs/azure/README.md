@@ -16,9 +16,9 @@ This assumes an Azure Batch pool is already set up (see docs below).
 deploy/azure/run-wf4.sh --input index.csv --outdir output/run_001
 ```
 
-This runs Nextflow locally and submits tasks to an Azure Batch node. With autoscaling enabled, the pool defaults to 0 nodes and provisions an ephemeral node when tasks are submitted. The node is kept warm for 15 minutes after the last task completes.
+This runs Nextflow locally and submits tasks to an Azure Batch node. With autoscaling enabled, the pool defaults to 0 nodes and provisions an ephemeral node when tasks are submitted. The node is kept warm for 15 minutes after the last task completes so that sequential runs can benefit from re-using the ref data.
 
-**First-run time**: Allow 20–40 minutes for the node to provision and stage ~830GB of reference data from premium blob storage (after the first run, warm nodes skip the download).
+**First-run time**: Allow 15-20 minutes for the node to provision and stage ~830GB of reference data from premium blob storage (after the first run, warm nodes skip the download).
 
 ---
 
@@ -77,8 +77,12 @@ az_help
 az_pool_list                    # List all pools
 az_pool_show                    # Show production pool details
 az_pool_show view_test          # Show test pool details
-az_pool_resize 1                # Scale production pool up to 1 node
+az_pool_resize 1                # Manually scale production pool up to 1 node
 az_node_list                    # List nodes in production pool
 az_node_logs                    # Download start task logs
 az_jobs_list                    # List recent Nextflow jobs
 ```
+
+## Running the workflow
+
+See [run-wf4.sh](../../deploy/azure/run-wf4.sh)
