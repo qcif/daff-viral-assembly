@@ -35,11 +35,12 @@ A [Nextflow](https://www.nextflow.io/) pipeline for viral genome assembly and id
 - The following databases (paths provided as parameters):
   - [NCBI BLAST](https://blast.ncbi.nlm.nih.gov/doc/blast-help/downloadblastdata.html) nucleotide database (e.g. `core_nt`)
   - [TaxonKit](https://bioinf.shenwei.me/taxonkit/) taxonomy database
+  - [RVDB viral database](https://rvdb.dbi.udel.edu/download/U-RVDBv31.0.fasta.gz) and [taxonomy tab](https://rvdb.dbi.udel.edu/download/RVDBv31_taxonomy.tab.gz) for Diamond analysis. Build the diamon database using the command `diamond makedb --quiet --threads 2 --in U-RVDBv31.0-prot.fasta -d rvdb`.
   - [Kraken2](https://ccb.jhu.edu/software/kraken2/) database (e.g. `core_nt`)
   - [Kaiju](https://github.com/bioinformatics-centre/kaiju) database (e.g. `kaiju_db_nr_euk`)
-  - [GeNomad](https://github.com/apcamargo/genomad) database
+  - [GeNomad](https://github.com/apcamargo/genomad) database (follow the instructions on the github repo)
   - [HMMER](http://hmmer.org/) Pfam database (`Pfam-A.hmm`)
-  - rRNA reference sequences (for rRNA filtering)
+  - [rRNA reference sequences] for rRNA filtering. Download and untar [smr_v4.3_sensitive_db.fasta](https://github.com/sortmerna/sortmerna/releases/download/v4.3.4/database.tar.gz). Make sure to convert the uracils to thymines. For example `sed '/^[^>]/s/U/T/g; /^[^>]/s/u/t/g' smr_v4.3_sensitive_db.fasta > smr_v4.3_sensitive_db_DNA.fasta`.
 
 ## Quick Start
 
