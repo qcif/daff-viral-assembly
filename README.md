@@ -40,7 +40,7 @@ A [Nextflow](https://www.nextflow.io/) pipeline for viral genome assembly and id
   - [Kaiju](https://github.com/bioinformatics-centre/kaiju) database (e.g. `kaiju_db_nr_euk`)
   - [GeNomad](https://github.com/apcamargo/genomad) database (follow the instructions on the github repo)
   - [HMMER](http://hmmer.org/) Pfam database (`Pfam-A.hmm`)
-  - [rRNA reference sequences] for rRNA filtering. Download and untar [smr_v4.3_sensitive_db.fasta](https://github.com/sortmerna/sortmerna/releases/download/v4.3.4/database.tar.gz). Make sure to convert the uracils to thymines. For example `sed '/^[^>]/s/U/T/g; /^[^>]/s/u/t/g' smr_v4.3_sensitive_db.fasta > smr_v4.3_sensitive_db_DNA.fasta`.
+  - rRNA reference sequences for rRNA filtering. Download and untar [smr_v4.3_sensitive_db.fasta](https://github.com/sortmerna/sortmerna/releases/download/v4.3.4/database.tar.gz). Make sure to convert the uracils to thymines in the fasta file: `sed '/^[^>]/s/U/T/g; /^[^>]/s/u/t/g' smr_v4.3_sensitive_db.fasta > smr_v4.3_sensitive_db_DNA.fasta`.
 
 ## Quick Start
 
