@@ -1,6 +1,6 @@
 process BLAST_BLASTN_TO_REF {
     tag "${sampleid}"
-    label 'setting_20'
+    label 'setting_8'
 
     input:
     tuple val(sampleid), path(assembly), path(reference)

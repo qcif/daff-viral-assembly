@@ -34,7 +34,7 @@ process KRAKEN2 {
 */
 process KRAKEN2_KRAKEN2 {
     tag "$meta.id"
-    label 'setting_23'
+    label 'setting_9'
 
     conda "${moduleDir}/environment.yml"
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?

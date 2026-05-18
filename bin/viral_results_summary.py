@@ -342,7 +342,7 @@ def load_diamond_results(path):
     df = df[df["qcovs"] >= 50].copy()
     df = df[df["pident"] >= 50].copy()
     df = df.sort_values(by="pident", ascending=False)
-    df2 = df[(df["pident"] < 90) & (df["qlen"] >= 500)].copy()
+    df2 = df[(df["pident"] < 90) & (df["qlen"] >= 1000)].copy()
 
     final_columns_filt = [
         "qseqid",
@@ -456,7 +456,9 @@ def build_megablast_rows(megablast_df):
 #"Details": f"contig={row['qseqid']}; pident={row['pident']}, qlen={row['qlen']}, reads={int(row['mapping_read_count'])}, pc_cov_30X={row['pc_cov_30X']}, normalised_conf_score={row['normalised_conf_score']}",
 
 def build_diamond_rows(diamond_df):
-    if diamond_df.empty:
+    diamond_df_filtered = diamond_df.copy()
+    diamond_df_filtered = diamond_df_filtered[(diamond_df_filtered["qlen"] >= 1000)].copy()
+    if diamond_df_filtered.empty:
         return [
             {
                 "Method": "Diamond",
@@ -467,14 +469,14 @@ def build_diamond_rows(diamond_df):
         ]
 
     rows = []
-    for _, row in diamond_df.iterrows():
+    for _, row in diamond_df_filtered.iterrows():
         #family = str(row.get("family", "")).strip()
         #taxon = str(row.get("taxon", "")).strip()
         #taxonomy_label = f"{family}; {taxon}" if family else taxon
         rows.append(
             {
                 "Method": "Diamond",
-                "Evidence": f"Low-identity viral match with contig length >= 500 nt",
+                "Evidence": f"Low-identity viral match with contig length >= 1000 nt",
                 "Details": f"{row['qseqid']}; {row['pident']}% id; {row['qlen']} nt; {row['qcovs']:.1f}% qcovs",
                 "Taxonomy_classification": f"{row['family']}; {row['taxon']}",
             }
@@ -808,9 +810,9 @@ def main():
     ]
     #consider filtering the unclassified hits, as these are likely to be false positives?
     df_filt = df_filt[
-        ~df_filt["taxonomy"].str.lower().str.contains("caudoviricetes|iridoviridae|retroviridae", na=False)
+        ~df_filt["taxonomy"].str.lower().str.contains("caudoviricetes|iridoviriadae|retroviridae", na=False)
     ]
-    df_filt = df_filt[df_filt["length"] >= 500]
+    df_filt = df_filt[df_filt["length"] >= 1000]
     df_filt = df_filt[df_filt["virus_score"] >= 0.99]
     #Keep only contigs with no blast hits.
     df_filt = df_filt[
@@ -882,7 +884,7 @@ def main():
     support_rows.extend(build_diamond_rows(enriched_df))
     support_rows.extend(build_novel_rows(df_filt))
     support_df = pd.DataFrame(support_rows)
-    support_df.to_csv(f"{args.sample_name}_evidence_summary_novel.txt", sep="\t", index=False)
+    support_df.to_csv(f"{args.sample_name}_novel_evidence_summary.txt", sep="\t", index=False)
 
 if __name__ == "__main__":
     main()

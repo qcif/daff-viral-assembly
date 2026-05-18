@@ -32,7 +32,7 @@ process BBDUK {
 //might want to specify parameter k=31 outside of process in the future
 process BBMAP_BBDUK {
     tag "$meta.id"
-    label 'setting_26'
+    label 'setting_11'
     publishDir { "${params.outdir}/${meta.id}/04_cleaned" }, mode: 'copy', pattern: '{*bbduk.log}'
 
     conda "${moduleDir}/environment.yml"

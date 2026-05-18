@@ -1,6 +1,6 @@
 process RETRIEVE_VIRAL_READS_KRAKEN2 {
     tag "$meta.id"
-    label 'setting_11'
+    label 'setting_4'
     publishDir { "${params.outdir}/${meta.id}/05_read_classification" }, mode: 'copy'
 
     input:

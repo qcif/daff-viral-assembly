@@ -1,9 +1,9 @@
 process SUMMARISE_RESULTS {
     tag "${sampleid}"
-    label 'setting_22'
+    label 'setting_3'
     publishDir { "${params.outdir}/${sampleid}/10_results_summary" }, mode: 'copy', pattern: '{*summary_viral_results.tsv}'
     publishDir { "${params.outdir}/${sampleid}/10_results_summary" }, mode: 'copy', pattern: '{*novel_virus_candidates.tsv}'
-    publishDir { "${params.outdir}/${sampleid}/10_results_summary" }, mode: 'copy', pattern: '{*evidence_summary_novel.txt}'
+    publishDir { "${params.outdir}/${sampleid}/10_results_summary" }, mode: 'copy', pattern: '{*novel_evidence_summary.txt}'
     publishDir { "${params.outdir}/${sampleid}/07_annotation" }, mode: 'copy', pattern: '{*hmm_domain_summary_counts.tsv}'
 
     input:
@@ -13,11 +13,11 @@ process SUMMARISE_RESULTS {
     path("${sampleid}_summary_viral_results.tsv")
     path("${sampleid}_hmm_domain_summary_counts.tsv")
     path("${sampleid}_novel_virus_candidates.tsv")
-    path("${sampleid}_evidence_summary_novel.txt")
+    path("${sampleid}_novel_evidence_summary.txt")
     tuple val(sampleid), path("${sampleid}_hmm_domain_summary_counts.tsv"), emit: domain_count
     tuple val(sampleid), path("${sampleid}_summary_viral_results.tsv"), emit: summary_known_viruses
     tuple val(sampleid), path("${sampleid}_novel_virus_candidates.tsv"), emit: novel_virus_candidates
-    tuple val(sampleid), path("${sampleid}_evidence_summary_novel.txt"), emit: support_summary
+    tuple val(sampleid), path("${sampleid}_novel_evidence_summary.txt"), emit: novel_support_summary
 
     script:
     """

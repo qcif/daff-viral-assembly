@@ -1,6 +1,6 @@
 process BLAST_BLASTN {
     tag "${sampleid}"
-    label 'setting_20'
+    label 'setting_8'
     containerOptions "--bind ${file(params.blastn_db).parent}"
 
     input:

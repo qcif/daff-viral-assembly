@@ -1,7 +1,7 @@
 process SAMTOOLS_MPILEUP {
     publishDir { "${params.outdir}/${sampleid}/08_mapping_to_contigs" }, mode: 'copy'
     tag "${sampleid}"
-    label 'setting_21'
+    label 'setting_10'
 
     input:
     tuple val(sampleid), path(ref), path(sam)

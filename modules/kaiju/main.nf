@@ -73,7 +73,7 @@ process KRONA {
 */
 process KAIJU_KAIJU {
     tag "$meta.id"
-    label 'setting_28'
+    label 'setting_13'
     
 
     conda "${moduleDir}/environment.yml"

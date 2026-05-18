@@ -1,6 +1,6 @@
 process MOSDEPTH {
   tag "$sampleid"
-  label 'setting_2'
+  label 'setting_6'
 
   input:
     tuple val(sampleid), path(consensus), path(bam), path(bai), path(bed)

@@ -1,6 +1,6 @@
 process BWA {
     tag "${sampleid}"
-    label 'setting_21'
+    label 'setting_10'
 
     input:
     tuple val(sampleid), path(contigs), path(fastq1), path(fastq2)

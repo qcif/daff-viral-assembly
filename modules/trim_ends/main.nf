@@ -1,6 +1,6 @@
 process TRIM_ENDS {
     tag "${sampleid}"
-    label 'setting_2'
+    label 'setting_7'
     publishDir { "${params.outdir}/${sampleid}/08_mapping_to_contigs" }, mode: 'copy'
 
     input:

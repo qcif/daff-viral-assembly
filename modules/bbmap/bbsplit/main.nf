@@ -33,7 +33,7 @@ process FILTER_CONTROL {
 //compare statsfile versus refstats parmameter
 process BBMAP_BBSPLIT {
     tag "$meta.id"
-    label 'setting_22'
+    label 'setting_3'
     publishDir { "${params.outdir}/${meta.id}/04_cleaned" }, mode: 'copy', pattern: '{*cleaned*fastq.gz,*bbsplit.log,*bbsplit_stats.txt}'
     //label 'error_retry'
 

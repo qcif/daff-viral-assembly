@@ -77,7 +77,7 @@ def buildBindOptions() {
 
 process EXTRACT_VIRAL_BLAST_HITS {
     tag "${sampleid}"
-    label 'setting_2'
+    label 'setting_7'
     containerOptions "--bind ${file(params.taxdump)}"
 
     input:
@@ -103,7 +103,7 @@ process EXTRACT_VIRAL_BLAST_HITS {
 
 process EXTRACT_VIRAL_BLAST_HITS_ROUND2 {
     tag "${sampleid}"
-    label 'setting_2'
+    label 'setting_7'
     publishDir { "${params.outdir}/${sampleid}/07_annotation" }, mode: 'copy'
 
     input:
@@ -145,7 +145,7 @@ process EXTRACT_REF_FASTA {
 */
 process MAPPING_BACK_TO_REF {
     tag "${sampleid}"
-    label 'setting_21'
+    label 'setting_10'
 
     input:
     tuple val(sampleid), path(ref), path(fastq1), path(fastq2)
@@ -165,7 +165,7 @@ process MAPPING_BACK_TO_REF {
 
 process REALIGN {
     tag "${sampleid}"
-    label 'setting_21'
+    label 'setting_10'
 
     input:
     tuple val(sampleid), path(contigs), path(fastq1), path(fastq2)
@@ -183,7 +183,7 @@ process REALIGN {
 process SAMTOOLS2 {
     publishDir { "${params.outdir}/${sampleid}/09_mapping_to_ref" }, mode: 'copy'
     tag "${sampleid}"
-    label 'setting_21'
+    label 'setting_10'
 
     input:
     tuple val(sampleid), path(ref), path(sam)
@@ -212,7 +212,7 @@ process SAMTOOLS2 {
 process SAMTOOLS_CONTIGS {
     publishDir { "${params.outdir}/${sampleid}/08_mapping_to_contigs" }, mode: 'copy'
     tag "${sampleid}"
-    label 'setting_21'
+    label 'setting_10'
 
     input:
     tuple val(sampleid), path(ref), path(sam)
@@ -595,6 +595,7 @@ workflow {
       .join(fasta2table_ref.detections_summary_final)
       .join(SAMTOOLS2.out.sorted_bam)
       .join(SUMMARISE_RESULTS.out.novel_virus_candidates)
+      .join(SUMMARISE_RESULTS.out.novel_support_summary)
       .join(MEGABLAST_TO_REF.out.blast_results)
       .join((ORFIPY.out.orf_fasta))
       .join(HMMSCAN.out.hmmscan_domain_preds)

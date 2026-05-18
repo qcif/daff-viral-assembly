@@ -1,6 +1,6 @@
 process GENOMAD_ENDTOEND {
     tag "${sampleid}"
-    label 'setting_27'
+    label 'setting_14'
     containerOptions "--bind ${file(params.genomad_db).parent}"
     publishDir { "${params.outdir}/${sampleid}/07_annotation/genomad" }, mode: 'copy'
 
