@@ -342,6 +342,8 @@ workflow {
     }
 
   /*
+  //revisit, this logic was bugging but it would be ncie to combine COUNT_FASTQ_READS and SEQTK_SAMPLE into one process 
+  //that performs subsampling if the file is above a certain size threshold, otherwise just passes through the original fastq file. This would avoid the issue of the channel not pairing after the first sample when using SEQTK_SAMPLE on its own.
   if ( params.subsample_enabled ) {
       //Check size of fastq file first before subsampling!
       //FQ_SUBSAMPLE ( BBMAP_BBSPLIT.out.all_fastq )
