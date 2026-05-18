@@ -120,29 +120,7 @@ process EXTRACT_VIRAL_BLAST_HITS_ROUND2 {
     filter_blast.py --blastn_results ${sampleid}_blastn.txt --sample_name ${sampleid} --taxonkit_database_dir ${taxonkit_db} --filter ${params.filter_terms} --assembly_headers ${assembly_headers}
     """
 }
-/*
-process EXTRACT_REF_FASTA {
-    tag "$sampleid"
-    label 'setting_1'
-    publishDir { "${params.outdir}/${sampleid}/09_mapping_to_ref" }, mode: 'copy', pattern: '*fasta'
 
-    input:
-    tuple val(sampleid), path(ids_to_retrieve)
-
-    output:
-    path("*fasta"), optional: true
-    tuple val(sampleid), path("${sampleid}_ref_sequences.fasta"), emit: fasta_files, optional: true
-    
-    script:
-    """
-    if [ -s "${ids_to_retrieve}" ]; then
-      cut -f1 "${ids_to_retrieve}" | while read -r i; do
-        efetch -db nucleotide -id "\$i" -format fasta >> "${sampleid}_ref_sequences.fasta"
-      done
-    fi
-    """
-}
-*/
 process MAPPING_BACK_TO_REF {
     tag "${sampleid}"
     label 'setting_10'
@@ -539,8 +517,6 @@ workflow {
       .join(SAMTOOLS2.out.mapping_quality)
       .map { sampleid, bed, blast_results, bbsplit_stats, coverage, mapping_q
       -> tuple(sampleid, 'reference', bed, blast_results, bbsplit_stats, coverage, mapping_q) }
-
-//      .join(BEDTOOLS.out.bcftools_masked_consensus_fasta)
 
   REF_COVSTATS(ref_cov_stats_summary_ch)
   fasta2table_ref_input_ch = REF_COVSTATS.out.detections_summary
