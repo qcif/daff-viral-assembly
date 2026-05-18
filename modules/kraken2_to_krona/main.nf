@@ -1,6 +1,6 @@
 process KRAKEN2_TO_KRONA {
     tag "$meta.id"
-    label 'setting_3'
+    label 'setting_7'
     publishDir { "${params.outdir}/${meta.id}/05_read_classification" }, mode: 'copy'
 
     input:

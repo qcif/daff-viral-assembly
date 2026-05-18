@@ -1,7 +1,7 @@
 process BCFTOOLS {
   publishDir { "${params.outdir}/${sampleid}/09_mapping_to_ref" }, mode: 'copy'
   tag "${sampleid}"
-  label 'setting_3'
+  label 'setting_7'
 
   input:
    tuple val(sampleid), path(ref), path(bam), path(bai)

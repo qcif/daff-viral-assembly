@@ -1,6 +1,6 @@
 process BEDTOOLS {
     tag "${sampleid}"
-    label 'setting_3'
+    label 'setting_7'
     publishDir { "${params.outdir}/${sampleid}/09_mapping_to_ref" }, mode: 'copy'
 
     input:

@@ -1,9 +1,9 @@
 process HTML_REPORT {
     publishDir { "${params.outdir}/${sampleid}/11_report" }, mode: 'copy', overwrite: true
-    label 'setting_11'
+    label 'setting_4'
 
     input:
-    tuple val(sampleid), path(raw_fastqc), path(filtered_fastqc), path(fastp), path(fasta), path(summary_known_viruses), path(kaiju_summary), path(kraken_summary), path(detections_summary), path(ref_mapping_summary), path(consensus), path(bam), path(bai), path(novel_virus_summary), path(blast_contig2ref),path(orfs), path(hmmscan),
+    tuple val(sampleid), path(raw_fastqc), path(filtered_fastqc), path(fastp), path(fasta), path(summary_known_viruses), path(kaiju_summary), path(kraken_summary), path(detections_summary), path(ref_mapping_summary), path(consensus), path(bam), path(bai), path(novel_virus_summary), path(novel_support_summary), path(blast_contig2ref),path(orfs), path(hmmscan),
     path(timestamp),
     path(qcreport_html),
     path(qcreport_txt),

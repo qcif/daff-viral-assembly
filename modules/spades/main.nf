@@ -23,7 +23,7 @@ process SPADES {
 
 process SPADES {
     tag "$meta.id"
-    label 'setting_5'
+    label 'setting_16'
 
     publishDir { "${params.outdir}/${meta.id}/06_assembly" }, mode: 'copy', pattern: '{*spades.log,*warnings.log}'
     conda "${moduleDir}/environment.yml"

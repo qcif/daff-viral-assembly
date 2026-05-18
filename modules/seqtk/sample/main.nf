@@ -1,6 +1,6 @@
 process SEQTK_SAMPLE {
     tag "$meta.id"
-    label 'setting_30'
+    label 'setting_5'
 
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
         'https://depot.galaxyproject.org/singularity/seqtk:1.4--he4a0461_1' :

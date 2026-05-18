@@ -133,7 +133,7 @@ class Config:
     @property
     def novel_evidence_summary_path(self) -> Path:
         return self._get_file_by_pattern(
-            "*_multi_method_novel_evidence_summary.txt",
+            "*_novel_evidence_summary.txt",
             ignore_missing=True,
         )
 
