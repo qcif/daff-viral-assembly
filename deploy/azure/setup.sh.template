@@ -1,0 +1,213 @@
+#!/usr/bin/env bash
+
+# Enable verbose logging for debugging (all commands echo to stderr)
+set -x
+
+# Exit on error
+set -euo pipefail
+
+# -----------------------------------------------------------------------------
+# CONFIGURATION
+# -----------------------------------------------------------------------------
+
+NVME_MNT="/mnt/nvme"
+# Both containers download into /mnt/nvme/refdata/:
+#   refdata     → /mnt/nvme/refdata/  (core_nt, taxdump)
+#   refdata-wf4 → /mnt/nvme/refdata/  (kraken2, kaiju, pfam, etc.)
+REFDATA_DIR="$NVME_MNT"
+
+# SAS tokens for premium blob storage (expires annually - rotate before expiry)
+# Permissions: read + list on container
+# refdata: shared with taxodactyl (core_nt, taxdump)
+REFDATA_BLOB_URL="https://daffpremium.blob.core.windows.net/refdata?<REFDATA_SAS_TOKEN>"
+# refdata-wf4: wf4-specific reference databases (kraken2, kaiju, pfam, etc.)
+# Downloading into /mnt/nvme/refdata so everything is under one directory
+REFDATA_WF4_BLOB_URL="https://daffpremium.blob.core.windows.net/refdata-wf4?<REFDATA_WF4_SAS_TOKEN>"
+
+# -----------------------------------------------------------------------------
+# FUNCTIONS
+# -----------------------------------------------------------------------------
+
+detect_nvme_device() {
+    echo "=== Detecting NVMe device ===" >&2
+    echo "Available block devices:" >&2
+    lsblk >&2 || true
+    echo "NVMe devices:" >&2
+    ls -la /dev/nvme* >&2 || true
+
+    local dev
+    dev=$(lsblk -ndo NAME,TYPE | awk '$2=="disk" {print $1}' | grep nvme | head -n 1)
+
+    if [[ -z "$dev" ]]; then
+        echo "ERROR: No NVMe disk detected via lsblk. Trying direct detection..." >&2
+        if [[ -b /dev/nvme0n1 ]]; then
+            dev="nvme0n1"
+        else
+            echo "ERROR: No NVMe disk detected." >&2
+            exit 1
+        fi
+    fi
+
+    echo "Selected NVMe device: /dev/$dev" >&2
+    echo "/dev/$dev"
+}
+
+mount_nvme() {
+    local dev="$1"
+    echo "=== Mounting NVMe device $dev ===" >&2
+
+    mkdir -p "$NVME_MNT"
+
+    if ! blkid "$dev" >/dev/null 2>&1; then
+        echo "Formatting NVMe device $dev..." >&2
+        mkfs.ext4 -F "$dev"
+    else
+        echo "NVMe device $dev already formatted" >&2
+        blkid "$dev" >&2 || true
+    fi
+
+    if ! mount | grep -q "$NVME_MNT"; then
+        echo "Mounting NVMe filesystem to $NVME_MNT..." >&2
+        mount "$dev" "$NVME_MNT"
+        echo "Mount successful" >&2
+    else
+        echo "NVMe already mounted at $NVME_MNT" >&2
+    fi
+
+    echo "Current mounts:" >&2
+    mount | grep nvme >&2 || true
+    df -h "$NVME_MNT" >&2 || true
+}
+
+install_azcopy() {
+    echo "=== Installing azcopy ===" >&2
+
+    if command -v azcopy >/dev/null 2>&1; then
+        echo "azcopy already installed" >&2
+        azcopy --version >&2 || true
+        return
+    fi
+
+    echo "Downloading azcopy from Microsoft..." >&2
+    wget -q -O azcopy.tar.gz https://aka.ms/downloadazcopy-v10-linux
+
+    echo "Extracting azcopy..." >&2
+    tar -xf azcopy.tar.gz --strip-components=1
+
+    echo "Installing azcopy to /usr/local/bin..." >&2
+    mv azcopy /usr/local/bin/
+    chmod +x /usr/local/bin/azcopy
+
+    echo "Cleaning up..." >&2
+    rm -f azcopy.tar.gz
+
+    echo "azcopy installed successfully" >&2
+    azcopy --version >&2 || true
+}
+
+stage_refdata() {
+    echo "=== Staging shared reference data (refdata) ===" >&2
+    date >&2
+
+    # Shared with taxodactyl: core_nt, taxdump
+    if [[ -d "$REFDATA_DIR/refdata/core_nt" ]]; then
+        echo "Shared refdata already staged at $REFDATA_DIR/refdata — skipping." >&2
+        ls -lh "$REFDATA_DIR/refdata" >&2 || true
+        return
+    fi
+
+    echo "Creating refdata directory: $REFDATA_DIR" >&2
+    mkdir -p "$REFDATA_DIR"
+
+    echo "Downloading shared refdata from: ${REFDATA_BLOB_URL}" >&2
+    azcopy copy \
+        "${REFDATA_BLOB_URL}" \
+        "${REFDATA_DIR}" \
+        --recursive \
+        --check-md5 NoCheck \
+        --cap-mbps 0
+
+    echo "Shared refdata download completed" >&2
+    du -sh "$REFDATA_DIR/refdata" >&2 || true
+    date >&2
+}
+
+stage_refdata_wf4() {
+    echo "=== Staging wf4-specific reference data (refdata-wf4) ===" >&2
+    date >&2
+
+    # Downloads into /mnt/nvme/refdata/ so everything lives under one root
+    # wf4-specific: kraken2_db, kaiju_db, pfam, genomad_db, diamond, rvdb_taxonomy, rrna_ref
+    if [[ -d "$REFDATA_DIR/refdata/kraken2_db" ]]; then
+        echo "wf4 refdata already staged at $REFDATA_DIR/refdata — skipping." >&2
+        ls -lh "$REFDATA_DIR/refdata" >&2 || true
+        return
+    fi
+
+    echo "Downloading wf4 refdata from: ${REFDATA_WF4_BLOB_URL}" >&2
+    echo "Target: $REFDATA_DIR/refdata" >&2
+    azcopy copy \
+        "${REFDATA_WF4_BLOB_URL}/*" \
+        "${REFDATA_DIR}/refdata" \
+        --recursive \
+        --check-md5 NoCheck \
+        --cap-mbps 0
+
+    echo "wf4 refdata download completed" >&2
+    du -sh "$REFDATA_DIR/refdata" >&2 || true
+    date >&2
+}
+
+# -----------------------------------------------------------------------------
+# MAIN
+# -----------------------------------------------------------------------------
+
+echo "===== START TASK: Begin staging refdata on NVMe =====" >&2
+echo "Date: $(date)" >&2
+echo "User: $(whoami)" >&2
+echo "Working directory: $(pwd)" >&2
+
+echo "" >&2
+echo "STEP 1: Detecting NVMe device" >&2
+NVME_DEV=$(detect_nvme_device)
+echo "✓ Detected NVMe device: $NVME_DEV" >&2
+
+echo "" >&2
+echo "STEP 2: Mounting NVMe device" >&2
+if mount_nvme "$NVME_DEV"; then
+    echo "✓ NVMe device mounted successfully" >&2
+else
+    echo "✗ Failed to mount NVMe device" >&2
+    exit 1
+fi
+
+echo "" >&2
+echo "STEP 3: Installing azcopy" >&2
+if install_azcopy; then
+    echo "✓ azcopy installed successfully" >&2
+else
+    echo "✗ Failed to install azcopy" >&2
+    exit 1
+fi
+
+echo "" >&2
+echo "STEP 4: Staging shared reference data" >&2
+if stage_refdata; then
+    echo "✓ Shared reference data staging completed" >&2
+else
+    echo "✗ Failed to stage shared reference data" >&2
+    exit 1
+fi
+
+echo "" >&2
+echo "STEP 5: Staging wf4-specific reference data" >&2
+if stage_refdata_wf4; then
+    echo "✓ wf4 reference data staging completed" >&2
+else
+    echo "✗ Failed to stage wf4 reference data" >&2
+    exit 1
+fi
+
+echo "" >&2
+echo "===== START TASK: Completed Successfully =====" >&2
+exit 0
