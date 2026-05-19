@@ -402,6 +402,19 @@ def build_rows(Method, filtered_df):
 
 
     return rows
+# extract lineage from family level downward;
+# if lineage is too shallow, fall back to most specific taxon
+def extract_lineage(x):
+    parts = [p.strip() for p in str(x).split(";") if p.strip()]
+
+    if len(parts) >= 7:
+        return ";".join(parts[6:])
+
+    elif parts:
+        return parts[-1]
+
+    return ""
+
 
 def build_megablast_rows(megablast_df):
     work = megablast_df.copy()
@@ -420,7 +433,7 @@ def build_megablast_rows(megablast_df):
         work["full_lineage"]
         .fillna("")
         .astype(str)
-        .apply(lambda x: ";".join(x.split(";")[6:]) if ";" in x else "")
+        .apply(extract_lineage)
     )
    
     filtered = work[(work["pident"] <= 90) & (work["qlen"] >= 1000) & (work["pc_cov_30X"] >= 70)].copy()
