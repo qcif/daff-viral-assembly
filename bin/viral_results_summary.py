@@ -394,7 +394,7 @@ def build_rows(Method, filtered_df):
         rows.append(
             {
                 "Method": Method,
-                "Evidence": "High read counts assigned to viral taxa at higher taxonomic level",
+                "Evidence": "Unresolved viral taxonomic assignments with strong read support",
                 "Details": f"{reads} reads",
                 "Taxonomy_classification": f"{taxon} ({level_label})",
             }
