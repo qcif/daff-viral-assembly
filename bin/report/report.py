@@ -18,6 +18,7 @@ from .results import (
     BlastHits,
     ConsensusFASTA,
     KaijuResults,
+    DiamondResults,
     KrakenResults,
     MappingResults,
     Metadata,
@@ -169,6 +170,7 @@ def _get_report_context(
         'mapping': MappingResults.from_csv(config.ref_mapping_path),
         'summary': SummaryResults.from_csv(config.summary_path),
         'novel_viruses': NovelVirusResults.from_csv(config.novel_viruses_path),
+        'diamond': DiamondResults.from_csv(config.diamond_path),
         'novel_evidence_summary': NovelEvidenceSummary.from_csv(
             config.novel_evidence_summary_path,
         ),

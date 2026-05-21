@@ -3,7 +3,6 @@ import argparse
 import pandas as pd
 import glob
 import os
-import time
 import numpy as np
 import re
 import json
@@ -50,7 +49,6 @@ def main():
     parser.add_argument("--clean_reads_threshold", type=int, default=2500000, help="Threshold for clean reads")
     args = parser.parse_args()
 
-    timestr = time.strftime("%Y%m%d-%H%M%S")
     summary_dict = {}
     
 
@@ -187,7 +185,7 @@ def main():
         )
     )
 
-    run_data_df.to_csv("run_qc_report_" + timestr + ".txt", index = None, sep="\t")
+    run_data_df.to_csv("run_qc_report.txt", index = None, sep="\t")
 
     summary_table = run_data_df.to_html(index=False).replace('<table border="1" class="dataframe">','<table class="table table-striped">') # use bootstrap styling
     html_string = '''
@@ -210,7 +208,7 @@ def main():
         </body>
     </html>'''
 
-    report = open("run_qc_report_" + timestr + ".html", "w")
+    report = open("run_qc_report.html", "w")
     report.write(html_string)
     report.close()
     

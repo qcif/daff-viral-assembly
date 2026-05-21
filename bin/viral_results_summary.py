@@ -510,7 +510,7 @@ def build_novel_rows(novel_df):
         return parts[-1] if parts else ""
 
     filtered = work[
-        (work["virus_score"] > 0.99) & (work["ORFs"] >= 1) & (work["RdRp"] >= 1)
+        (work["virus_score"] > 0.999) & ((work["ORFs"] >= 1) | (work["RdRp"] >= 1) | (work["PFAM_total"] >= 1) | (work["n_hallmarks"] >= 1))
     ].copy()
 
     if filtered.empty:
@@ -530,9 +530,9 @@ def build_novel_rows(novel_df):
                 "Method": "Genomad",
                 "Evidence": "Functional evidence for a putative novel virus in a contig returning no megablast hit",
                 "Details": (
-                    f"{row['seq_name']}; "
-                    f"virus_score={row['virus_score']:.3f}; "
-                    f"ORFs={int(row['ORFs'])}; RdRp={int(row['RdRp'])}; "
+                    f"{row['seq_name']};  {row['length']} nt; "
+                    f"virus_score={row['virus_score']:.4f}; "
+                    f"ORFs={int(row['ORFs'])}; Viral hallmark genes={int(row['n_hallmarks'])}; RdRp={int(row['RdRp'])}; "
                     f"PFAM_total={int(row['PFAM_total'])}"
                 ),
                 "Taxonomy_classification": taxonomy_last(row["taxonomy"]),
@@ -883,7 +883,7 @@ def main():
     #diamond_df = pd.read_csv(args.diamond, sep="\t", dtype=str)
     diamond_results_path = diamond
     diamond_results, diamond_novel_candidate_results = load_diamond_results(diamond_results_path)
-    diamond_results.to_csv(f"{args.sample_name}_filtered_diamond_results.txt", sep="\t", index=False)
+    diamond_results.to_csv(f"{args.sample_name}_filtered_diamond_results.tsv", sep="\t", index=False)
     #diamond_novel_candidate_results.to_csv(f"{args.sample_name}_novel_candidate_diamond_results.txt", sep="\t", index=False)
     kaiju_filtered = filter_support(kaiju_df, min_reads)
     kraken_filtered = filter_support(kraken_df, min_reads)

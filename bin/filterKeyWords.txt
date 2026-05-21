@@ -6,8 +6,6 @@ alternaria
 bemisia tabaci
 betacytorhabdovirus
 blacklegged tick
-botourmia-like virus
-botourmiaviridae
 botrytis cinerea
 bremia lactucae
 broome virga-like virus
@@ -27,7 +25,6 @@ erysiphales
 erysiphe
 flea-associated
 gammaherpesvirus
-gammapapillomavirus
 gammapapillomavirus
 homavirus sp.
 human papillomavirus

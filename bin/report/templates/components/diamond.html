@@ -1,0 +1,114 @@
+<div class="alert alert-info">
+  <div class="row align-items-center">
+    <div class="col">
+     The <strong>diamond blastx</strong> analysis compares the sequences assembled from your sample with the public <strong>RVDB</strong> protein database to identify viral protein-level homology. 
+    </div>
+    <div class="col-auto">
+      <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#blastxInfoModal">
+        About this analysis
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="my-3" style="overflow-x: auto;">
+
+  {% if diamond.rows %}
+
+  <table id="blastxTable" class="table table-lined tight text-center">
+
+    <thead>
+      <tr>
+        {% for colname in diamond.columns_primary_display %}
+        <th
+          {% if diamond.COLUMN_METADATA[colname]['tooltip'] %}
+          title="{{ diamond.COLUMN_METADATA[colname]['tooltip'] }}"
+          data-bs-toggle="tooltip"
+          data-bs-placement="top"
+          {% endif %}
+        >
+          {{ diamond.COLUMN_METADATA[colname]['label'] }}
+        </th>
+        {% endfor %}
+      </tr>
+    </thead>
+
+    <tbody>
+      {% for row in diamond %}
+      <tr>
+        {% for colname in diamond.columns_primary_display %}
+        <td class="align-middle">
+          {% if colname == 'evalue' %}
+            <span style="white-space: nowrap;">{{ "%.4e" | format(row[colname] | float) }}</span>
+          {% else %}
+            {{ row[colname] }}
+          {% endif %}
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+
+  </table>
+
+  {% else %}
+  <p>
+    No blastx data available.
+  </p>
+  {% endif %}
+
+</div>
+
+<div class="modal fade" id="blastxInfoModal" tabindex="-1" aria-labelledby="blastxInfoModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="blastxInfoModalLabel">Homology search with DIAMOND Blastx</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body">
+        <ol>
+          <li>
+            Assembled contigs are queried with <strong>DIAMOND blastx</strong> against the <strong>RVDB</strong> protein database to identify viral protein-level homology.
+          </li>
+          <li>
+            Sort the table by alphabetical or numerical order by clicking on column headers, and adjust the number of displayed entries using the dropdown menu above the table.
+          </li>
+          <li>
+            The results can be limited to a specific virus genus or species by typing its name in the search box.
+          </li>
+          <li>
+            Results are initially sorted by <strong>bitscore</strong> in descending order to prioritize the strongest matches.
+          </li>
+          <li>
+            Because DIAMOND blastx aligns translated protein sequences against nucleotide contigs, query coverage percentage is calculated by multiplying the alignment length by three to approximate nucleotide coverage across the assembled contig.
+          </li>
+          <li>
+            Only blastx hits with <strong>query coverage</strong> and <strong>percent identity</strong> of 50% or higher are displayed in the table.
+          </li>
+          <li>
+            Please note that while blastx can identify more distant homology at the protein level, it may also yield more false positives as these sequences are only compared to the RVDB database. Always consider the full context of the results when interpreting blastx hits.
+          </li>
+        </ol>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+$(document).ready(function () {
+  {% set bitscore_idx = diamond.columns_primary_display.index('bitscore') if 'bitscore' in diamond.columns_primary_display else 0 %}
+
+  $('#blastxTable').DataTable({
+    pageLength: 20,
+    orderCellsTop: true,
+    order: [[{{ bitscore_idx }}, 'desc']]
+  });
+
+});
+</script>

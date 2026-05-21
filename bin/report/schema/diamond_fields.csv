@@ -1,0 +1,11 @@
+colname,label,type,primary_display,tooltip
+qseqid,Contig ID,,Y,
+accession,Hit accession,,Y,
+bitscore,Bitscore,int,Y,
+evalue,E-value,scientific,Y,
+pident,Identity %,float,Y,
+qlen,Query length,int,Y,
+alignment_length,Alignment length,int,,
+qcovs,Query coverage,int,Y,
+desc,Description,,Y,
+taxon,Preliminary taxonomic classification,,Y,

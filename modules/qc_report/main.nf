@@ -6,10 +6,10 @@ process QC_REPORT {
     path multiqc_files
 
     output:
-    path("run_qc_report_*txt")
-    path("run_qc_report_*html")
-    path("run_qc_report_*html"), emit: qc_report_html
-    path("run_qc_report_*txt"), emit: qc_report_txt
+    path("run_qc_report*txt")
+    path("run_qc_report*html")
+    path("run_qc_report*html"), emit: qc_report_html
+    path("run_qc_report*txt"), emit: qc_report_txt
 
     script:
     """

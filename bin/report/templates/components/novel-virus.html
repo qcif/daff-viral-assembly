@@ -1,5 +1,49 @@
 {% from "macros/sequence-display.html" import render_view_sequence_button %}
 
+<section>
+  <h4>Evidence for novel viruses</h4>
+  <p>
+  This table integrates taxonomic classification, homology-based annotation, conserved viral domain detection, mapping coverage and confidence metrics, and machine-learning–based viral prediction to identify contigs and taxa that may represent novel or poorly characterised viruses.
+  It reports unresolved viral taxonomic assignments with strong read support (Kraken2/Kaiju), contigs with low-identity viral Megablast and/or DIAMOND matches, and contigs that show no homology to known viral sequences but return a high-confidence geNomad viral prediction score and predicted RdRp.
+  </p>
+  {% if novel_evidence_summary | length %}
+  <div class="my-3" style="overflow-x: auto;">
+    <table id="novelEvidenceSummaryTable2" class="table table-lined tight small">
+      <thead>
+        <tr class="table-light">
+          <th>Method</th>
+          <th>Evidence</th>
+          <th>Details</th>
+          <th>Taxonomy classification</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in novel_evidence_summary %}
+        <tr>
+          <td>{{ row['Method'] }}</td>
+          <td>{{ row['Evidence'] }}</td>
+          <td>
+            {% for item in row['Details'].split(';') %}
+              <div class="badge bg-secondary">{{ item }}</div>
+            {% endfor %}
+          </td>
+          <td>
+            {% for item in row['Taxonomy_classification'].split(';') %}
+              <div class="badge bg-secondary">{{ item }}</div>
+            {% endfor %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% else %}
+<p class="alert alert-info">No evidence of novel viruses to show.</p>
+{% endif %}
+
+<hr class="my-4">
+
 <div class="alert alert-info">
   <div class="row align-items-center">
     <div class="col">
@@ -85,7 +129,7 @@
             <em>De novo</em> assembled contigs that are at least 500 bp in length and did not show significant similarity to any sequences in the NCBI core_nt database were further analysed to identify potential novel viruses.
           </li>
           <li>
-            Contigs were classified using<strong>geNomad</strong>, a machine learning–based tool that evaluates gene content and sequence composition to determine viral origin. The table displays contigs retained as high-confidence candidate viral sequences, defined by a <strong>virus score</strong> (posterior probability of being viral) of at least 0.9. 
+            Contigs were classified using<strong>geNomad</strong>, a machine learning–based tool that evaluates gene content and sequence composition to determine viral origin. The table displays contigs retained as high-confidence candidate viral sequences, defined by a <strong>virus score</strong> (posterior probability of being viral) of at least 0.999. 
           </li>
           <li>
             The number of viral hallmark genes detected by <strong>geNomad</strong> within a contig is also reported.

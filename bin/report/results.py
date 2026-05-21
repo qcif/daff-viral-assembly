@@ -557,3 +557,34 @@ class NovelVirusResults(AbstractResultRows):
         """Return the taxonomy as multiline HTML string."""
         row = self.rows[row_ix]
         return '<br>'.join(row.get('taxonomy', []))
+
+
+class DiamondResults(AbstractResultRows):
+    COLUMN_METADATA = _csv_to_dict(config.SCHEMA.DIAMOND_FIELD_CSV)
+    COLUMNS = list(COLUMN_METADATA.keys())
+
+    def __init__(self, *args):
+        super().__init__(*args)
+        self.columns_display = [
+            c for c in self.COLUMN_METADATA
+            if self.COLUMN_METADATA[c]['label']
+        ]
+        self.columns_primary_display = [
+            c for c in self.columns_display
+            if self.COLUMN_METADATA[c]['primary_display']
+        ]
+        self.set_null_rows()
+
+    @property
+    def positive_hits(self):
+        return [
+            row for row in self.rows
+            if row.get('qseqid') not in [None, '', '0', '-']
+        ]
+
+    def set_null_rows(self):
+        """Set rows with no hits to have a null value."""
+        for row in self.rows:
+            if not row['qseqid'] or row['qseqid'] == '0':
+                for colname in self.COLUMNS[3:]:
+                    row[colname] = '-'

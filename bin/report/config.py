@@ -38,6 +38,7 @@ class Config:
         MAPPING_FIELD_CSV = PARENT_DIR / 'schema/mapping_fields.csv'
         SUMMARY_FIELD_CSV = PARENT_DIR / 'schema/summary_fields.csv'
         NOVEL_VIRUS_FIELD_CSV = PARENT_DIR / 'schema/novel_virus_fields.csv'
+        DIAMOND_FIELD_CSV = PARENT_DIR / 'schema/diamond_fields.csv'
 
     class OUTPUTS:
         REPORT_FILE_TEMPLATE = '{sample_id}_report.html'
@@ -78,11 +79,11 @@ class Config:
 
     @property
     def run_qc_path(self) -> Path:
-        return self._get_file_by_pattern('run_qc_report_*.txt')
+        return self._get_file_by_pattern('run_qc_report*.txt')
 
     @property
     def run_qc_html_file(self) -> str:
-        return self._get_file_by_pattern('run_qc_report_*.html').name
+        return self._get_file_by_pattern('run_qc_report*.html').name
 
     @property
     def bam_path(self) -> Path:
@@ -129,6 +130,10 @@ class Config:
     @property
     def novel_viruses_path(self) -> Path:
         return self._get_file_by_pattern("*_novel_virus_candidates.tsv")
+    
+    @property
+    def diamond_path(self) -> Path:
+        return self._get_file_by_pattern("*_filtered_diamond_results.tsv")
 
     @property
     def novel_evidence_summary_path(self) -> Path:

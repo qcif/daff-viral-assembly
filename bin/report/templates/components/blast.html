@@ -70,8 +70,17 @@
         {% for colname in blast_hits.columns_primary_display %}
         <td class="align-middle">
           {% if colname == 'evalue' %}
-            <span style="white-space: nowrap;">{{ row[colname] }}</span>
-          
+            <span style="white-space: nowrap;">{{ "%.2e" | format(row[colname] | float) }}</span>
+          {% elif colname == 'pident' %}
+            <span style="white-space: nowrap;">{{ "%.1e" | format(row[colname] | float) }}</span>
+
+          {% elif colname == 'pc_mapping_reads' %}
+            {% if row[colname] is not none and row[colname] != '' %}
+              {{ "%.3f" | format(row[colname] | float) }}
+            {% else %}
+              {{ row[colname] }}
+            {% endif %}
+
           {% elif colname == 'qseqid' %}
             {% if contig_orf_data and contig_id in contig_orf_data %}
               <a href="javascript:void(0);"
@@ -251,8 +260,8 @@ $(document).ready(function () {
   var table = $('#blastTable').DataTable({
   orderCellsTop: true,
   order: [
-    [18, 'desc'],
-    [3, 'desc']
+    [19, 'desc'],
+    [4, 'desc']
     ]
   });
 
@@ -280,40 +289,45 @@ $(document).ready(function () {
     var column = table.column(termFilterIdx);
     var cell = $('#blastTable thead tr.filters th').eq(termFilterIdx);
 
-    $('<select class="form-select form-select-sm">' +
+    var $termSelect = $('<select class="form-select form-select-sm">' +
         '<option value="">All</option>' +
         '<option value="Y">Y</option>' +
-        '<option value="blank">—</option>' +
+        '<option value="blank" selected>—</option>' +
       '</select>')
       .appendTo(cell)
       .on('change', function () {
         var val = $(this).val();
         if (val === "blank") {
-          column.search('^$', true, false).draw();   // match empty cell
+          column.search('^$', true, false).draw();
         } else {
           column.search(val ? '^' + val + '$' : '', true, false).draw();
         }
       });
+    // apply default filter on load
+    column.search('^$', true, false);
   })();
   (function () {
     var column = table.column(covFilterIdx);
     var cell = $('#blastTable thead tr.filters th').eq(covFilterIdx);
 
-    $('<select class="form-select form-select-sm">' +
+    var $covSelect = $('<select class="form-select form-select-sm">' +
         '<option value="">All</option>' +
         '<option value="Y">Y</option>' +
-        '<option value="blank">—</option>' +
+        '<option value="blank" selected>—</option>' +
       '</select>')
       .appendTo(cell)
       .on('change', function () {
         var val = $(this).val();
         if (val === "blank") {
-          column.search('^$', true, false).draw();   // match empty cell
+          column.search('^$', true, false).draw();
         } else {
           column.search(val ? '^' + val + '$' : '', true, false).draw();
         }
       });
+    // apply default filter on load
+    column.search('^$', true, false);
   })();
+  table.draw();
 
 
 });

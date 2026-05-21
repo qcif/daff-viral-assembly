@@ -140,49 +140,14 @@
   {% endif %}
 </div>
 
+
 <section>
   <h4>Evidence for novel viruses</h4>
   <p>
-  This table integrates taxonomic classification, homology-based annotation, conserved viral domain detection, mapping coverage and confidence metrics, and machine-learning–based viral prediction to identify contigs and taxa that may represent novel or poorly characterised viruses.
+  This section integrates taxonomic classification, homology-based annotation, conserved viral domain detection, mapping coverage and confidence metrics, and machine-learning–based viral prediction to identify contigs and taxa that may represent novel or poorly characterised viruses.
   It reports unresolved viral taxonomic assignments with strong read support (Kraken2/Kaiju), contigs with low-identity viral Megablast and/or DIAMOND matches, and contigs that show no homology to known viral sequences but return a high-confidence geNomad viral prediction score and predicted RdRp.
   </p>
-  {% if novel_evidence_summary | length %}
-  <div class="my-3" style="overflow-x: auto;">
-    <table id="novelEvidenceSummaryTable" class="table table-lined tight small">
-      <thead>
-        <tr class="table-light">
-          <th>Method</th>
-          <th>Evidence</th>
-          <th>Details</th>
-          <th>Taxonomy classification</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in novel_evidence_summary %}
-        <tr>
-          <td>{{ row['Method'] }}</td>
-          <td>{{ row['Evidence'] }}</td>
-          <td>
-            {% for item in row['Details'].split(';') %}
-              <div class="badge bg-secondary">{{ item }}</div>
-            {% endfor %}
-          </td>
-          <td>
-            {% for item in row['Taxonomy_classification'].split(';') %}
-              <div class="badge bg-secondary">{{ item }}</div>
-            {% endfor %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
 </section>
-{% else %}
-
-<p class="alert alert-info">No evidence of novel viruses to show.</p>
-
-{% endif %}
 
 <script>
 $(document).ready(() => {
