@@ -529,7 +529,21 @@ class NovelEvidenceSummary(AbstractResultRows):
         if path is None or not path.exists():
             return cls([])
         return super().from_csv(path, delimiter=delimiter)
+    
+class NovelContigSummary(AbstractResultRows):
+    COLUMN_METADATA = _csv_to_dict(config.SCHEMA.NOVEL_CONTIGS_FIELD_CSV)
+    COLUMNS = list(COLUMN_METADATA.keys())
 
+    def __init__(self, *args):
+        super().__init__(*args)
+        self.columns_display = [
+            c for c in self.COLUMN_METADATA
+            if self.COLUMN_METADATA[c]['label']
+        ]
+        self.columns_primary_display = [
+            c for c in self.columns_display
+            if self.COLUMN_METADATA[c]['primary_display']
+        ]
 
 class NovelVirusResults(AbstractResultRows):
     COLUMN_METADATA = _csv_to_dict(config.SCHEMA.NOVEL_VIRUS_FIELD_CSV)

@@ -39,6 +39,7 @@ class Config:
         SUMMARY_FIELD_CSV = PARENT_DIR / 'schema/summary_fields.csv'
         NOVEL_VIRUS_FIELD_CSV = PARENT_DIR / 'schema/novel_virus_fields.csv'
         DIAMOND_FIELD_CSV = PARENT_DIR / 'schema/diamond_fields.csv'
+        NOVEL_CONTIGS_FIELD_CSV = PARENT_DIR / 'schema/novel_contigs_fields.csv'
 
     class OUTPUTS:
         REPORT_FILE_TEMPLATE = '{sample_id}_report.html'
@@ -139,6 +140,12 @@ class Config:
     def novel_evidence_summary_path(self) -> Path:
         return self._get_file_by_pattern(
             "*_novel_evidence_summary.txt",
+            ignore_missing=True,
+        )
+    @property
+    def novel_contig_summary_path(self) -> Path:
+        return self._get_file_by_pattern(
+            "*_novel_contig_summary.tsv",
             ignore_missing=True,
         )
 

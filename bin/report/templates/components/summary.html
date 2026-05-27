@@ -37,6 +37,49 @@
 #summaryTable th:not(:first-child) {
   text-align: center;
 }
+
+
+
+#novelContigSummaryTable td,
+#novelContigSummaryTable th {
+  padding: 0 0.25rem;
+  font-size: 0.8rem;
+  vertical-align: middle;
+}
+
+/* General cell truncation */
+#novelContigSummaryTable td {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Contig column */
+#novelContigSummaryTable td:nth-child(1),
+#novelContigSummaryTable th:nth-child(1) {
+  max-width: 120px;
+}
+
+/* Taxonomy columns */
+#novelContigSummaryTable td:nth-child(3),
+#novelContigSummaryTable td:nth-child(5) {
+  max-width: 250px;
+  white-space: normal !important;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  line-height: 1.1;
+}
+
+/* Numeric columns smaller */
+#novelContigSummaryTable td:nth-child(2),
+#novelContigSummaryTable td:nth-child(4),
+#novelContigSummaryTable td:nth-child(6),
+#novelContigSummaryTable td:nth-child(7) {
+  max-width: 80px;
+  text-align: center;
+}
+
 </style>
 
 <p>
@@ -142,12 +185,87 @@
 
 
 <section>
-  <h4>Evidence for novel viruses</h4>
+  <h4>Novel contig evidence summary</h4>
   <p>
-  This section integrates taxonomic classification, homology-based annotation, conserved viral domain detection, mapping coverage and confidence metrics, and machine-learning–based viral prediction to identify contigs and taxa that may represent novel or poorly characterised viruses.
-  It reports unresolved viral taxonomic assignments with strong read support (Kraken2/Kaiju), contigs with low-identity viral Megablast and/or DIAMOND matches, and contigs that show no homology to known viral sequences but return a high-confidence geNomad viral prediction score and predicted RdRp.
+     This table is intended to highlight the most promising novel viral candidates, supported by at least two lines of evidence from Megablast, Diamond and geNomad (please refer to the <strong>Novel virus detection tab</strong>), for further investigation and validation.
+     The table reports the viral taxonomic assignments recovered from nucleotide- and protein-based homology searches, associated sequence identity values, GeNomad viral prediction scores, predicted RNA-dependent RNA polymerase (RdRp) status, number of predicted open reading frames (ORFs), number of detected viral PFAM domains, and the number of predicted viral hallmark genes (derived from hmmscan).
+     In addition, the table reports whether related unresolved viral taxa were independently detected by Kraken2 or Kaiju, providing further evidence supporting the presence of potentially novel or highly divergent viruses within the sample.
   </p>
 </section>
+
+
+{% if novel_contig_summary | length %}
+
+<div class="my-3" style="overflow-x: auto;">
+
+  <table id="novelContigSummaryTable" class="table table-lined tight small">
+
+    <thead>
+      <tr class="table-light">
+        {% for colname in novel_contig_summary.columns_primary_display %}
+        <th
+          {% if novel_contig_summary.COLUMN_METADATA[colname]['tooltip'] %}
+          title="{{ novel_contig_summary.COLUMN_METADATA[colname]['tooltip'] }}"
+          data-bs-toggle="tooltip"
+          data-bs-placement="top"
+          {% endif %}
+        >
+          {{ novel_contig_summary.COLUMN_METADATA[colname]['label'] }}
+        </th>
+        {% endfor %}
+      </tr>
+    </thead>
+
+    <tbody>
+      {% for row in novel_contig_summary %}
+      <tr
+        {% if row['bs_class'] %}
+        class="table-{{ row['bs_class'] }} align-middle"
+        {% endif %}
+      >
+
+        {% set format_1dp = [
+          'blastn_pident',
+          'blastx_pident',
+        ] %}
+        {% set format_4dp = [
+          'virus_score'
+        ] %}
+
+        {% for colname in novel_contig_summary.columns_primary_display %}
+        <td class="align-middle">
+
+          {% if row[colname] is boolean %}
+            {{ render_bool_icon(row[colname]) }}
+
+          {% elif colname in format_1dp %}
+            {{ "%.1f"|format(row[colname]|float) }}
+          {% elif colname in format_1dp %}
+            {{ "%.1f"|format(row[colname]|float) }}
+          
+          {% else %}
+            {{ row[colname] }}
+
+          {% endif %}
+
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+
+  </table>
+
+</div>
+
+{% else %}
+
+<p>
+  No candidate novel viral contigs were detected.
+</p>
+
+{% endif %}
+
 
 <script>
 $(document).ready(() => {
@@ -155,6 +273,12 @@ $(document).ready(() => {
     order: [
       [8, 'desc'],
       [5, 'desc']
+    ]
+  });
+
+  const novelTable = new DataTable('#novelContigSummaryTable', {
+    order: [
+      [6, 'desc']
     ]
   });
 

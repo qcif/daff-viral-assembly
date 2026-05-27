@@ -578,6 +578,7 @@ workflow {
       .join((ORFIPY.out.orf_fasta))
       .join(HMMSCAN.out.hmmscan_domain_preds)
       .join(SUMMARISE_RESULTS.out.diamond_summary)
+      .join(SUMMARISE_RESULTS.out.novel_contig_summary)
      
   files_for_report_global_ch = START_TIMESTAMP.out.timestamp
       .concat(QC_REPORT.out.qc_report_html)

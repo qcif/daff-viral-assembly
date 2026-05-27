@@ -19,6 +19,8 @@ process SUMMARISE_RESULTS {
     tuple val(sampleid), path("${sampleid}_novel_virus_candidates.tsv"), emit: novel_virus_candidates
     tuple val(sampleid), path("${sampleid}_novel_evidence_summary.txt"), emit: novel_support_summary
     tuple val(sampleid), path("${sampleid}_filtered_diamond_results.tsv"), emit: diamond_summary
+    tuple val(sampleid), path("${sampleid}_novel_contig_summary.tsv"), emit: novel_contig_summary
+
 
     script:
     """

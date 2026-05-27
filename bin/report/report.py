@@ -23,6 +23,7 @@ from .results import (
     MappingResults,
     Metadata,
     NovelEvidenceSummary,
+    NovelContigSummary,
     NovelVirusResults,
     RunQC,
     SummaryResults,
@@ -171,6 +172,7 @@ def _get_report_context(
         'summary': SummaryResults.from_csv(config.summary_path),
         'novel_viruses': NovelVirusResults.from_csv(config.novel_viruses_path),
         'diamond': DiamondResults.from_csv(config.diamond_path),
+        'novel_contig_summary': NovelContigSummary.from_csv(config.novel_contig_summary_path),
         'novel_evidence_summary': NovelEvidenceSummary.from_csv(
             config.novel_evidence_summary_path,
         ),
