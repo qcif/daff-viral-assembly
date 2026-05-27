@@ -22,7 +22,7 @@ process DIAMOND_BLASTX {
                   --out ${sampleid}_diamond_matches.txt \\
                   --evalue 1e-3 \\
                   --max-target-seqs 1 \\
-                  --outfmt 6 qseqid sseqid pident length qlen slen qstart qend sstart send evalue bitscore stitle \\
+                  --outfmt 6 qseqid sseqid pident length qlen slen qstart qend sstart send evalue bitscore qcovhsp stitle \\
                   --threads ${task.cpus}
     """
 }

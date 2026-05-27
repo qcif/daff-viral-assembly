@@ -15,10 +15,12 @@
           <th>Evidence</th>
           <th>Details</th>
           <th>Taxonomy classification</th>
+          <th>Sequence</th>
         </tr>
       </thead>
       <tbody>
         {% for row in novel_evidence_summary %}
+        {% set sequence_name = row['Details'].split(';')[0] %}
         <tr>
           <td>{{ row['Method'] }}</td>
           <td>{{ row['Evidence'] }}</td>
@@ -31,6 +33,16 @@
             {% for item in row['Taxonomy_classification'].split(';') %}
               <div class="badge bg-secondary">{{ item }}</div>
             {% endfor %}
+          </td>
+          <td class="text-center">
+            {% if row['Sequence'] and row['Sequence'] != 'nan' and row['Sequence']|trim %}
+              {{ render_view_sequence_button(
+                  "Assembled sequence " + sequence_name + "_" + loop.index|string,
+                  row['Sequence']
+              ) }}
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
           </td>
         </tr>
         {% endfor %}

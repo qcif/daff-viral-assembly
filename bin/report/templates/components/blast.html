@@ -72,8 +72,7 @@
           {% if colname == 'evalue' %}
             <span style="white-space: nowrap;">{{ "%.2e" | format(row[colname] | float) }}</span>
           {% elif colname == 'pident' %}
-            <span style="white-space: nowrap;">{{ "%.1e" | format(row[colname] | float) }}</span>
-
+            <span style="white-space: nowrap;">{{ "%.1f"|format(row[colname]|float) }}</span>
           {% elif colname == 'pc_mapping_reads' %}
             {% if row[colname] is not none and row[colname] != '' %}
               {{ "%.3f" | format(row[colname] | float) }}
