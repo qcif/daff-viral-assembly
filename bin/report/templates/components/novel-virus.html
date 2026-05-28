@@ -2,6 +2,7 @@
 
 <section>
   <h4>Evidence for novel viruses</h4>
+{#
   <p>
   This table integrates taxonomic classification, homology-based annotation, conserved viral domain detection, mapping coverage and confidence metrics, and machine-learning–based viral prediction to identify contigs and taxa that may represent novel or poorly characterised viruses.
   It reports unresolved viral taxonomic assignments with strong read support (Kraken2/Kaiju), contigs with low-identity viral Megablast and/or DIAMOND matches, and contigs that show no homology to known viral sequences but return a high-confidence geNomad viral prediction score and predicted RdRp.
@@ -20,7 +21,8 @@
       </thead>
       <tbody>
         {% for row in novel_evidence_summary %}
-        {% set sequence_name = row['Details'].split(';')[0] %}
+        {% set row_idx = loop.index %}
+        {% set sequence_name = row['Details'].split(';')[0].strip() %}
         <tr>
           <td>{{ row['Method'] }}</td>
           <td>{{ row['Evidence'] }}</td>
@@ -35,10 +37,10 @@
             {% endfor %}
           </td>
           <td class="text-center">
-            {% if row['Sequence'] and row['Sequence'] != 'nan' and row['Sequence']|trim %}
+            {% if row['Sequence'] %}
               {{ render_view_sequence_button(
-                  "Assembled sequence " + sequence_name + "_" + loop.index|string,
-                  row['Sequence']
+                  "test_sequence",
+                  "ACTGACTGACTGACTG"
               ) }}
             {% else %}
               <span class="text-muted">—</span>
@@ -49,17 +51,19 @@
       </tbody>
     </table>
   </div>
-</section>
-{% else %}
-<p class="alert alert-info">No evidence of novel viruses to show.</p>
-{% endif %}
 
+  {% else %}
+  <p class="alert alert-info">No evidence of novel viruses to show.</p>
+  {% endif %}
+</section>
+#}
 <hr class="my-4">
 
 <div class="alert alert-info">
   <div class="row align-items-center">
     <div class="col">
-     The <strong>novel virus detections analysis</strong> shows sequences derived by de novo assembly that did not show significant similarity to any sequence in the NCBI core_nt database but have viral characteristics (based on geNomad and hmmscan). 
+      This table integrates taxonomic classification, homology-based annotation, conserved viral domain detection, mapping coverage and confidence metrics, and machine-learning–based viral prediction to identify contigs and taxa that may represent novel or poorly characterised viruses.
+      It reports unresolved viral taxonomic assignments with strong read support (Kraken2/Kaiju), contigs with low-identity viral Megablast and/or DIAMOND matches, and contigs that show no blastn homology to known viral sequences but return a high-confidence geNomad viral prediction score and predicted RdRp.
     </div>
     <div class="col-auto">
       <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#novelInfoModal">
@@ -70,54 +74,78 @@
 </div>
 <div class="my-3" style="overflow-x: auto;">
 
-  {% if novel_viruses | length %}
-  <table class="table table-lined tight text-center">
+  {% if novel_evidence_summary | length %}
+  <table class="table table-lined tight small">
     <thead>
       <tr>
-        {% for colname in novel_viruses.columns_primary_display %}
+        {% for colname in novel_evidence_summary.columns_primary_display %}
         <th
-          {% if novel_viruses.COLUMN_METADATA[colname]['tooltip'] %}
-          title="{{ novel_viruses.COLUMN_METADATA[colname]['tooltip'] }}"
+          {% if novel_evidence_summary.COLUMN_METADATA[colname]['tooltip'] %}
+          title="{{ novel_evidence_summary.COLUMN_METADATA[colname]['tooltip'] }}"
           data-bs-toggle="tooltip"
           data-bs-placement="top"
           {% endif %}
         >
-          {{ novel_viruses.COLUMN_METADATA[colname]['label'] }}
+          {{ novel_evidence_summary.COLUMN_METADATA[colname]['label'] }}
         </th>
         {% endfor %}
       </tr>
     </thead>
     <tbody>
-      {% for row in novel_viruses %}
-      {% set sequence_name = row[novel_viruses.columns_primary_display[0]] %}
+      {% for row in novel_evidence_summary %}
+      {% set sequence_name = row[novel_evidence_summary.columns_primary_display[0]] %}
       <tr
         {% if row['bs_class'] %}
         class="alert-{{ row['bs_class'] }} align-middle"
         {% endif %}
       >
-        {% for colname in novel_viruses.columns_primary_display %}
+        {% for colname in novel_evidence_summary.columns_primary_display %}
         <td
           class="align-middle"
           {% if colname == 'seq_name' %}
-          title="{{ novel_viruses.taxonomy_html_for_row(loop.index0) | safe }}"
+          title="{{ novel_evidence_summary.taxonomy_html_for_row(loop.index0) | safe }}"
           data-bs-toggle="tooltip"
           data-bs-html="true"
           data-bs-placement="top"
           {% endif %}
         >
-          {% if colname == 'contig_seq' %}
-          {{ render_view_sequence_button("Assembled sequence " + sequence_name, row[colname]) }}
-          {% elif colname == 'taxonomy' %}
-          {{ row[colname][-1] }}
-          {% elif colname == 'ORFs' %}
-          {{ row[colname] or 0 }}
+         {% if colname in ['Details', 'Taxonomy_classification'] %}
+
+          {% for item in row[colname].split(';') %}
+            <div class="badge bg-secondary">
+              {{ item.strip() }}
+            </div>
+          {% endfor %}
+
+        {% elif colname == 'Sequence' %}
+
+          {% set seq = row[colname]|string|trim %}
+
+          {% if seq and seq not in ['NA', 'nan', 'None'] %}
+
+            {{ render_view_sequence_button(
+                "Assembled sequence " + sequence_name,
+                seq
+            ) }}
+
           {% else %}
-          {{ row[colname] }}
+
+            <span class="text-muted">—</span>
+
           {% endif %}
-        </td>
-        {% endfor %}
+
+        {% else %}
+
+          {{ row[colname] }}
+
+        {% endif %}
+
+      </td>
+
+      {% endfor %}
       </tr>
       {% endfor %}
+
     </tbody>
   </table>
   {% else %}
@@ -126,7 +154,7 @@
   </p>
   {% endif %}
 </div>
-
+</section>
 <div class="modal fade" id="novelInfoModal" tabindex="-1" aria-labelledby="novelInfoModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
@@ -138,25 +166,20 @@
       <div class="modal-body">
         <ol>
           <li>
-            <em>De novo</em> assembled contigs that are at least 500 bp in length and did not show significant similarity to any sequences in the NCBI core_nt database were further analysed to identify potential novel viruses.
+            The evidence gathered under the <strong>Diamond</strong> method represents <em>de novo</em> assembled contigs that are at least 1000 bp, a query coverage > 50% and a percentage identity ranging between 50% and 90% to a viral sequence in the RVDB viral protein database.
           </li>
           <li>
-            Contigs were classified using<strong>geNomad</strong>, a machine learning–based tool that evaluates gene content and sequence composition to determine viral origin. The table displays contigs retained as high-confidence candidate viral sequences, defined by a <strong>virus score</strong> (posterior probability of being viral) of at least 0.999. 
+            The evidence gathered under the <strong>Megablast</strong> method represents <em>de novo</em> assembled contigs that are at least 1000 bp, a percentage identity > 90% to a viral sequence in the NCBI core_nt database and have a 30X depth coverage of at least 70%.
           </li>
           <li>
-            The number of viral hallmark genes detected by <strong>geNomad</strong> within a contig is also reported.
+            The evidence gathered under the <strong>geNomad</strong> method represents <em>de novo</em> assembled contigs that did not show significant similarity to any sequence in the NCBI core_nt database but have viral characteristics (based on geNomad and hmmscan). 
+            Candidate contigs were first classified using <strong>geNomad</strong>, a machine learning–based tool that evaluates gene content and sequence composition to predict viral sequences. 
+            Open reading frames (ORFs) encoding protein sequences of at least <strong>100 amino acids</strong> were subsequently predicted using <strong>orfipy</strong>, and the translated protein sequences were screened against the curated Pfam-A profile Hidden Markov Model database using <strong>hmmscan</strong>.
+            The table reports <strong>ORFs</strong>, the number of predicted ORFs with significant viral domain matches (defined as a <strong>full sequence score</strong> of at least 50); <strong>PFAM total</strong>, the total number of detected viral domains; <strong>Viral hallmark genes</strong>, the number of viral hallmark genes identified by <strong>geNomad</strong> , and <strong>RdRP</strong>, whether an RNA-dependent RNA polymerase (RdRP) domain was detected. 
+            Contigs are considered high confidence if they are at least <strong>500 bp</strong> in length, have a <strong>geNomad virus score</strong> (posterior probability of being viral) of at least <strong>0.999</strong> and present at least one of the following features: predicted <strong>ORFs</strong>, an <strong>RdRP</strong> domain, viral <strong>PFAM</strong> domains, or <strong>viral hallmark genes</strong>.
           </li>
           <li>
-            Open reading frames (ORFs) encoding protein sequences of at least 100 amino acids were then predicted from these contigs using <strong>orfipy</strong>. 
-          </li>
-          <li>
-            The predicted protein sequences were subsequently searched against the curated Pfam-A profile Hidden Markov Model database using <strong>hmmscan</strong>. 
-          </li>
-          <li>
-            The table reports the number of ORFs with a significant match to a viral protein family domain (defined as a <strong>full sequence score</strong> of at least 50), the total number of viral domains detected, and whether an RNA-dependent RNA polymerase (RdRP) domain was identified. 
-          </li>
-          <li>
-            Rows are sorted in descending order based on the contigs <strong>virus score</strong>, with higher-scoring contigs representing higher-confidence viral candidates.
+            The evidence gathered under the <strong>Kraken and Kaiju</strong> methods represents unresolved taxonomic assignments at the family or order level, with at least 1000 reads support, providing further evidence supporting the presence of potentially novel or highly divergent viruses within the sample.
           </li>
         </ol>
       </div>

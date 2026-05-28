@@ -3,7 +3,7 @@ process HTML_REPORT {
     label 'setting_4'
 
     input:
-    tuple val(sampleid), path(raw_fastqc), path(filtered_fastqc), path(fastp), path(fasta), path(summary_known_viruses), path(kaiju_summary), path(kraken_summary), path(detections_summary), path(ref_mapping_summary), path(consensus), path(bam), path(bai), path(novel_virus_summary), path(novel_support_summary), path(blast_contig2ref),path(orfs), path(hmmscan), path(diamond_summary), path(novel_contig_summary),
+    tuple val(sampleid), path(raw_fastqc), path(filtered_fastqc), path(fastp), path(fasta), path(summary_known_viruses), path(kaiju_summary), path(kraken_summary), path(detections_summary), path(ref_mapping_summary), path(consensus), path(bam), path(bai), path(novel_support_summary), path(blast_contig2ref),path(orfs), path(hmmscan), path(diamond_summary), path(novel_contig_summary),
     path(timestamp),
     path(qcreport_html),
     path(qcreport_txt),

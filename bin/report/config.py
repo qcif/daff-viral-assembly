@@ -128,9 +128,9 @@ class Config:
     def summary_path(self) -> Path:
         return self._get_file_by_pattern("*_summary_viral_results.tsv")
 
-    @property
-    def novel_viruses_path(self) -> Path:
-        return self._get_file_by_pattern("*_novel_virus_candidates.tsv")
+    #@property
+    #def novel_viruses_path(self) -> Path:
+    #    return self._get_file_by_pattern("*_novel_virus_candidates.tsv")
     
     @property
     def diamond_path(self) -> Path:

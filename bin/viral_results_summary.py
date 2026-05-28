@@ -295,7 +295,7 @@ def load_diamond_results(path):
     #    raise FileNotFoundError(f"Diamond results file not found: {path}")
      # Define expected header (based on your Diamond output fields)
     columns = [
-        "qseqid", "sseqid", "pident", "alignment_length", "qlen", "slen", "qstart", "qend", "sstart", "send", "evalue", "bitscore", "qcovhsp", "stitle"
+        "seq_name", "sseqid", "pident", "alignment_length", "qlen", "slen", "qstart", "qend", "sstart", "send", "evalue", "bitscore", "qcovhsp", "stitle"
     ]
         # Create a temporary file with header + original content
     df = pd.read_csv(path, sep="\t", header=None, dtype=str)
@@ -306,7 +306,7 @@ def load_diamond_results(path):
     df.columns = columns
 
     dtype = {
-        "qseqid": 'str', "sseqid": 'str', "pident": 'float64', "alignment_length": 'int64', 
+        "seq_name": 'str', "sseqid": 'str', "pident": 'float64', "alignment_length": 'int64', 
         "qlen": 'int64', "slen": 'int64', "qstart": 'int64', "qend": 'int64', "sstart": 'int64', 
         "send": 'int64', "evalue": 'float64', "bitscore": 'int64', "qcovhsp": 'int64', "stitle": 'str'
     }
@@ -355,7 +355,7 @@ def load_diamond_results(path):
     # df2 = df1[(df1["pident"] < 90) & (df1["qlen"] >= 1000)].copy()
 
     final_columns_filt = [
-        "qseqid",
+        "seq_name",
         "taxon",
         "accession",
         "desc",
@@ -409,7 +409,7 @@ def build_rows(Method, filtered_df):
                 "Evidence": "Unresolved viral taxonomic assignments with strong read support",
                 "Details": f"{reads} reads",
                 "Taxonomy_classification": f"{taxon} ({level_label})",
-                "Sequence": ""
+                "Sequence": "NA"
             }
         )
 
@@ -510,9 +510,9 @@ def build_diamond_rows(diamond_df):
             {
                 "Method": "Diamond",
                 "Evidence": f"Low-identity viral match with contig length >= 1000 nt",
-                "Details": f"{row['qseqid']}; {row['pident']}% id; {row['qlen']} nt; {row['qcovhsp']:.1f}% qcovhsp",
+                "Details": f"{row['seq_name']}; {row['pident']}% id; {row['qlen']} nt; {row['qcovhsp']:.1f}% qcovhsp",
                 "Taxonomy_classification": f"{row['family']}; {row['taxon']}",
-                "Sequence": ""
+                "Sequence": f"{row['contig_seq']}"
             }
         )
     return rows
@@ -1153,9 +1153,11 @@ def main():
     #novel_df = pd.read_csv(args., sep="\t", dtype=str)
     #diamond_df = pd.read_csv(args.diamond, sep="\t", dtype=str)
     diamond_results_path = diamond
+    
     #diamond_results_raw, diamond_results, diamond_novel_candidate_results = load_diamond_results(diamond_results_path)
     diamond_results_raw = load_diamond_results(diamond_results_path)
-    enriched_diamond_results = enrich_with_taxonomy(diamond_results_raw, taxonomy)
+    fasta_diamond_df = pd.merge(fasta_df, diamond_results_raw, on = ['seq_name'], how = 'outer')
+    enriched_diamond_results = enrich_with_taxonomy(fasta_diamond_df, taxonomy)
     enriched_diamond_results = enriched_diamond_results[enriched_diamond_results["qcovhsp"] >= 50].copy()
     enriched_diamond_results = enriched_diamond_results[enriched_diamond_results["pident"] >= 50].copy()
     enriched_diamond_results = enriched_diamond_results.sort_values(by="pident", ascending=False)
@@ -1227,7 +1229,7 @@ def main():
     diamond_summary = (
         enriched_diamond_results[
             [
-                "qseqid",
+                "seq_name",
                 "blastx_taxonomy",
                 "pident",
             ]
@@ -1381,7 +1383,7 @@ def main():
         
         # add Diamond info
         diamond_summary = diamond_summary.rename(
-            columns={"qseqid": "contig"}
+            columns={"seq_name": "contig"}
         )
 
         novel_summary = novel_summary.merge(

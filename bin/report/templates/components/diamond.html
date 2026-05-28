@@ -39,7 +39,7 @@
         {% for colname in diamond.columns_primary_display %}
         <td class="align-middle">
           {% if colname == 'evalue' %}
-            <span style="white-space: nowrap;">{{ "%.4e" | format(row[colname] | float) }}</span>
+            <span style="white-space: nowrap;">{{ "%.2e" | format(row[colname] | float) }}</span>
           {% else %}
             {{ row[colname] }}
           {% endif %}

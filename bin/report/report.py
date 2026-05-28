@@ -24,7 +24,6 @@ from .results import (
     Metadata,
     NovelEvidenceSummary,
     NovelContigSummary,
-    NovelVirusResults,
     RunQC,
     SummaryResults,
 )
@@ -170,12 +169,9 @@ def _get_report_context(
         'kaiju': KaijuResults.from_csv(config.kaiju_hits_path),
         'mapping': MappingResults.from_csv(config.ref_mapping_path),
         'summary': SummaryResults.from_csv(config.summary_path),
-        'novel_viruses': NovelVirusResults.from_csv(config.novel_viruses_path),
         'diamond': DiamondResults.from_csv(config.diamond_path),
         'novel_contig_summary': NovelContigSummary.from_csv(config.novel_contig_summary_path),
-        'novel_evidence_summary': NovelEvidenceSummary.from_csv(
-            config.novel_evidence_summary_path,
-        ),
+        'novel_evidence_summary': NovelEvidenceSummary.from_csv(config.novel_evidence_summary_path),
         'kraken_taxa_by_kingdom': parse_kraken_taxonomy(
             config.kraken_hits_path,
             group_kingdoms=True,

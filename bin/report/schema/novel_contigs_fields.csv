@@ -1,5 +1,5 @@
 colname,label,type,primary_display,tooltip
-contig,Contig,int,Y,
+contig,Contig,,Y,
 contig_length,Length,int,Y,
 blastn_taxonomy,Megablast taxonomy,,Y,
 blastn_pident,Megablast %ID,float,Y,

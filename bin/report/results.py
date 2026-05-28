@@ -521,15 +521,31 @@ class SummaryResults(AbstractResultRows):
         ]
 
 
-class NovelEvidenceSummary(AbstractResultRows):
-    COLUMNS = ['Method', 'Evidence', 'Details', 'Taxonomy_classification']
+# class NovelEvidenceSummary(AbstractResultRows):
+#     COLUMNS = ['Method', 'Evidence', 'Details', 'Taxonomy_classification']
 
-    @classmethod
-    def from_csv(cls, path, delimiter='\t'):
-        if path is None or not path.exists():
-            return cls([])
-        return super().from_csv(path, delimiter=delimiter)
-    
+#     @classmethod
+#     def from_csv(cls, path, delimiter='\t'):
+#         if path is None or not path.exists():
+#             return cls([])
+#         return super().from_csv(path, delimiter=delimiter)
+class NovelEvidenceSummary(AbstractResultRows):
+    COLUMN_METADATA = _csv_to_dict(config.SCHEMA.NOVEL_VIRUS_FIELD_CSV)
+    COLUMNS = list(COLUMN_METADATA.keys())
+
+    def __init__(self, *args):
+        super().__init__(*args)
+        self.columns_display = [
+            c for c in self.COLUMN_METADATA
+            if self.COLUMN_METADATA[c]['label']
+        ]
+        self.columns_primary_display = [
+            c for c in self.columns_display
+            if self.COLUMN_METADATA[c]['primary_display']
+        ]
+       
+
+
 class NovelContigSummary(AbstractResultRows):
     COLUMN_METADATA = _csv_to_dict(config.SCHEMA.NOVEL_CONTIGS_FIELD_CSV)
     COLUMNS = list(COLUMN_METADATA.keys())
@@ -545,32 +561,32 @@ class NovelContigSummary(AbstractResultRows):
             if self.COLUMN_METADATA[c]['primary_display']
         ]
 
-class NovelVirusResults(AbstractResultRows):
-    COLUMN_METADATA = _csv_to_dict(config.SCHEMA.NOVEL_VIRUS_FIELD_CSV)
-    COLUMNS = list(COLUMN_METADATA.keys())
+# class NovelVirusResults(AbstractResultRows):
+#     COLUMN_METADATA = _csv_to_dict(config.SCHEMA.NOVEL_VIRUS_FIELD_CSV)
+#     COLUMNS = list(COLUMN_METADATA.keys())
 
-    def __init__(self, *args):
-        super().__init__(*args)
-        self.columns_display = [
-            c for c in self.COLUMN_METADATA
-            if self.COLUMN_METADATA[c]['label']
-        ]
-        self.columns_primary_display = [
-            c for c in self.columns_display
-            if self.COLUMN_METADATA[c]['primary_display']
-        ]
-        for row in self.rows:
-            if row.get('taxonomy'):
-                row['taxonomy'] = [
-                    taxon.strip()
-                    for taxon in row.get('taxonomy', '').split(';')
-                    if taxon.strip()
-                ]
+#     def __init__(self, *args):
+#         super().__init__(*args)
+#         self.columns_display = [
+#             c for c in self.COLUMN_METADATA
+#             if self.COLUMN_METADATA[c]['label']
+#         ]
+#         self.columns_primary_display = [
+#             c for c in self.columns_display
+#             if self.COLUMN_METADATA[c]['primary_display']
+#         ]
+#         for row in self.rows:
+#             if row.get('taxonomy'):
+#                 row['taxonomy'] = [
+#                     taxon.strip()
+#                     for taxon in row.get('taxonomy', '').split(';')
+#                     if taxon.strip()
+#                 ]
 
-    def taxonomy_html_for_row(self, row_ix):
-        """Return the taxonomy as multiline HTML string."""
-        row = self.rows[row_ix]
-        return '<br>'.join(row.get('taxonomy', []))
+#     def taxonomy_html_for_row(self, row_ix):
+#         """Return the taxonomy as multiline HTML string."""
+#         row = self.rows[row_ix]
+#         return '<br>'.join(row.get('taxonomy', []))
 
 
 class DiamondResults(AbstractResultRows):
@@ -593,12 +609,12 @@ class DiamondResults(AbstractResultRows):
     def positive_hits(self):
         return [
             row for row in self.rows
-            if row.get('qseqid') not in [None, '', '0', '-']
+            if row.get('seq_name') not in [None, '', '0', '-']
         ]
 
     def set_null_rows(self):
         """Set rows with no hits to have a null value."""
         for row in self.rows:
-            if not row['qseqid'] or row['qseqid'] == '0':
+            if not row['seq_name'] or row['seq_name'] == '0':
                 for colname in self.COLUMNS[3:]:
                     row[colname] = '-'
