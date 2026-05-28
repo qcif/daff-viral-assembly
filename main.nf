@@ -572,7 +572,6 @@ workflow {
       .join(CONTIG_COVSTATS.out.detections_summary)
       .join(fasta2table_ref.detections_summary_final)
       .join(SAMTOOLS2.out.sorted_bam)
-      .join(SUMMARISE_RESULTS.out.novel_virus_candidates)
       .join(SUMMARISE_RESULTS.out.novel_support_summary)
       .join(MEGABLAST_TO_REF.out.blast_results)
       .join((ORFIPY.out.orf_fasta))
