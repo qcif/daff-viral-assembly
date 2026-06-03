@@ -118,6 +118,7 @@ def summarize_domains(df_filtered):
     # Add RdRp column
     existing_rdRp_pfams = [pf for pf in RDRP_PFAMS if pf in summary.columns]
     #summary["RdRp"] = summary[existing_rdRp_pfams].sum(axis=1) > 0
+    #creates a boolean column indicating whether any of the RdRp PFAMs are present for each query_name
     summary["RdRp"] = summary[existing_rdRp_pfams].sum(axis=1) > 0 if existing_rdRp_pfams else False
 
 
@@ -533,7 +534,7 @@ def build_novel_rows(novel_df):
     #     return parts[-1] if parts else ""
 
     filtered = work[
-        (work["virus_score"] > 0.999) & ((work["ORFs"] >= 1) | (work["RdRp"] >= 1) | (work["PFAM_total"] >= 1) | (work["n_hallmarks"] >= 1))
+        (work["virus_score"] > 0.999) & ((work["RdRp"] >= 1) | (work["PFAM_total"] >= 1) | (work["n_hallmarks"] >= 1))
     ].copy()
 
     if filtered.empty:
@@ -556,7 +557,7 @@ def build_novel_rows(novel_df):
                 "Details": (
                     f"{row['seq_name']};  {row['length']} nt; "
                     f"virus_score={row['virus_score']:.4f}; "
-                    f"ORFs={int(row['ORFs'])}; Viral hallmark genes={int(row['n_hallmarks'])}; RdRp={int(row['RdRp'])}; "
+                    f"Viral hallmark genes={int(row['n_hallmarks'])}; RdRp={int(row['RdRp'])}; "
                     f"PFAM_total={int(row['PFAM_total'])}"
                 ),
                 "Taxonomy_classification": taxonomy_last(row["taxonomy"]),
@@ -1158,10 +1159,21 @@ def main():
     diamond_results_raw = load_diamond_results(diamond_results_path)
     fasta_diamond_df = pd.merge(fasta_df, diamond_results_raw, on = ['seq_name'], how = 'outer')
     enriched_diamond_results = enrich_with_taxonomy(fasta_diamond_df, taxonomy)
-    enriched_diamond_results = enriched_diamond_results[enriched_diamond_results["qcovhsp"] >= 50].copy()
+    enriched_diamond_results = enriched_diamond_results[
+        (enriched_diamond_results["qcovhsp"] >= 50) |
+        (
+            enriched_diamond_results["desc"]
+            .str.contains(
+                r"RNA[- ]dependent RNA polymerase|\bRdRp\b",
+                case=False,
+                na=False,
+                regex=True
+            )
+        )
+    ].copy()
     enriched_diamond_results = enriched_diamond_results[enriched_diamond_results["pident"] >= 50].copy()
     enriched_diamond_results = enriched_diamond_results.sort_values(by="pident", ascending=False)
-    diamond_novel_candidate_results = enriched_diamond_results[(enriched_diamond_results["pident"] < 90) & (enriched_diamond_results["qlen"] >= 1000)].copy()
+    diamond_novel_candidate_results = enriched_diamond_results[(enriched_diamond_results["pident"] <= 90) & (enriched_diamond_results["qlen"] >= 1000)].copy()
 
     
     enriched_diamond_results.to_csv(f"{args.sample_name}_filtered_diamond_results.tsv", sep="\t", index=False)
@@ -1171,31 +1183,16 @@ def main():
     kraken_filtered = filter_support(kraken_df, min_reads)
 
     support_rows = []
-    support_rows.extend(build_rows("Kaiju", kaiju_filtered))
-    support_rows.extend(build_rows("Kraken", kraken_filtered))
     support_rows.extend(build_megablast_rows(megablast_df))
-    
-    #print(enriched_df)
     support_rows.extend(build_diamond_rows(diamond_novel_candidate_results))
     support_rows.extend(build_novel_rows(df_filt))
+    support_rows.extend(build_rows("Kraken", kraken_filtered))
+    support_rows.extend(build_rows("Kaiju", kaiju_filtered))
     support_df = pd.DataFrame(support_rows)
     support_df.to_csv(f"{args.sample_name}_novel_evidence_summary.txt", sep="\t", index=False)
 
-    ##new function
     #derive summary of evidence for novel viruses collapsed by contig name
-    # -----------------------------
-    # Contigs supported by geNomad
-    # -----------------------------
-    #merge all results
-    #use df_filt_all_contigs 
-    #merge with diamond
 
-    # fasta_genomad_hmmscan_blast_diamond_df = pd.merge(df_filt_all_contigs, diamond_results_raw, 
-    #         left_on = ['seq_name'], 
-    #         right_on = ['qseqid'],
-    #         how = 'left')
-    
-    
     megablast_summary = (
         megablast_df[
             [
@@ -1329,11 +1326,12 @@ def main():
     #   (Megablast AND Diamond)
     # ---------------------------------------------------------
     candidate_contigs = sorted(
-        (
+        c for c in (
             genomad_contigs.intersection(diamond_contigs)
         ).union(
             megablast_contigs.intersection(diamond_contigs)
         )
+        if str(c).strip()
     )
     # ---------------------------------------------------------
     # Handle empty result
