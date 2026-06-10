@@ -1,4 +1,2 @@
 genomad_db: /work/daff_viral_rnaseq/genomad/genomad_db
 hmmer_db: /work/daff_viral_rnaseq/daff-viral-assembly/hmms/Pfam-A.hmm
-rrna_ref: /work/daff_viral_rnaseq/sortmerna/rrna_dbs/smr_v4.3_sensitive_db_DNA.fasta
-rvdb_taxonomy: /work/daff_viral_rnaseq/nextflow/daff-viral-assembly/RVDBv31_taxonomy.tab
