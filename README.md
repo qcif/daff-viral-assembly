@@ -345,9 +345,7 @@ The pipeline includes several execution profiles selectable with `-profile`:
 |---------|-------------|
 | `docker` | Run processes inside Docker containers |
 | `singularity` | Run processes inside Singularity containers (recommended on HPC) |
-| `mtdt_test` | Minimal test profile for local testing |
-| `peq_test` | PEQ test profile |
-| `internal_test` | Internal test profile |
+| `test` | Test profile |
 
 Multiple profiles can be combined with commas, e.g. `-profile singularity,mtdt_test`.
 

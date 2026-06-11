@@ -1,12 +1,12 @@
 process GENOMAD_ENDTOEND {
     tag "${sampleid}"
     label 'setting_14'
-    containerOptions "--bind ${file(params.genomad_db).parent}"
+    //containerOptions "--bind ${file(params.genomad_db).parent}"
     publishDir { "${params.outdir}/${sampleid}/07_annotation/genomad" }, mode: 'copy'
 
     input:
     tuple val(sampleid), path(viral_fasta), path(other_fasta)
-    val(genomad_db)
+    path(genomad_db)
 
     output:
     file "*_summary/*_virus.fna"

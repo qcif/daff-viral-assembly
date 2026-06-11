@@ -59,8 +59,8 @@ def buildBindOptions() {
   if (workflow.containerEngine == "singularity") {
     [ 
       params.blastn_db_dir,
-      params.taxdump,
-      params.kaiju_db_path,
+      params.taxdump_dir,
+      params.kaiju_db_dir,
       params.kraken2_db,
       params.genomad_db,
       params.hmmer_db_dir,
@@ -78,7 +78,7 @@ def buildBindOptions() {
 process EXTRACT_VIRAL_BLAST_HITS {
     tag "${sampleid}"
     label 'setting_7'
-    containerOptions "--bind ${file(params.taxdump)}"
+    //containerOptions "--bind ${file(params.taxdump)}"
 
     input:
     tuple val(sampleid), path(blast_results), path(assembly_headers), path(fasta)
@@ -138,6 +138,20 @@ process MAPPING_BACK_TO_REF {
     #        -1 $fastq1 -2 $fastq2 -S ${sampleid}_ref_aln.sam 2>> ${sampleid}_mapping.log
     bwa index ${ref}
     bwa mem -t ${task.cpus} ${ref} $fastq1 $fastq2 > ${sampleid}_ref_aln.sam 2>> ${sampleid}_mapping.log
+    """
+}
+
+process DOWNLOAD_GENOMAD_DB {
+
+    publishDir "${params.databases}", mode: 'copy'
+
+    output:
+    path "databases/genomad_db", emit: db
+
+    script:
+    """
+    mkdir -p databases
+    genomad download-database databases
     """
 }
 
@@ -267,22 +281,60 @@ workflow {
       helpMessage()
       exit 0
   }
-
-  if (params.blastn_db) {
+  if ( !params.blastn_db) {
+      error "Required parameter 'blastn_db' is missing. Please set it in your -params-file."
+  }
+  else {
       blastn_db_name = file(params.blastn_db).name 
       params.blastn_db_dir = file(params.blastn_db).parent
   }
 
-  if (params.hmmer_db) {
+  if ( !params.hmmer_db ) {
+      error "Required parameter 'hmmer_db' is missing. Please set it in your -params-file."
+  }
+  else {
       params.hmmer_db_dir = file(params.hmmer_db).parent
   }
-  
-  if (params.prot_db) {
-      prot_db_dir = file(params.prot_db).parent
+  if ( !params.taxdump ) {
+      error "Required parameter 'taxdump' is missing. Please set it in your -params-file."
+  }
+  else {
+      params.taxdump_dir = file(params.taxdump).parent
   }
 
+  if ( !params.kaiju_db ) {
+      error "Required parameter 'kaiju_db' is missing. Please set it in your -params-file."
+  }
+  else {
+      params.kaiju_db_dir = file(params.kaiju_db).parent
+  }
+  if ( !params.genomad_db) {
+    if (workflow.profile.tokenize(',').contains('test')) {
+        db_results = DOWNLOAD_GENOMAD_DB()
+    }
+    else {
+        error "Required parameter 'genomad_db' is missing. Please set it in your -params-file."
+    }
+    ch_genomad_db = db_results.db
+  }
+  else {
+    ch_genomad_db = Channel.fromPath(params.genomad_db)
+  }
+  
+  def otherRequiredParams = [
+    'prot_db',
+    'rvdb_taxonomy',
+    'rrna_ref',
+    'kraken2_db',
+  ]
+
+  otherRequiredParams.each { p ->
+    if (!params[p]) {
+          error "Required parameter '${p}' is missing. Please set it in your -params-file."
+    }
+  }
+  
   params.bindOptions = buildBindOptions()
-  //println "Bind options: ${params.bindOptions}"
 
   START_TIMESTAMP ()
   ch_versions = Channel.empty()
@@ -310,6 +362,7 @@ workflow {
           }
           .set { ch_fastq }
   }
+  
   CAT_FASTQ (
       ch_fastq.multiple
   )
@@ -318,31 +371,43 @@ workflow {
   .set { ch_cat_fastq }
   ch_versions = ch_versions.mix(CAT_FASTQ.out.versions.first().ifEmpty(null))
 
-  configyaml = Channel.fromPath(workflow.commandLine.split(" -params-file ")[1].split(" ")[0])
-  //configyaml = Channel.fromPath(params.config_yaml)
+  //configyaml = Channel.fromPath(workflow.commandLine.split(" -params-file ")[1].split(" ")[0])
+  //This is a bit hacky but it allows us to capture the params file used in the run and pass it to the report module without having to specify it as an output in every process. 
+  //It also allows us to use a default params file for testing when the user does not specify one.
+  def yamlFile
+
+  if (workflow.commandLine.contains('-params-file')) {
+    yamlFile = workflow.commandLine.split(" -params-file ")[1].split(" ")[0]
+  }
+  else if (workflow.profile.tokenize(',').contains('test')) {
+    yamlFile = "${projectDir}/params/user_params_test.yml"
+  }
+ 
+  configyaml = Channel.fromPath(yamlFile)
+  
   //Probably best place to perform subsampling
   //Subsampling to 60M reads is as slow using the nf-core subsample module or seqtk sample (40-50 minutes)
-    if ( params.subsample_enabled ) {
+  if ( params.subsample_enabled ) {
         //Check size of fastq file first before subsampling!
         //FQ_SUBSAMPLE ( BBMAP_BBSPLIT.out.all_fastq )
-        ch_with_counts = CAT_FASTQ.out.reads \
-            | COUNT_FASTQ_READS
+    ch_with_counts = CAT_FASTQ.out.reads \
+        | COUNT_FASTQ_READS
 
-        SEQTK_SAMPLE(
-            ch_with_counts,
-            params.subsample_size
-        )
+    SEQTK_SAMPLE(
+        ch_with_counts,
+        params.subsample_size
+    )
 
-        ch_versions = ch_versions.mix( SEQTK_SAMPLE.out.versions.first() )
-        merged_fastq = SEQTK_SAMPLE.out.reads.ifEmpty {
-            CAT_FASTQ.out.reads
-        }
-    } else {
-        merged_fastq = CAT_FASTQ.out.reads
+    ch_versions = ch_versions.mix( SEQTK_SAMPLE.out.versions.first() )
+    merged_fastq = SEQTK_SAMPLE.out.reads.ifEmpty {
+        CAT_FASTQ.out.reads
     }
+  } else {
+    merged_fastq = CAT_FASTQ.out.reads
+  }
 
   /*
-  //revisit, this logic was bugging but it would be ncie to combine COUNT_FASTQ_READS and SEQTK_SAMPLE into one process 
+  //revisit, this logic was bugging but it would be nice to combine COUNT_FASTQ_READS and SEQTK_SAMPLE into one process 
   //that performs subsampling if the file is above a certain size threshold, otherwise just passes through the original fastq file. This would avoid the issue of the channel not pairing after the first sample when using SEQTK_SAMPLE on its own.
   if ( params.subsample_enabled ) {
       //Check size of fastq file first before subsampling!
@@ -440,7 +505,7 @@ workflow {
   //READ CLASSIFICATION WITH KAIJU
   //Incorporate a separate module for kaiju2krona and kaiju2table?
   //Explore downtrack downloading krona taxonomy to see if it improves the visualisation?
-  KAIJU_KAIJU ( BBMAP_BBSPLIT.out.all_fastq, params.kaiju_db_path )
+  KAIJU_KAIJU ( BBMAP_BBSPLIT.out.all_fastq, params.kaiju_db_dir )
   KRONA_KTIMPORTTEXT ( KAIJU_KAIJU.out.krona_results )
   
   read_classification_ch = KAIJU_KAIJU.out.kaiju_results.join(KRAKEN2_ABUNDANCE_ESTIMATE.out.kraken2_results)
@@ -493,7 +558,8 @@ workflow {
   ORFIPY ( TRIM_ENDS.out.trimmed_contigs.join(EXTRACT_CONTIGS.out.other_fasta) )
   HMMSCAN ( ORFIPY.out.orf_fasta, params.hmmer_db )
   genomad_ch = TRIM_ENDS.out.trimmed_contigs.join(EXTRACT_CONTIGS.out.other_fasta)
-  GENOMAD_ENDTOEND ( genomad_ch, params.genomad_db )
+  //GENOMAD_ENDTOEND ( genomad_ch, params.genomad_db )
+  GENOMAD_ENDTOEND ( genomad_ch, ch_genomad_db )
 
   //Enhancement: Option to perform a blastx alignment of contig ORFs?
   diamond_ch = TRIM_ENDS.out.trimmed_contigs.join(EXTRACT_CONTIGS.out.other_fasta) 

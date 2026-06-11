@@ -5,7 +5,11 @@ blast_threads: 2
 genomad_db: null
 hmmer_db: null
 kraken2_db: null
-kaiju_dbname: null
+kaiju_db: null
 help: false
 outdir: results
 rrna_ref: null
+prot_db: null
+rvdb_taxonomy: null
+qfiltered_reads_threshold: 8000000
+clean_reads_threshold: 2500000
