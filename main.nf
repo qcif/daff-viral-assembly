@@ -55,24 +55,24 @@ def isNonEmptyFile(file) {
 }
 
 def buildBindOptions() {
-  def bindOptions = "" 
-  if (workflow.containerEngine == "singularity") {
-    [ 
-      params.blastn_db_dir,
-      params.taxdump_dir,
-      params.kaiju_db_dir,
-      params.kraken2_db,
-      params.genomad_db,
-      params.hmmer_db_dir,
-      params.prot_db
-    ]
-    .findAll { it } 
-    .collect { file(it) }
-    .collect { it.isDirectory() ? it : it.parent }
-    .unique()
-    .each { bindOptions += "-B ${it}:${it} " } 
-  } 
-  return bindOptions 
+    def bindOptions = "" 
+    if (workflow.containerEngine == "singularity") {
+        [ 
+        params.blastn_db_dir,
+        params.taxdump_dir,
+        params.kaiju_db_dir,
+        params.kraken2_db,
+        params.genomad_db,
+        params.hmmer_db_dir,
+        params.prot_db
+        ]
+        .findAll { it } 
+        .collect { file(it) }
+        .collect { it.isDirectory() ? it : it.parent }
+        .unique()
+        .each { bindOptions += "-B ${it}:${it} " } 
+    }
+    return bindOptions 
 }
 
 process EXTRACT_VIRAL_BLAST_HITS {
@@ -172,61 +172,6 @@ process REALIGN {
     """
 }
 
-process SAMTOOLS2 {
-    publishDir { "${params.outdir}/${sampleid}/09_mapping_to_ref" }, mode: 'copy'
-    tag "${sampleid}"
-    label 'setting_10'
-
-    input:
-    tuple val(sampleid), path(ref), path(sam)
-
-    output:
-    path "${sampleid}_ref_aln.sorted.bam"
-    path "${sampleid}_ref_aln.sorted.bam.bai"
-    path "${sampleid}_samtools_consensus_from_ref.fasta"
-    path "${sampleid}_ref_coverage.txt"
-    tuple val(sampleid), path(ref), path("${sampleid}_ref_aln.sorted.bam"), path("${sampleid}_ref_aln.sorted.bam.bai"), emit: sorted_bam
-    tuple val(sampleid), path("${sampleid}_ref_coverage.txt"), emit: coverage
-    tuple val(sampleid), path("${sampleid}_ref_mapq.txt"), emit: mapping_quality
-
-    script:
-    """
-    #filter out unmapped reads -F 4
-    samtools view -@ ${task.cpus} -Sb -F 4 ${sam} | samtools sort -@ ${task.cpus} -o ${sampleid}_ref_aln.sorted.bam
-    samtools index ${sampleid}_ref_aln.sorted.bam
-    samtools coverage ${sampleid}_ref_aln.sorted.bam  > ${sampleid}_ref_coverage.txt
-    samtools view -@ ${task.cpus} ${sampleid}_ref_aln.sorted.bam | awk '{mapq[\$3]+=\$5; count[\$3]++} END {for (chr in mapq) printf "%s\\t%.2f\\n", chr, mapq[chr]/count[chr]}' > ${sampleid}_ref_mapq.txt
-    samtools consensus -@ ${task.cpus} -f fastq -a -A ${sampleid}_ref_aln.sorted.bam -o ${sampleid}_consensus.fastq 
-    samtools consensus -@ ${task.cpus} -f fasta -a -A ${sampleid}_ref_aln.sorted.bam -o ${sampleid}_samtools_consensus_from_ref.fasta
-    """
-}
-
-process SAMTOOLS_CONTIGS {
-    publishDir { "${params.outdir}/${sampleid}/08_mapping_to_contigs" }, mode: 'copy'
-    tag "${sampleid}"
-    label 'setting_10'
-
-    input:
-    tuple val(sampleid), path(ref), path(sam)
-
-    output:
-    path "${sampleid}_contig_aln.sorted.bam"
-    path "${sampleid}_contig_aln.sorted.bam.bai"
-    path "${sampleid}_contig_coverage.txt"
-    tuple val(sampleid), path(ref), path("${sampleid}_contig_aln.sorted.bam"), path("${sampleid}_contig_aln.sorted.bam.bai"), emit: sorted_bam
-    tuple val(sampleid), path("${sampleid}_contig_coverage.txt"), emit: coverage
-    tuple val(sampleid), path("${sampleid}_contig_mapq.txt"), emit: mapping_quality
-
-    script:
-    """
-    #filter out unmapped reads -F 4
-    samtools view -@ ${task.cpus} -Sb -F 4 ${sam} | samtools sort -@ ${task.cpus} -o ${sampleid}_contig_aln.sorted.bam
-    samtools index ${sampleid}_contig_aln.sorted.bam
-    samtools coverage ${sampleid}_contig_aln.sorted.bam  > ${sampleid}_contig_coverage.txt
-    samtools view -@ ${task.cpus} ${sampleid}_contig_aln.sorted.bam | awk '{mapq[\$3]+=\$5; count[\$3]++} END {for (chr in mapq) printf "%s\\t%.2f\\n", chr, mapq[chr]/count[chr]}' > ${sampleid}_contig_mapq.txt
-    """
-}
-
 include { BBMAP_BBDUK } from './modules/bbmap/bbduk/main'
 include { BBMAP_BBSPLIT } from './modules/bbmap/bbsplit/main'
 include { BCFTOOLS } from './modules/bcftools/main'
@@ -265,7 +210,9 @@ include { PYFAIDX as PYFAIDX_CONTIGS } from './modules/pyfaidx/main'
 include { PYFAIDX as PYFAIDX_REF } from './modules/pyfaidx/main'
 include { QC_REPORT } from './modules/qc_report/main'
 include { RETRIEVE_VIRAL_READS_KRAKEN2 } from './modules/retrieve_viral_reads_kraken2/main'
+include { SAMTOOLS_CONTIGS } from './modules/samtools/contigs/main'
 include { SAMTOOLS_MPILEUP } from './modules/samtools/mpileup/main'
+include { SAMTOOLS_REF } from './modules/samtools/ref/main'
 include { SEQTK_SAMPLE } from './modules/seqtk/sample/main'
 include { SEQTK_SEQ } from './modules/seqtk/seq/main'
 include { SEQTK_SUBSEQ as EXTRACT_CONTIGS } from './modules/seqtk/subseq/main'
@@ -276,380 +223,380 @@ include { SUMMARISE_READ_CLASSIFICATION } from './modules/summarise_read_classif
 include { TRIM_ENDS } from './modules/trim_ends/main'
 
 workflow {
-  // Show help message
-  if (params.help) {
-      helpMessage()
-      exit 0
-  }
-  if ( !params.blastn_db) {
-      error "Required parameter 'blastn_db' is missing. Please set it in your -params-file."
-  }
-  else {
-      blastn_db_name = file(params.blastn_db).name 
-      params.blastn_db_dir = file(params.blastn_db).parent
-  }
-
-  if ( !params.hmmer_db ) {
-      error "Required parameter 'hmmer_db' is missing. Please set it in your -params-file."
-  }
-  else {
-      params.hmmer_db_dir = file(params.hmmer_db).parent
-  }
-  if ( !params.taxdump ) {
-      error "Required parameter 'taxdump' is missing. Please set it in your -params-file."
-  }
-  else {
-      params.taxdump_dir = file(params.taxdump).parent
-  }
-
-  if ( !params.kaiju_db ) {
-      error "Required parameter 'kaiju_db' is missing. Please set it in your -params-file."
-  }
-  else {
-      params.kaiju_db_dir = file(params.kaiju_db).parent
-  }
-  if ( !params.genomad_db) {
-    if (workflow.profile.tokenize(',').contains('test')) {
-        db_results = DOWNLOAD_GENOMAD_DB()
+    // Show help message
+    if (params.help) {
+        helpMessage()
+        exit 0
+    }
+    if ( !params.blastn_db) {
+        error "Required parameter 'blastn_db' is missing. Please set it in your -params-file."
     }
     else {
-        error "Required parameter 'genomad_db' is missing. Please set it in your -params-file."
+        blastn_db_name = file(params.blastn_db).name 
+        params.blastn_db_dir = file(params.blastn_db).parent
     }
-    ch_genomad_db = db_results.db
-  }
-  else {
-    ch_genomad_db = Channel.fromPath(params.genomad_db)
-  }
-  
-  def otherRequiredParams = [
-    'prot_db',
-    'rvdb_taxonomy',
-    'rrna_ref',
-    'kraken2_db',
-  ]
 
-  otherRequiredParams.each { p ->
-    if (!params[p]) {
-          error "Required parameter '${p}' is missing. Please set it in your -params-file."
+    if ( !params.hmmer_db ) {
+        error "Required parameter 'hmmer_db' is missing. Please set it in your -params-file."
     }
-  }
-  
-  params.bindOptions = buildBindOptions()
+    else {
+        params.hmmer_db_dir = file(params.hmmer_db).parent
+    }
+    if ( !params.taxdump ) {
+        error "Required parameter 'taxdump' is missing. Please set it in your -params-file."
+    }
+    else {
+        params.taxdump_dir = file(params.taxdump).parent
+    }
 
-  START_TIMESTAMP ()
-  ch_versions = Channel.empty()
-  
-  if (params.input) {
-      Channel
-          .fromSamplesheet("input")
-          .map {
-              meta, fastq_1, fastq_2 ->
-                  if (!fastq_2) {
-                      return [ meta.id, meta + [ single_end:true ], [ fastq_1 ] ]
-                  } else {
-                      return [ meta.id, meta + [ single_end:false ], [ fastq_1, fastq_2 ] ]
-                  }
-          }
-          .groupTuple()
-          .map { sample_id, meta_list, fastq_lists ->
-              [meta_list[0], fastq_lists.flatten()]
-          }
-          .branch { meta, fastqs ->
-              single  : fastqs.size() == 1
-                  return [ meta, fastqs ]
-              multiple: fastqs.size() > 1
-                  return [ meta, fastqs ]
-          }
-          .set { ch_fastq }
-  }
-  
-  CAT_FASTQ (
-      ch_fastq.multiple
-  )
-  .reads
-  .mix(ch_fastq.single)
-  .set { ch_cat_fastq }
-  ch_versions = ch_versions.mix(CAT_FASTQ.out.versions.first().ifEmpty(null))
+    if ( !params.kaiju_db ) {
+        error "Required parameter 'kaiju_db' is missing. Please set it in your -params-file."
+    }
+    else {
+        params.kaiju_db_dir = file(params.kaiju_db).parent
+    }
+    if ( !params.genomad_db) {
+        if (workflow.profile.tokenize(',').contains('test')) {
+            db_results = DOWNLOAD_GENOMAD_DB()
+        }
+        else {
+            error "Required parameter 'genomad_db' is missing. Please set it in your -params-file."
+        }
+        ch_genomad_db = db_results.db
+    }
+    else {
+        ch_genomad_db = Channel.fromPath(params.genomad_db)
+    }
+    
+    def otherRequiredParams = [
+        'prot_db',
+        'rvdb_taxonomy',
+        'rrna_ref',
+        'kraken2_db',
+    ]
 
-  //configyaml = Channel.fromPath(workflow.commandLine.split(" -params-file ")[1].split(" ")[0])
-  //This is a bit hacky but it allows us to capture the params file used in the run and pass it to the report module without having to specify it as an output in every process. 
-  //It also allows us to use a default params file for testing when the user does not specify one.
-  def yamlFile
+    otherRequiredParams.each { p ->
+        if (!params[p]) {
+            error "Required parameter '${p}' is missing. Please set it in your -params-file."
+        }
+    }
+    
+    params.bindOptions = buildBindOptions()
 
-  if (workflow.commandLine.contains('-params-file')) {
-    yamlFile = workflow.commandLine.split(" -params-file ")[1].split(" ")[0]
-  }
-  else if (workflow.profile.tokenize(',').contains('test')) {
-    yamlFile = "${projectDir}/params/user_params_test.yml"
-  }
- 
-  configyaml = Channel.fromPath(yamlFile)
-  
-  //Probably best place to perform subsampling
-  //Subsampling to 60M reads is as slow using the nf-core subsample module or seqtk sample (40-50 minutes)
-  if ( params.subsample_enabled ) {
+    START_TIMESTAMP ()
+    ch_versions = Channel.empty()
+    
+    if (params.input) {
+        Channel
+            .fromSamplesheet("input")
+            .map {
+                meta, fastq_1, fastq_2 ->
+                    if (!fastq_2) {
+                        return [ meta.id, meta + [ single_end:true ], [ fastq_1 ] ]
+                    } else {
+                        return [ meta.id, meta + [ single_end:false ], [ fastq_1, fastq_2 ] ]
+                    }
+            }
+            .groupTuple()
+            .map { sample_id, meta_list, fastq_lists ->
+                [meta_list[0], fastq_lists.flatten()]
+            }
+            .branch { meta, fastqs ->
+                single  : fastqs.size() == 1
+                    return [ meta, fastqs ]
+                multiple: fastqs.size() > 1
+                    return [ meta, fastqs ]
+            }
+            .set { ch_fastq }
+    }
+    
+    CAT_FASTQ (
+        ch_fastq.multiple
+    )
+    .reads
+    .mix(ch_fastq.single)
+    .set { ch_cat_fastq }
+    ch_versions = ch_versions.mix(CAT_FASTQ.out.versions.first().ifEmpty(null))
+
+    //configyaml = Channel.fromPath(workflow.commandLine.split(" -params-file ")[1].split(" ")[0])
+    //This is a bit hacky but it allows us to capture the params file used in the run and pass it to the report module without having to specify it as an output in every process. 
+    //It also allows us to use a default params file for testing when the user does not specify one.
+    def yamlFile
+
+    if (workflow.commandLine.contains('-params-file')) {
+        yamlFile = workflow.commandLine.split(" -params-file ")[1].split(" ")[0]
+    }
+    else if (workflow.profile.tokenize(',').contains('test')) {
+        yamlFile = "${projectDir}/params/user_params_test.yml"
+    }
+    
+    configyaml = Channel.fromPath(yamlFile)
+    
+    //Probably best place to perform subsampling
+    //Subsampling to 60M reads is as slow using the nf-core subsample module or seqtk sample (40-50 minutes)
+    if ( params.subsample_enabled ) {
+            //Check size of fastq file first before subsampling!
+            //FQ_SUBSAMPLE ( BBMAP_BBSPLIT.out.all_fastq )
+        ch_with_counts = CAT_FASTQ.out.reads \
+            | COUNT_FASTQ_READS
+
+        SEQTK_SAMPLE(
+            ch_with_counts,
+            params.subsample_size
+        )
+
+        ch_versions = ch_versions.mix( SEQTK_SAMPLE.out.versions.first() )
+        merged_fastq = SEQTK_SAMPLE.out.reads.ifEmpty {
+            CAT_FASTQ.out.reads
+        }
+    } else {
+        merged_fastq = CAT_FASTQ.out.reads
+    }
+
+    /*
+    //revisit, this logic was bugging but it would be nice to combine COUNT_FASTQ_READS and SEQTK_SAMPLE into one process 
+    //that performs subsampling if the file is above a certain size threshold, otherwise just passes through the original fastq file. This would avoid the issue of the channel not pairing after the first sample when using SEQTK_SAMPLE on its own.
+    if ( params.subsample_enabled ) {
         //Check size of fastq file first before subsampling!
         //FQ_SUBSAMPLE ( BBMAP_BBSPLIT.out.all_fastq )
-    ch_with_counts = CAT_FASTQ.out.reads \
-        | COUNT_FASTQ_READS
+        //ch_with_counts = CAT_FASTQ.out.reads \
+        //    | COUNT_FASTQ_READS
 
-    SEQTK_SAMPLE(
-        ch_with_counts,
-        params.subsample_size
+        //SEQTK_SAMPLE(
+        //    ch_with_counts,
+        //    params.subsample_size
+        //)
+
+        SEQTK_SAMPLE(
+            CAT_FASTQ.out.reads,
+            params.subsample_size
+        )
+
+        ch_versions = ch_versions.mix( SEQTK_SAMPLE.out.versions.first() )
+        merged_fastq = SEQTK_SAMPLE.out.reads.ifEmpty {
+            CAT_FASTQ.out.reads
+        }
+    } else {
+        merged_fastq = CAT_FASTQ.out.reads
+    }
+    */
+
+    FASTP ( merged_fastq, params.save_trimmed_fail, params.save_merged )
+    trim_html         = FASTP.out.html
+    trim_reads_for_fastqc   = FASTP.out.reads
+    trim_reads_for_bbduk   = FASTP.out.reads
+    ch_versions       = ch_versions.mix(FASTP.out.versions.first())
+    
+    FASTQC_RAW ( merged_fastq )
+    fastqc_raw_html = FASTQC_RAW.out.html
+    fastqc_raw_zip  = FASTQC_RAW.out.zip
+    ch_versions     = ch_versions.mix(FASTQC_RAW.out.versions.first())
+    
+    FASTQC_TRIM ( trim_reads_for_fastqc )
+    fastqc_trim_html = FASTQC_TRIM.out.html
+    ch_versions      = ch_versions.mix(FASTQC_TRIM.out.versions.first())
+    
+    //Filtering with sortmerna takes much longer than bbduk so used bbduk for prototype
+    //Nextflow zips channels together by default:
+    //Task receives one item from trim_reads_for_bbduk + one item from ch_rrna
+    //When using a chanmnel, for ex. ch_rrna, it has only one item, it stops pairing after the first sample, only one task runs
+    //This is why only the first sample is processed.
+    //Provide the rrna ref as a file parameter instead
+    BBMAP_BBDUK ( trim_reads_for_bbduk, file(params.rrna_ref))
+
+    //remove phiX reads
+    BBMAP_BBSPLIT (
+        BBMAP_BBDUK.out.reads,
+        [],
+        file(params.phix),
+        [ [], [] ],
+        false
     )
 
-    ch_versions = ch_versions.mix( SEQTK_SAMPLE.out.versions.first() )
-    merged_fastq = SEQTK_SAMPLE.out.reads.ifEmpty {
-        CAT_FASTQ.out.reads
+    //Provide option to filter host or filter a plant host by default?
+    //READ CLASSIFICATION WITH KRAKEN2
+    trial_ch = BBMAP_BBSPLIT.out.all_fastq.map { meta, reads ->
+        def sample_id = meta.id
+        def read1 = reads[0]
+        def read2 = reads[1]
+        tuple(sample_id, read1, read2)
     }
-  } else {
-    merged_fastq = CAT_FASTQ.out.reads
-  }
+    stats_ch = BBMAP_BBSPLIT.out.stats.map { meta, stats ->
+        def sampleid = meta.id
+        def stats1 = stats
+        tuple(sampleid, stats1)
+    }
+    KRAKEN2_KRAKEN2(BBMAP_BBSPLIT.out.all_fastq, params.kraken2_db, params.kraken2_save_classified_reads, params.kraken2_save_unclassified_reads, params.kraken2_save_readclassifications)
+    
+    //The logic of the original Bracken est_abundance.py had to be modified as it was not working as intended for viral species 
+    // only defined at S1 (strain) level but not S level, these would just not appear in the bracken report. 
+    //This script will rescue the abundance estimates for such species by summing up all S1 level abundances to S level.
+    //It will also retain family and genus level that are not assigned.
+    KRAKEN2_ABUNDANCE_ESTIMATE ( KRAKEN2_KRAKEN2.out.report )
+    
+    //explore downtrack downloading krona taxonomy to see if it improves the visualisation
+    KRAKEN2_TO_KRONA ( KRAKEN2_KRAKEN2.out.report)
 
-  /*
-  //revisit, this logic was bugging but it would be nice to combine COUNT_FASTQ_READS and SEQTK_SAMPLE into one process 
-  //that performs subsampling if the file is above a certain size threshold, otherwise just passes through the original fastq file. This would avoid the issue of the channel not pairing after the first sample when using SEQTK_SAMPLE on its own.
-  if ( params.subsample_enabled ) {
-      //Check size of fastq file first before subsampling!
-      //FQ_SUBSAMPLE ( BBMAP_BBSPLIT.out.all_fastq )
-      //ch_with_counts = CAT_FASTQ.out.reads \
-      //    | COUNT_FASTQ_READS
+    //Retrieve reads that were not classified and reads classified as viral by kraken2
+    //Merge
+    kraken_ch = KRAKEN2_KRAKEN2.out.results.map { meta, report, output, raw_reads, unclassified ->
+        def read1 = raw_reads[0]
+        def read2 = raw_reads[1]
+        def unclassified1 = unclassified[0]
+        def unclassified2 = unclassified[1]
+        tuple(meta, report, output, read1, read2, unclassified1, unclassified2)
+    }
 
-      //SEQTK_SAMPLE(
-      //    ch_with_counts,
-      //    params.subsample_size
-      //)
+    RETRIEVE_VIRAL_READS_KRAKEN2 ( kraken_ch )
 
-      SEQTK_SAMPLE(
-         CAT_FASTQ.out.reads,
-         params.subsample_size
-      )
+    //READ CLASSIFICATION WITH KAIJU
+    //Incorporate a separate module for kaiju2krona and kaiju2table?
+    //Explore downtrack downloading krona taxonomy to see if it improves the visualisation?
+    KAIJU_KAIJU ( BBMAP_BBSPLIT.out.all_fastq, params.kaiju_db_dir )
+    KRONA_KTIMPORTTEXT ( KAIJU_KAIJU.out.krona_results )
+    
+    read_classification_ch = KAIJU_KAIJU.out.kaiju_results.join(KRAKEN2_ABUNDANCE_ESTIMATE.out.kraken2_results)
+                                                        .join(stats_ch)
+    SUMMARISE_READ_CLASSIFICATION ( read_classification_ch, params.taxdump )
 
-      ch_versions = ch_versions.mix( SEQTK_SAMPLE.out.versions.first() )
-      merged_fastq = SEQTK_SAMPLE.out.reads.ifEmpty {
-          CAT_FASTQ.out.reads
-      }
-  } else {
-      merged_fastq = CAT_FASTQ.out.reads
-  }
-  */
+    //perform de novo assembly with spades using rnaspades
+    SPADES ( RETRIEVE_VIRAL_READS_KRAKEN2.out.fastq )
+    //Filter contigs by length less than 150 bp with SEQTK
+    SEQTK_SEQ ( SPADES.out.assembly )
+    MEGABLAST( SEQTK_SEQ.out.filt_fasta.splitFasta(by: 2500, file: true), params.blastn_db )
+    MEGABLAST.out.blast_results
+        .groupTuple()
+        .set { ch_blastresults }
+    extract_viral_blast_hits_ch = ch_blastresults.join(SEQTK_SEQ.out.filt_headers)
+        .join(SEQTK_SEQ.out.filt_fasta)
+    EXTRACT_VIRAL_BLAST_HITS ( extract_viral_blast_hits_ch, params.taxdump )
+    //Add contig sequence to blast results summary table
+    //Mapping back to contigs that had viral blast hits
+    EXTRACT_CONTIGS ( EXTRACT_VIRAL_BLAST_HITS.out.contig_ids.join(SEQTK_SEQ.out.filt_fasta) )
+    MAP_TO_CONTIGS ( EXTRACT_CONTIGS.out.viral_candidate_fasta.join(trial_ch) )
+    SAMTOOLS_MPILEUP ( MAP_TO_CONTIGS.out.contig_aligned_sam )
+    IDENTIFY_ERRORS ( SAMTOOLS_MPILEUP.out.pileup )
+    TRIM_ENDS ( IDENTIFY_ERRORS.out.trimmed_coords )
+    REALIGN ( TRIM_ENDS.out.trimmed_contigs.join(trial_ch) )
+    SAMTOOLS_CONTIGS ( REALIGN.out.contig_aligned_sam )
+    pyfaidx_contigs_input_ch = TRIM_ENDS.out.trimmed_contigs.map { sampleid, fasta ->
+            tuple(sampleid, fasta, 'contigs')
+    }
+    pyfaidx_contigs = PYFAIDX_CONTIGS ( pyfaidx_contigs_input_ch )
+    MOSDEPTH_CONTIGS (SAMTOOLS_CONTIGS.out.sorted_bam.join(pyfaidx_contigs.bed))
+    MEGABLAST_ROUND2 ( TRIM_ENDS.out.trimmed_contigs, file(params.blastn_db) )
+    extract_viral_blast_hits_round2_ch = MEGABLAST_ROUND2.out.blast_results.join(SEQTK_SEQ.out.filt_headers) 
+    EXTRACT_VIRAL_BLAST_HITS_ROUND2 ( extract_viral_blast_hits_round2_ch, params.taxdump )
+    fasta2table_contigs_input_ch = EXTRACT_VIRAL_BLAST_HITS_ROUND2.out.viral_blast_results
+        .join(TRIM_ENDS.out.trimmed_contigs)
+        .map { sampleid, tophits, fasta -> tuple(sampleid, tophits, fasta, 'contigs') }
+    fasta2table_contigs = FASTA2TABLE_CONTIGS ( fasta2table_contigs_input_ch )
+    contig_cov_stats_summary_ch = MOSDEPTH_CONTIGS.out.mosdepth_results.join(fasta2table_contigs.blast_results2)
+        .join(stats_ch)
+        .join(SAMTOOLS_CONTIGS.out.coverage)
+        .join(SAMTOOLS_CONTIGS.out.mapping_quality)
+        .map { sampleid, bed, blast_results, bbsplit_stats, coverage, mapping_q
+        -> tuple(sampleid, 'contig', bed, blast_results, bbsplit_stats, coverage, mapping_q) }
 
-  FASTP ( merged_fastq, params.save_trimmed_fail, params.save_merged )
-  trim_html         = FASTP.out.html
-  trim_reads_for_fastqc   = FASTP.out.reads
-  trim_reads_for_bbduk   = FASTP.out.reads
-  ch_versions       = ch_versions.mix(FASTP.out.versions.first())
-  
-  FASTQC_RAW ( merged_fastq )
-  fastqc_raw_html = FASTQC_RAW.out.html
-  fastqc_raw_zip  = FASTQC_RAW.out.zip
-  ch_versions     = ch_versions.mix(FASTQC_RAW.out.versions.first())
-  
-  FASTQC_TRIM ( trim_reads_for_fastqc )
-  fastqc_trim_html = FASTQC_TRIM.out.html
-  ch_versions      = ch_versions.mix(FASTQC_TRIM.out.versions.first())
-  
-  //Filtering with sortmerna takes much longer than bbduk so used bbduk for prototype
-  //Nextflow zips channels together by default:
-  //Task receives one item from trim_reads_for_bbduk + one item from ch_rrna
-  //When using a chanmnel, for ex. ch_rrna, it has only one item, it stops pairing after the first sample, only one task runs
-  //This is why only the first sample is processed.
-  //Provide the rrna ref as a file parameter instead
-  BBMAP_BBDUK ( trim_reads_for_bbduk, file(params.rrna_ref))
+    //Predict ORFs on filtered contigs
+    //Derive ORFs from contig sequences using orfipy
+    //https://github.com/urmi-21/orfipy?tab=readme-ov-file
+    //Other options to consider are prodigal, OrfM and getorf 
+    ORFIPY ( TRIM_ENDS.out.trimmed_contigs.join(EXTRACT_CONTIGS.out.other_fasta) )
+    HMMSCAN ( ORFIPY.out.orf_fasta, params.hmmer_db )
+    genomad_ch = TRIM_ENDS.out.trimmed_contigs.join(EXTRACT_CONTIGS.out.other_fasta)
+    //GENOMAD_ENDTOEND ( genomad_ch, params.genomad_db )
+    GENOMAD_ENDTOEND ( genomad_ch, ch_genomad_db )
 
-  //remove phiX reads
-  BBMAP_BBSPLIT (
-      BBMAP_BBDUK.out.reads,
-      [],
-      file(params.phix),
-      [ [], [] ],
-      false
-  )
+    //Enhancement: Option to perform a blastx alignment of contig ORFs?
+    diamond_ch = TRIM_ENDS.out.trimmed_contigs.join(EXTRACT_CONTIGS.out.other_fasta) 
+    DIAMOND_BLASTX ( diamond_ch, params.prot_db )
+    CONTIG_COVSTATS( contig_cov_stats_summary_ch)
+    //Mapping back to reference sequences retrieved from blast hits
+    EXTRACT_REF_FASTA ( fasta2table_contigs.ref_ids )
+    CLUSTER ( EXTRACT_REF_FASTA.out.fasta_files )
+    MEGABLAST_TO_REF ( fasta2table_contigs.contig_fasta.join(CLUSTER.out.clusters) )
+    mapping_ch = CLUSTER.out.clusters.join(trial_ch)
+    MAPPING_BACK_TO_REF ( mapping_ch )
+    SAMTOOLS_REF ( MAPPING_BACK_TO_REF.out.aligned_sam )
+    BCFTOOLS ( SAMTOOLS_REF.out.sorted_bam )
+    BEDTOOLS ( BCFTOOLS.out.vcf_applied_fasta )
+    pyfaidx_ref_input_ch = EXTRACT_REF_FASTA.out.fasta_files.map { sampleid, fasta ->
+            tuple(sampleid, fasta, 'reference')
+    }
+    pyfaidx_ref = PYFAIDX_REF ( pyfaidx_ref_input_ch )
+    MOSDEPTH_REF (SAMTOOLS_REF.out.sorted_bam.join(pyfaidx_ref.bed))
+    ref_cov_stats_summary_ch =  MOSDEPTH_REF.out.mosdepth_results.join(fasta2table_contigs.blast_results)
+        .join(stats_ch)
+        .join(SAMTOOLS_REF.out.coverage)
+        .join(SAMTOOLS_REF.out.mapping_quality)
+        .map { sampleid, bed, blast_results, bbsplit_stats, coverage, mapping_q
+        -> tuple(sampleid, 'reference', bed, blast_results, bbsplit_stats, coverage, mapping_q) }
 
-  //Provide option to filter host or filter a plant host by default?
-  //READ CLASSIFICATION WITH KRAKEN2
-  trial_ch = BBMAP_BBSPLIT.out.all_fastq.map { meta, reads ->
-      def sample_id = meta.id
-      def read1 = reads[0]
-      def read2 = reads[1]
-      tuple(sample_id, read1, read2)
-  }
-  stats_ch = BBMAP_BBSPLIT.out.stats.map { meta, stats ->
-      def sampleid = meta.id
-      def stats1 = stats
-      tuple(sampleid, stats1)
-  }
-  KRAKEN2_KRAKEN2(BBMAP_BBSPLIT.out.all_fastq, params.kraken2_db, params.kraken2_save_classified_reads, params.kraken2_save_unclassified_reads, params.kraken2_save_readclassifications)
-  
-  //The logic of the original Bracken est_abundance.py had to be modified as it was not working as intended for viral species 
-  // only defined at S1 (strain) level but not S level, these would just not appear in the bracken report. 
-  //This script will rescue the abundance estimates for such species by summing up all S1 level abundances to S level.
-  //It will also retain family and genus level that are not assigned.
-  KRAKEN2_ABUNDANCE_ESTIMATE ( KRAKEN2_KRAKEN2.out.report )
-  
-  //explore downtrack downloading krona taxonomy to see if it improves the visualisation
-  KRAKEN2_TO_KRONA ( KRAKEN2_KRAKEN2.out.report)
+    REF_COVSTATS(ref_cov_stats_summary_ch)
+    fasta2table_ref_input_ch = REF_COVSTATS.out.detections_summary
+        .join(BEDTOOLS.out.bcftools_masked_consensus_fasta)
+        .map { sampleid, stats, fasta -> tuple(sampleid, stats, fasta, 'reference') }
+    fasta2table_ref = FASTA2TABLE_REF ( fasta2table_ref_input_ch )
+    
+    //Derive QC report
+    //Merge all the  files into one channel
+    ch_multiqc_files = FASTP.out.json.map { meta, json ->
+        json
+        }
+        .mix(BBMAP_BBSPLIT.out.stats2)
+        .mix(BBMAP_BBDUK.out.log2)
+        .collect()
 
-  //Retrieve reads that were not classified and reads classified as viral by kraken2
-  //Merge
-  kraken_ch = KRAKEN2_KRAKEN2.out.results.map { meta, report, output, raw_reads, unclassified ->
-      def read1 = raw_reads[0]
-      def read2 = raw_reads[1]
-      def unclassified1 = unclassified[0]
-      def unclassified2 = unclassified[1]
-      tuple(meta, report, output, read1, read2, unclassified1, unclassified2)
-  }
+    QC_REPORT(ch_multiqc_files)
+    summarise_results_input_ch = SUMMARISE_READ_CLASSIFICATION.out.kraken_summary
+        .join(SUMMARISE_READ_CLASSIFICATION.out.kaiju_summary)
+        .join(CONTIG_COVSTATS.out.detections_summary)
+        .join(HMMSCAN.out.hmmscan_preds)
+        .join(fasta2table_ref.detections_summary_final)
+        .join(SEQTK_SEQ.out.filt_fasta)
+        .join(GENOMAD_ENDTOEND.out.virus_preds)
+        .join(EXTRACT_VIRAL_BLAST_HITS.out.viral_blast_results)
+        .join(DIAMOND_BLASTX.out.diamond_results)
+        .map { sampleid, kraken_results, kaiju_results, blast, hmmscan, map2ref, contigs, genomad, blast_novel, diamond_results ->
+            tuple(sampleid, kraken_results, kaiju_results, blast, hmmscan, map2ref, contigs, genomad, blast_novel, diamond_results, file(params.rvdb_taxonomy))
+        }
 
-  RETRIEVE_VIRAL_READS_KRAKEN2 ( kraken_ch )
+    SUMMARISE_RESULTS(summarise_results_input_ch)
+    
+    fastqc_raw_html_fixed = fastqc_raw_html.map { meta, html ->
+        tuple(meta.id, html)
+    }
 
-  //READ CLASSIFICATION WITH KAIJU
-  //Incorporate a separate module for kaiju2krona and kaiju2table?
-  //Explore downtrack downloading krona taxonomy to see if it improves the visualisation?
-  KAIJU_KAIJU ( BBMAP_BBSPLIT.out.all_fastq, params.kaiju_db_dir )
-  KRONA_KTIMPORTTEXT ( KAIJU_KAIJU.out.krona_results )
-  
-  read_classification_ch = KAIJU_KAIJU.out.kaiju_results.join(KRAKEN2_ABUNDANCE_ESTIMATE.out.kraken2_results)
-                                                    .join(stats_ch)
-  SUMMARISE_READ_CLASSIFICATION ( read_classification_ch, params.taxdump )
+    fastqc_trim_html_fixed = fastqc_trim_html.map { meta, html ->
+        tuple(meta.id, html)
+    }
 
-  //perform de novo assembly with spades using rnaspades
-  SPADES ( RETRIEVE_VIRAL_READS_KRAKEN2.out.fastq )
-  //Filter contigs by length less than 150 bp with SEQTK
-  SEQTK_SEQ ( SPADES.out.assembly )
-  MEGABLAST( SEQTK_SEQ.out.filt_fasta.splitFasta(by: 2500, file: true), params.blastn_db )
-  MEGABLAST.out.blast_results
-      .groupTuple()
-      .set { ch_blastresults }
-  extract_viral_blast_hits_ch = ch_blastresults.join(SEQTK_SEQ.out.filt_headers)
-      .join(SEQTK_SEQ.out.filt_fasta)
-  EXTRACT_VIRAL_BLAST_HITS ( extract_viral_blast_hits_ch, params.taxdump )
-  //Add contig sequence to blast results summary table
-  //Mapping back to contigs that had viral blast hits
-  EXTRACT_CONTIGS ( EXTRACT_VIRAL_BLAST_HITS.out.contig_ids.join(SEQTK_SEQ.out.filt_fasta) )
-  MAP_TO_CONTIGS ( EXTRACT_CONTIGS.out.viral_candidate_fasta.join(trial_ch) )
-  SAMTOOLS_MPILEUP ( MAP_TO_CONTIGS.out.contig_aligned_sam )
-  IDENTIFY_ERRORS ( SAMTOOLS_MPILEUP.out.pileup )
-  TRIM_ENDS ( IDENTIFY_ERRORS.out.trimmed_coords )
-  REALIGN ( TRIM_ENDS.out.trimmed_contigs.join(trial_ch) )
-  SAMTOOLS_CONTIGS ( REALIGN.out.contig_aligned_sam )
-  pyfaidx_contigs_input_ch = TRIM_ENDS.out.trimmed_contigs.map { sampleid, fasta ->
-          tuple(sampleid, fasta, 'contigs')
-  }
-  pyfaidx_contigs = PYFAIDX_CONTIGS ( pyfaidx_contigs_input_ch )
-  MOSDEPTH_CONTIGS (SAMTOOLS_CONTIGS.out.sorted_bam.join(pyfaidx_contigs.bed))
-  MEGABLAST_ROUND2 ( TRIM_ENDS.out.trimmed_contigs, file(params.blastn_db) )
-  extract_viral_blast_hits_round2_ch = MEGABLAST_ROUND2.out.blast_results.join(SEQTK_SEQ.out.filt_headers) 
-  EXTRACT_VIRAL_BLAST_HITS_ROUND2 ( extract_viral_blast_hits_round2_ch, params.taxdump )
-  fasta2table_contigs_input_ch = EXTRACT_VIRAL_BLAST_HITS_ROUND2.out.viral_blast_results
-      .join(TRIM_ENDS.out.trimmed_contigs)
-      .map { sampleid, tophits, fasta -> tuple(sampleid, tophits, fasta, 'contigs') }
-  fasta2table_contigs = FASTA2TABLE_CONTIGS ( fasta2table_contigs_input_ch )
-  contig_cov_stats_summary_ch = MOSDEPTH_CONTIGS.out.mosdepth_results.join(fasta2table_contigs.blast_results2)
-      .join(stats_ch)
-      .join(SAMTOOLS_CONTIGS.out.coverage)
-      .join(SAMTOOLS_CONTIGS.out.mapping_quality)
-      .map { sampleid, bed, blast_results, bbsplit_stats, coverage, mapping_q
-      -> tuple(sampleid, 'contig', bed, blast_results, bbsplit_stats, coverage, mapping_q) }
+    trim_html_fixed = trim_html.map { meta, html ->
+        tuple(meta.id, html)
+    }
 
-  //Predict ORFs on filtered contigs
-  //Derive ORFs from contig sequences using orfipy
-  //https://github.com/urmi-21/orfipy?tab=readme-ov-file
-  //Other options to consider are prodigal, OrfM and getorf 
-  ORFIPY ( TRIM_ENDS.out.trimmed_contigs.join(EXTRACT_CONTIGS.out.other_fasta) )
-  HMMSCAN ( ORFIPY.out.orf_fasta, params.hmmer_db )
-  genomad_ch = TRIM_ENDS.out.trimmed_contigs.join(EXTRACT_CONTIGS.out.other_fasta)
-  //GENOMAD_ENDTOEND ( genomad_ch, params.genomad_db )
-  GENOMAD_ENDTOEND ( genomad_ch, ch_genomad_db )
-
-  //Enhancement: Option to perform a blastx alignment of contig ORFs?
-  diamond_ch = TRIM_ENDS.out.trimmed_contigs.join(EXTRACT_CONTIGS.out.other_fasta) 
-  DIAMOND_BLASTX ( diamond_ch, params.prot_db )
-  CONTIG_COVSTATS( contig_cov_stats_summary_ch)
-  //Mapping back to reference sequences retrieved from blast hits
-  EXTRACT_REF_FASTA ( fasta2table_contigs.ref_ids )
-  CLUSTER ( EXTRACT_REF_FASTA.out.fasta_files )
-  MEGABLAST_TO_REF ( fasta2table_contigs.contig_fasta.join(CLUSTER.out.clusters) )
-  mapping_ch = CLUSTER.out.clusters.join(trial_ch)
-  MAPPING_BACK_TO_REF ( mapping_ch )
-  SAMTOOLS2 ( MAPPING_BACK_TO_REF.out.aligned_sam )
-  BCFTOOLS ( SAMTOOLS2.out.sorted_bam )
-  BEDTOOLS ( BCFTOOLS.out.vcf_applied_fasta )
-  pyfaidx_ref_input_ch = EXTRACT_REF_FASTA.out.fasta_files.map { sampleid, fasta ->
-          tuple(sampleid, fasta, 'reference')
-  }
-  pyfaidx_ref = PYFAIDX_REF ( pyfaidx_ref_input_ch )
-  MOSDEPTH_REF (SAMTOOLS2.out.sorted_bam.join(pyfaidx_ref.bed))
-  ref_cov_stats_summary_ch =  MOSDEPTH_REF.out.mosdepth_results.join(fasta2table_contigs.blast_results)
-      .join(stats_ch)
-      .join(SAMTOOLS2.out.coverage)
-      .join(SAMTOOLS2.out.mapping_quality)
-      .map { sampleid, bed, blast_results, bbsplit_stats, coverage, mapping_q
-      -> tuple(sampleid, 'reference', bed, blast_results, bbsplit_stats, coverage, mapping_q) }
-
-  REF_COVSTATS(ref_cov_stats_summary_ch)
-  fasta2table_ref_input_ch = REF_COVSTATS.out.detections_summary
-      .join(BEDTOOLS.out.bcftools_masked_consensus_fasta)
-      .map { sampleid, stats, fasta -> tuple(sampleid, stats, fasta, 'reference') }
-  fasta2table_ref = FASTA2TABLE_REF ( fasta2table_ref_input_ch )
-  
-  //Derive QC report
-  //Merge all the  files into one channel
-  ch_multiqc_files = FASTP.out.json.map { meta, json ->
-      json
-      }
-      .mix(BBMAP_BBSPLIT.out.stats2)
-      .mix(BBMAP_BBDUK.out.log2)
-      .collect()
-
-  QC_REPORT(ch_multiqc_files)
-  summarise_results_input_ch = SUMMARISE_READ_CLASSIFICATION.out.kraken_summary
-      .join(SUMMARISE_READ_CLASSIFICATION.out.kaiju_summary)
-      .join(CONTIG_COVSTATS.out.detections_summary)
-      .join(HMMSCAN.out.hmmscan_preds)
-      .join(fasta2table_ref.detections_summary_final)
-      .join(SEQTK_SEQ.out.filt_fasta)
-      .join(GENOMAD_ENDTOEND.out.virus_preds)
-      .join(EXTRACT_VIRAL_BLAST_HITS.out.viral_blast_results)
-      .join(DIAMOND_BLASTX.out.diamond_results)
-      .map { sampleid, kraken_results, kaiju_results, blast, hmmscan, map2ref, contigs, genomad, blast_novel, diamond_results ->
-        tuple(sampleid, kraken_results, kaiju_results, blast, hmmscan, map2ref, contigs, genomad, blast_novel, diamond_results, file(params.rvdb_taxonomy))
-      }
-
-  SUMMARISE_RESULTS(summarise_results_input_ch)
-  
-  fastqc_raw_html_fixed = fastqc_raw_html.map { meta, html ->
-      tuple(meta.id, html)
-  }
-
-  fastqc_trim_html_fixed = fastqc_trim_html.map { meta, html ->
-      tuple(meta.id, html)
-  }
-
-  trim_html_fixed = trim_html.map { meta, html ->
-      tuple(meta.id, html)
-  }
-
-  files_for_report_ind_samples_ch = fastqc_raw_html_fixed.join(fastqc_trim_html_fixed)
-      .join(trim_html_fixed)
-      .join(SPADES.out.assembly)
-      .join(SUMMARISE_RESULTS.out.summary_known_viruses)                                               
-      .join(SUMMARISE_READ_CLASSIFICATION.out.kaiju_summary)
-      .join(SUMMARISE_READ_CLASSIFICATION.out.kraken_summary)
-      .join(CONTIG_COVSTATS.out.detections_summary)
-      .join(fasta2table_ref.detections_summary_final)
-      .join(SAMTOOLS2.out.sorted_bam)
-      .join(SUMMARISE_RESULTS.out.novel_support_summary)
-      .join(MEGABLAST_TO_REF.out.blast_results)
-      .join((ORFIPY.out.orf_fasta))
-      .join(HMMSCAN.out.hmmscan_domain_preds)
-      .join(SUMMARISE_RESULTS.out.diamond_summary)
-      .join(SUMMARISE_RESULTS.out.novel_contig_summary)
-     
-  files_for_report_global_ch = START_TIMESTAMP.out.timestamp
-      .concat(QC_REPORT.out.qc_report_html)
-      .concat(QC_REPORT.out.qc_report_txt)
-      .concat(configyaml)
-      .concat(Channel.from(params.input).map { file(it) }).toList()
-  HTML_REPORT(files_for_report_ind_samples_ch
-      .combine(files_for_report_global_ch))
+    files_for_report_ind_samples_ch = fastqc_raw_html_fixed.join(fastqc_trim_html_fixed)
+        .join(trim_html_fixed)
+        .join(SPADES.out.assembly)
+        .join(SUMMARISE_RESULTS.out.summary_known_viruses)                                               
+        .join(SUMMARISE_READ_CLASSIFICATION.out.kaiju_summary)
+        .join(SUMMARISE_READ_CLASSIFICATION.out.kraken_summary)
+        .join(CONTIG_COVSTATS.out.detections_summary)
+        .join(fasta2table_ref.detections_summary_final)
+        .join(SAMTOOLS_REF.out.sorted_bam)
+        .join(SUMMARISE_RESULTS.out.novel_support_summary)
+        .join(MEGABLAST_TO_REF.out.blast_results)
+        .join((ORFIPY.out.orf_fasta))
+        .join(HMMSCAN.out.hmmscan_domain_preds)
+        .join(SUMMARISE_RESULTS.out.diamond_summary)
+        .join(SUMMARISE_RESULTS.out.novel_contig_summary)
+        
+    files_for_report_global_ch = START_TIMESTAMP.out.timestamp
+        .concat(QC_REPORT.out.qc_report_html)
+        .concat(QC_REPORT.out.qc_report_txt)
+        .concat(configyaml)
+        .concat(Channel.from(params.input).map { file(it) }).toList()
+    HTML_REPORT(files_for_report_ind_samples_ch
+        .combine(files_for_report_global_ch))
 }
