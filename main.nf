@@ -53,7 +53,7 @@ def helpMessage () {
 def isNonEmptyFile(file) {
     return file.exists() && file.size() > 0
 }
-
+/*
 def buildBindOptions() {
     def bindOptions = "" 
     if (workflow.containerEngine == "singularity") {
@@ -74,7 +74,7 @@ def buildBindOptions() {
     }
     return bindOptions 
 }
-
+*/
 process EXTRACT_VIRAL_BLAST_HITS {
     tag "${sampleid}"
     label 'setting_7'
@@ -120,7 +120,7 @@ process EXTRACT_VIRAL_BLAST_HITS_ROUND2 {
     filter_blast.py --blastn_results ${sampleid}_blastn.txt --sample_name ${sampleid} --taxonkit_database_dir ${taxonkit_db} --filter ${params.filter_terms} --assembly_headers ${assembly_headers}
     """
 }
-
+/*
 process MAPPING_BACK_TO_REF {
     tag "${sampleid}"
     label 'setting_10'
@@ -140,38 +140,7 @@ process MAPPING_BACK_TO_REF {
     bwa mem -t ${task.cpus} ${ref} $fastq1 $fastq2 > ${sampleid}_ref_aln.sam 2>> ${sampleid}_mapping.log
     """
 }
-
-process DOWNLOAD_GENOMAD_DB {
-
-    publishDir "${params.databases}", mode: 'copy'
-
-    output:
-    path "databases/genomad_db", emit: db
-
-    script:
-    """
-    mkdir -p databases
-    genomad download-database databases
-    """
-}
-
-process REALIGN {
-    tag "${sampleid}"
-    label 'setting_10'
-
-    input:
-    tuple val(sampleid), path(contigs), path(fastq1), path(fastq2)
-
-    output:
-    tuple val(sampleid), path(contigs), file("${sampleid}_contig_realn.sam"), emit: contig_aligned_sam
-
-    script:
-    """
-    bwa index ${contigs}
-    bwa mem -t ${task.cpus} ${contigs} $fastq1 $fastq2 > ${sampleid}_contig_realn.sam 2>> ${sampleid}_mapping.log
-    """
-}
-
+*/
 include { BBMAP_BBDUK } from './modules/bbmap/bbduk/main'
 include { BBMAP_BBSPLIT } from './modules/bbmap/bbsplit/main'
 include { BCFTOOLS } from './modules/bcftools/main'
@@ -179,7 +148,9 @@ include { BEDTOOLS } from './modules/bedtools/main'
 include { BLAST_BLASTN as MEGABLAST } from './modules/blast/blastn/main'
 include { BLAST_BLASTN as MEGABLAST_ROUND2 } from './modules/blast/blastn/main'
 include { BLAST_BLASTN_TO_REF as MEGABLAST_TO_REF } from './modules/blast/blastn_to_ref/main'
-include { BWA as MAP_TO_CONTIGS } from './modules/bwa/main'
+include { BWA_MEM as MAP_TO_CONTIGS } from './modules/bwa_mem/main'
+include { BWA_MEM as MAPPING_BACK_TO_REF } from './modules/bwa_mem/main'
+include { BWA_MEM as REALIGN } from './modules/bwa_mem/main'
 include { CAT_FASTQ } from './modules/cat_fastq/main'
 include { CDHIT_CDHIT as CLUSTER } from './modules/cdhit/cdhit/main'
 include { COVSTATS as CONTIG_COVSTATS} from './modules/covstats/main'
@@ -195,6 +166,7 @@ include { FASTQC as FASTQC_RAW } from './modules/fastqc/main'
 include { FASTQC as FASTQC_TRIM } from './modules/fastqc/main'
 include { FQ_SUBSAMPLE } from './modules/fq/subsample/main'
 include { GENOMAD_ENDTOEND } from './modules/genomad/endtoend/main'
+include { GENOMAD_DOWNLOAD_DB } from './modules/genomad/download_db/main'
 include { HMMSCAN } from './modules/hmmscan/main'
 include { HTML_REPORT } from './modules/html_report/main'
 include { IDENTIFY_ERRORS } from './modules/identify_errors/main'
@@ -228,20 +200,7 @@ workflow {
         helpMessage()
         exit 0
     }
-    if ( !params.blastn_db) {
-        error "Required parameter 'blastn_db' is missing. Please set it in your -params-file."
-    }
-    else {
-        blastn_db_name = file(params.blastn_db).name 
-        params.blastn_db_dir = file(params.blastn_db).parent
-    }
-
-    if ( !params.hmmer_db ) {
-        error "Required parameter 'hmmer_db' is missing. Please set it in your -params-file."
-    }
-    else {
-        params.hmmer_db_dir = file(params.hmmer_db).parent
-    }
+        
     if ( !params.taxdump ) {
         error "Required parameter 'taxdump' is missing. Please set it in your -params-file."
     }
@@ -257,7 +216,7 @@ workflow {
     }
     if ( !params.genomad_db) {
         if (workflow.profile.tokenize(',').contains('test')) {
-            db_results = DOWNLOAD_GENOMAD_DB()
+            db_results = GENOMAD_DOWNLOAD_DB()
         }
         else {
             error "Required parameter 'genomad_db' is missing. Please set it in your -params-file."
@@ -269,6 +228,9 @@ workflow {
     }
     
     def otherRequiredParams = [
+        'blastn_db',
+        'hmmer_db',
+        'taxdump',
         'prot_db',
         'rvdb_taxonomy',
         'rrna_ref',
@@ -281,7 +243,7 @@ workflow {
         }
     }
     
-    params.bindOptions = buildBindOptions()
+    //params.bindOptions = buildBindOptions()
 
     START_TIMESTAMP ()
     ch_versions = Channel.empty()
@@ -415,7 +377,7 @@ workflow {
 
     //Provide option to filter host or filter a plant host by default?
     //READ CLASSIFICATION WITH KRAKEN2
-    trial_ch = BBMAP_BBSPLIT.out.all_fastq.map { meta, reads ->
+    cleaned_fq_ch = BBMAP_BBSPLIT.out.all_fastq.map { meta, reads ->
         def sample_id = meta.id
         def read1 = reads[0]
         def read2 = reads[1]
@@ -463,7 +425,18 @@ workflow {
     SPADES ( RETRIEVE_VIRAL_READS_KRAKEN2.out.fastq )
     //Filter contigs by length less than 150 bp with SEQTK
     SEQTK_SEQ ( SPADES.out.assembly )
-    MEGABLAST( SEQTK_SEQ.out.filt_fasta.splitFasta(by: 2500, file: true), params.blastn_db )
+    blast_db_ch = Channel.value(
+        tuple(
+            file(params.blastn_db).parent,
+            file(params.blastn_db).name
+        )
+    )
+
+    //MEGABLAST( SEQTK_SEQ.out.filt_fasta.splitFasta(by: 2500, file: true), file(params.blastn_db).parent, file(params.blastn_db).name )
+    MEGABLAST(
+        SEQTK_SEQ.out.filt_fasta.splitFasta(by: 2500, file: true),
+        blast_db_ch
+    )
     MEGABLAST.out.blast_results
         .groupTuple()
         .set { ch_blastresults }
@@ -473,18 +446,31 @@ workflow {
     //Add contig sequence to blast results summary table
     //Mapping back to contigs that had viral blast hits
     EXTRACT_CONTIGS ( EXTRACT_VIRAL_BLAST_HITS.out.contig_ids.join(SEQTK_SEQ.out.filt_fasta) )
-    MAP_TO_CONTIGS ( EXTRACT_CONTIGS.out.viral_candidate_fasta.join(trial_ch) )
-    SAMTOOLS_MPILEUP ( MAP_TO_CONTIGS.out.contig_aligned_sam )
+    
+    MAP_TO_CONTIGS(
+        EXTRACT_CONTIGS.out.viral_candidate_fasta
+            .join(cleaned_fq_ch)
+            .map { sampleid, contigs, fastq1, fastq2 ->
+                tuple(sampleid, "contig_aln", contigs, fastq1, fastq2)
+            }
+    )
+
+    SAMTOOLS_MPILEUP ( MAP_TO_CONTIGS.out.aligned_sam )
     IDENTIFY_ERRORS ( SAMTOOLS_MPILEUP.out.pileup )
     TRIM_ENDS ( IDENTIFY_ERRORS.out.trimmed_coords )
-    REALIGN ( TRIM_ENDS.out.trimmed_contigs.join(trial_ch) )
-    SAMTOOLS_CONTIGS ( REALIGN.out.contig_aligned_sam )
+    REALIGN ( 
+        TRIM_ENDS.out.trimmed_contigs.join(cleaned_fq_ch)
+        .map { sampleid, contigs, fastq1, fastq2 ->
+            tuple(sampleid, "contig_realn", contigs, fastq1, fastq2)
+        }
+    )
+    SAMTOOLS_CONTIGS ( REALIGN.out.aligned_sam )
     pyfaidx_contigs_input_ch = TRIM_ENDS.out.trimmed_contigs.map { sampleid, fasta ->
             tuple(sampleid, fasta, 'contigs')
     }
     pyfaidx_contigs = PYFAIDX_CONTIGS ( pyfaidx_contigs_input_ch )
     MOSDEPTH_CONTIGS (SAMTOOLS_CONTIGS.out.sorted_bam.join(pyfaidx_contigs.bed))
-    MEGABLAST_ROUND2 ( TRIM_ENDS.out.trimmed_contigs, file(params.blastn_db) )
+    MEGABLAST_ROUND2 ( TRIM_ENDS.out.trimmed_contigs, blast_db_ch )
     extract_viral_blast_hits_round2_ch = MEGABLAST_ROUND2.out.blast_results.join(SEQTK_SEQ.out.filt_headers) 
     EXTRACT_VIRAL_BLAST_HITS_ROUND2 ( extract_viral_blast_hits_round2_ch, params.taxdump )
     fasta2table_contigs_input_ch = EXTRACT_VIRAL_BLAST_HITS_ROUND2.out.viral_blast_results
@@ -503,7 +489,14 @@ workflow {
     //https://github.com/urmi-21/orfipy?tab=readme-ov-file
     //Other options to consider are prodigal, OrfM and getorf 
     ORFIPY ( TRIM_ENDS.out.trimmed_contigs.join(EXTRACT_CONTIGS.out.other_fasta) )
-    HMMSCAN ( ORFIPY.out.orf_fasta, params.hmmer_db )
+    hmmer_db_ch = Channel.value(
+        tuple(
+            file(params.hmmer_db).parent,
+            file(params.hmmer_db).name
+        )
+    )
+
+    HMMSCAN ( ORFIPY.out.orf_fasta, hmmer_db_ch )
     genomad_ch = TRIM_ENDS.out.trimmed_contigs.join(EXTRACT_CONTIGS.out.other_fasta)
     //GENOMAD_ENDTOEND ( genomad_ch, params.genomad_db )
     GENOMAD_ENDTOEND ( genomad_ch, ch_genomad_db )
@@ -516,7 +509,11 @@ workflow {
     EXTRACT_REF_FASTA ( fasta2table_contigs.ref_ids )
     CLUSTER ( EXTRACT_REF_FASTA.out.fasta_files )
     MEGABLAST_TO_REF ( fasta2table_contigs.contig_fasta.join(CLUSTER.out.clusters) )
-    mapping_ch = CLUSTER.out.clusters.join(trial_ch)
+    mapping_ch = CLUSTER.out.clusters.join(cleaned_fq_ch) 
+        .map { sampleid, cluster_fasta, fastq1, fastq2 ->
+            tuple(sampleid, "ref_aln", cluster_fasta, fastq1, fastq2)
+        }
+
     MAPPING_BACK_TO_REF ( mapping_ch )
     SAMTOOLS_REF ( MAPPING_BACK_TO_REF.out.aligned_sam )
     BCFTOOLS ( SAMTOOLS_REF.out.sorted_bam )

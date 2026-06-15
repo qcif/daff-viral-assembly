@@ -5,20 +5,19 @@ process BLAST_BLASTN {
 
     input:
     tuple val(sampleid), path(assembly)
-    val(db)
+    tuple path(db_dir), val(db_name)
     
     output:
     tuple val(sampleid), path("${sampleid}*_blastn.bls"), emit: blast_results
 
     script:
-    def blastdb_dir  = file(db).parent
-    def blastdb_name = file(db).name
+    //def blastdb_dir  = file(db).parent
+    //def blastdb_name = file(db).name
     def blastoutput = assembly.getBaseName() + "_blastn.bls"
     """
-    export BLASTDB=${blastdb_dir}
-    
+    export BLASTDB=${db_dir}
     blastn -query ${assembly} \\
-        -db ${blastdb_name} \\
+        -db ${db_dir}/${db_name} \\
         -out ${blastoutput} \\
         -evalue 1e-3 \\
         -num_threads ${params.blast_threads} \\

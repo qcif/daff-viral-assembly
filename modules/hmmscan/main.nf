@@ -9,7 +9,7 @@ process HMMSCAN {
     
     input:
     tuple val(sampleid), path(fasta)
-    val(hmmer_db)
+    tuple path(db_dir), val(db_name)
     
     output:
     file "${sampleid}_orfs.fasta"
@@ -23,7 +23,7 @@ process HMMSCAN {
             --domtblout ${sampleid}_hmmscan_per_domain_output.txt \\
             --tblout ${sampleid}_hmmscan_per_target_output.txt \\
             --pfamtblout ${sampleid}_hmmscan_succinct_output.txt \\
-            ${hmmer_db} ${fasta} \\
+            ${db_dir}/${db_name} ${fasta} \\
             > ${sampleid}_hmmscan.log 2>&1
     """
 }
