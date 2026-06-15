@@ -86,6 +86,10 @@ td.column-flag_name {
 }
 
 /* Interactive plots */
+#read-distribution-chart .plotly.plot-container {
+  display: flex;
+  justify-content: center;
+}
 .kraken-pie-charts-container .plotly.plot-container,
 .kaiju-pie-charts-container .plotly.plot-container {
   display: flex;
