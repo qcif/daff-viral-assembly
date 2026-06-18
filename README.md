@@ -367,8 +367,6 @@ meets one or more of the criteria below.
 
 ```mermaid
 flowchart LR
-  A[Evidence for potential novel virus candidates]
-
   subgraph C[Contig-level evidence]
     M[Megablast] --> M1[Returns megablast hit]
     M1 --> M2[Contig length ≥ 1000 bp]
