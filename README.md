@@ -364,7 +364,6 @@ meets one or more of the criteria below.
 | DIAMOND blastx | Contig | blastx hit; contig length ≥ 1000 bp; protein identity between 50–90% |
 | geNomad + orfipy/hmmer | Contig | No megablast hit; contig length ≥ 1000 bp; geNomad virus score ≥ 0.999; and at least one of: RdRp, viral PFAM, or geNomad hallmark gene |
 
-## Evidence used to flag candidate novel in summary table
 
 ```mermaid
 flowchart LR
@@ -392,6 +391,7 @@ flowchart LR
     Ka1 --> Ka2[≥ 1000 reads]
   end
 ```
+## Evidence used to flag candidate novel in summary table
 ```mermaid
 flowchart LR
 
