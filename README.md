@@ -12,6 +12,7 @@ A [Nextflow](https://www.nextflow.io/) pipeline for viral genome assembly and id
 - [Parameters](#parameters)
 - [Output](#output)
 - [Profiles](#profiles)
+- [Evidence used to flag potential novel virus candidates](#evidence-used-to-flag-potential-novel-virus-candidates)
 - [Tool Versions](#tool-versions)
 
 ## Overview
@@ -348,6 +349,51 @@ The pipeline includes several execution profiles selectable with `-profile`:
 | `test` | Test profile |
 
 Multiple profiles can be combined with commas, e.g. `-profile singularity,mtdt_test`.
+
+## Evidence used to flag potential novel virus candidates
+
+A contig or taxonomic signal is flagged as potential novel-virus evidence if it
+meets one or more of the criteria below.
+
+| Evidence source | Level | Required criteria |
+|---|---|---|
+| Kraken | Read classification | ≥ 1000 reads assigned to a viral taxon unresolved below family or order level |
+| Kaiju | Read classification | ≥ 1000 reads assigned to a viral taxon unresolved below family or order level |
+| Megablast | Contig | Megablast hit; contig length ≥ 1000 bp; nucleotide identity ≤ 90%; ≥ 70% of contig covered at 30X |
+| DIAMOND blastx | Contig | blastx hit; contig length ≥ 1000 bp; protein identity between 50–90% |
+| geNomad + orfipy/hmmer | Contig | No megablast hit; contig length ≥ 1000 bp; geNomad virus score ≥ 0.999; and at least one of: RdRp, viral PFAM, or geNomad hallmark gene |
+
+
+
+```mermaid
+flowchart LR
+  A[Evidence for potential novel virus candidates]
+
+  subgraph C[Contig-level evidence]
+    M[Megablast] --> M1[Returns megablast hit]
+    M1 --> M2[Contig length ≥ 1000 bp]
+    M2 --> M3[% identity ≤ 90]
+    M3 --> M4[30X coverage ≥ 70%]
+
+    D[DIAMOND blastx] --> D1[Returns blastx hit]
+    D1 --> D2[Contig length ≥ 1000 bp]
+    D2 --> D3[% identity 50–90]
+
+    G[geNomad + orfipy/hmmer] --> G1[No megablast hit]
+    G1 --> G2[Contig length ≥ 1000 bp]
+    G2 --> G3[geNomad virus score ≥ 0.999]
+    G3 --> G4[At least one: RdRp, viral PFAM, or hallmark gene]
+  end
+
+  subgraph R[Read-classification evidence]
+    K[Kraken] --> K1[Viral assignment unresolved below family/order]
+    K1 --> K2[≥ 1000 reads]
+
+    Ka[Kaiju] --> Ka1[Viral assignment unresolved below family/order]
+    Ka1 --> Ka2[≥ 1000 reads]
+  end
+```
+
 
 ## Tool Versions
 
