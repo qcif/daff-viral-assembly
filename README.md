@@ -13,6 +13,7 @@ A [Nextflow](https://www.nextflow.io/) pipeline for viral genome assembly and id
 - [Output](#output)
 - [Profiles](#profiles)
 - [Evidence used to flag potential novel virus candidates](#evidence-used-to-flag-potential-novel-virus-candidates)
+- [Evidence used to flag candidate novel in summary table](#evidence-used-to-flag-candidate-novel-in-summary-table)
 - [Tool Versions](#tool-versions)
 
 ## Overview
@@ -363,7 +364,7 @@ meets one or more of the criteria below.
 | DIAMOND blastx | Contig | blastx hit; contig length ≥ 1000 bp; protein identity between 50–90% |
 | geNomad + orfipy/hmmer | Contig | No megablast hit; contig length ≥ 1000 bp; geNomad virus score ≥ 0.999; and at least one of: RdRp, viral PFAM, or geNomad hallmark gene |
 
-
+## Evidence used to flag candidate novel in summary table
 
 ```mermaid
 flowchart LR
@@ -390,6 +391,38 @@ flowchart LR
     Ka[Kaiju] --> Ka1[Viral assignment unresolved below family/order]
     Ka1 --> Ka2[≥ 1000 reads]
   end
+```
+```mermaid
+flowchart LR
+
+  subgraph C["Primary-evidence contig-level"]
+    direction TB
+
+    M["Megablast"]
+    D["DIAMOND blastx"]
+    G["geNomad"]
+
+    M --> N["Novel contig candidate"]
+    D --> N
+    G --> N
+
+    N --> R1["Retain if supported by<br/>≥ 2 methods"]
+  end
+
+  subgraph S["Additional supporting evidence"]
+    direction TB
+
+    K["Kraken"]
+    Ka["Kaiju"]
+
+    K --> R2["Add read-classification support<br/>where available"]
+    Ka --> R2
+  end
+
+  R1 --> T["Novel contig evidence<br/>summary table"]
+  R2 --> T
+
+  C ~~~ S
 ```
 
 
