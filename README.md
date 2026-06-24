@@ -73,7 +73,7 @@ A [Nextflow](https://www.nextflow.io/) pipeline for viral genome assembly and id
    ```
 
 5. Run the pipeline:
-A test is available to check the installation worked:
+A test is available to check the installation worked. You only need to have taxonkit installed in your home directory to run this test:
    ```bash
    nextflow run main.nf \
      -profile singularity,test \
@@ -81,7 +81,7 @@ A test is available to check the installation worked:
      --facility "Unknown"
    ```
 
-If the test runs sucesfully, you are now ready to run your own analysis:
+6. Once you have run the test sucessfully, you are now ready to run your own analysis:
    ```bash
    nextflow run main.nf \
      -profile singularity \
@@ -90,7 +90,7 @@ If the test runs sucesfully, you are now ready to run your own analysis:
      --facility "Your Institution"
    ```
 
-   To resume a failed run, add `-resume`:
+7. To resume a failed run, add `-resume`:
 
    ```bash
    nextflow run main.nf \
@@ -121,8 +121,8 @@ Provide a CSV samplesheet via `--input` (default: `index.csv`). The file must in
 
 ```csv
 sample,fastq_1,fastq_2,sample_information,sample_type,sample_receipt_date,storage_location
-Sample_A,/data/Sample_A_R1.fastq.gz,/data/Sample_A_R2.fastq.gz,Tomato leaf,Plant,2024-01-15,Freezer_1
-Sample_B,/data/Sample_B_R1.fastq.gz,/data/Sample_B_R2.fastq.gz,Rose stem,Plant,2024-01-16,Freezer_1
+Sample_A,/data/Sample_A_R1.fastq.gz,/data/Sample_A_R2.fastq.gz,Tomato_leaf,Plant,2024-01-15,Freezer_1
+Sample_B,/data/Sample_B_R1.fastq.gz,/data/Sample_B_R2.fastq.gz,Rose_stem,Plant,2024-01-16,Freezer_1
 ```
 
 Multiple FASTQ files from the same sample (e.g. different sequencing lanes) can be listed as separate rows with the same `sample` identifier — they will be concatenated before processing.
@@ -402,7 +402,7 @@ flowchart LR
     Ka1 --> Ka2[≥ 1000 reads]
   end
 ```
-## Evidence used to flag candidate novel in summary table
+## Evidence used to flag candidate novel viruses with contig support in the summary table
 ```mermaid
 flowchart LR
 
