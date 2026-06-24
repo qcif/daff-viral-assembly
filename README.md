@@ -55,22 +55,33 @@ A [Nextflow](https://www.nextflow.io/) pipeline for viral genome assembly and id
 4. Create a params file (copy and edit `params/params_example.yml`):
 
    ```yaml
-   input: /path/to/samplesheet.csv
-   blastn_db: /path/to/ncbi/core_nt
+   input: index.csv
+   blastn_db: /full/path/to/ncbi/core_nt
    taxdump: ~/.taxonkit
    blast_threads: 2
-   genomad_db: /path/to/genomad/genomad_db
-   hmmer_db: /path/to/hmms/Pfam-A.hmm
-   kraken2_db: /path/to/kraken_databases/core_nt
-   kaiju_dbname: /path/to/kaiju_databases/kaiju_db_nr_euk.fmi
-   kaiju_names: /path/to/kaiju_databases/names.dmp
-   kaiju_nodes: /path/to/kaiju_databases/nodes.dmp
-   rrna_ref: /path/to/rrna_reference.fasta
+   genomad_db: /full/path/to/genomad/genomad_db
+   hmmer_db: /full/path/to/hmms/Pfam-A.hmm
+   kraken2_db: /full/path/to/kraken_databases/core_nt
+   kaiju_db: /full/path/to/kaiju_databases/kaiju_db_nr_euk.fmi
+   rrna_ref: /full/path/to/rrna_reference.fasta
+   prot_db: /full/path/to/rvdb.dmnd
+   rvdb_taxonomy: /full/path/to/RVDBv31_taxonomy.tab
+   qfiltered_reads_threshold: 8000000
+   clean_reads_threshold: 2500000
+   help: false
    outdir: results
    ```
 
 5. Run the pipeline:
+A test is available to check the installation worked:
+   ```bash
+   nextflow run main.nf \
+     -profile singularity,test \
+     --analyst_name "Tester" \
+     --facility "Unknown"
+   ```
 
+If the test runs sucesfully, you are now ready to run your own analysis:
    ```bash
    nextflow run main.nf \
      -profile singularity \
