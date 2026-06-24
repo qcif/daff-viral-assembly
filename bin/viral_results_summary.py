@@ -876,7 +876,7 @@ def build_known_viral_summary(
         "max_pc_ref_mapping_reads_spp"
     )
 
-    map2ref_df = add_group_max(map2ref_df, "taxon_name", "pc_cov_30X", "max_pc_cov_30X_spp")
+    map2ref_df = add_group_max(map2ref_df, "taxon_name", "mean_depth", "max_mean_depth_spp")
     map2ref_df = add_group_max(map2ref_df, "taxon_name", "normalised_conf_score", "max_normalised_conf_score_spp")
     map2ref_df = add_group_max(map2ref_df, "taxon_name", "reference_length", "max_reference_length_spp")
     map2ref_df_unique = (
@@ -886,12 +886,12 @@ def build_known_viral_summary(
             "max_pc_ref_mapping_reads_spp" ,
             "max_reference_length_spp",
             "max_normalised_conf_score_spp",
-            "max_pc_cov_30X_spp"]
+            "max_mean_depth_spp"]
             ]
             .drop_duplicates(subset=["taxon_name"])
     )
     merged_df4 = merged_df3.merge(
-        map2ref_df_unique[["taxon_name", "max_ref_mapping_read_count_spp", "max_pc_ref_mapping_reads_spp", "max_reference_length_spp", "max_normalised_conf_score_spp", "max_pc_cov_30X_spp"]],
+        map2ref_df_unique[["taxon_name", "max_ref_mapping_read_count_spp", "max_pc_ref_mapping_reads_spp", "max_reference_length_spp", "max_normalised_conf_score_spp", "max_mean_depth_spp"]],
         left_on="taxon",
         right_on="taxon_name",
         how="left"   # left join keeps all rows in summary_df
@@ -903,7 +903,7 @@ def build_known_viral_summary(
                           "mapping_read_count","pc_mapping_reads",
                           "ncontigs_per_spp", "qseqid", "contig_seq", "best_rep_pident", "best_rep_length",
                           "mean_depth", "pc_cov_30X", "normalised_conf_score", "max_PFAM_total_spp", "species_has_RdRp", 
-                          "max_reference_length_spp", "max_normalised_conf_score_spp", "max_pc_cov_30X_spp"]
+                          "max_reference_length_spp", "max_normalised_conf_score_spp", "max_mean_depth_spp"]
 
     merged_df4 = merged_df4[final_columns_filt]
     text_cols = ["qseqid", "contig_seq","species_has_RdRp" ]

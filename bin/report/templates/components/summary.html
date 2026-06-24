@@ -136,7 +136,7 @@
         class="table-{{ row['bs_class'] }} align-middle"
         {% endif %}
       >
-        {% set format_1dp = ['best_rep_pident', 'normalised_conf_score' , 'max_pc_cov_30X_spp', 'max_normalised_conf_score_spp'] %}
+        {% set format_1dp = ['best_rep_pident', 'normalised_conf_score' , 'max_mean_depth_spp', 'max_normalised_conf_score_spp'] %}
         {% set format_3dp = ['kraken_pc_reads', 'kaiju_pc_reads'] %}
         
         {% for colname in summary.columns_primary_display %}
