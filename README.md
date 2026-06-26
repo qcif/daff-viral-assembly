@@ -357,7 +357,7 @@ The script first:
 
 **2. Selecting the best representative**  
 Grouping is done by accession number, species and species/RNA segment.
-Only the best representative per species is rendered in the hmlt report so we will ficus the rest of this section on this.   
+Only the best representative per species is rendered in the hmlt report so we will focus the rest of this section on this.   
 For each species, each row gets points when it is the best within that species for specific metrics.
 The total species score is:
 ```
@@ -424,6 +424,24 @@ assembly_kmer_cov >= 1
 qcovs >= 30
 ```
 The ```term_filter``` removes rows where species_updated or stitle match exclusion terms from the filter file.
+
+## Confidence score derivation  
+The confidence score is a mapping-support score from 0 to 8.
+It is based on 4 criteria:
+
+**Scoring table**
+| Metric | GREEN (2) | ORANGE (1) | RED (0) | 
+|---|---:|---:|---:|
+| `pc_cov_30X` | `>= 100` | `>= 50` and `< 100` | `< 50` | 
+| `mapping_read_count` | `>= 1000` | `>= 200` and `< 1000` | `< 200` | 
+| `mean_depth` | `>= 100` | `>= 50` and `< 100` | `< 50` | 
+| `mean_mapping_quality` | `>= 30` | `>= 10` and `< 30` | `< 10` | 
+
+Because there are four flags and each can score a maximum of 2 points, the maximum total score is:
+```4 × 2 = 8```
+
+The normalised confidence score is then:
+```normalised_conf_score = total_conf_score / 8```
 
 ## Evidence used to flag potential novel virus candidates
 
