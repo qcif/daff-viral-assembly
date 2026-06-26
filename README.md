@@ -32,8 +32,10 @@ A [Nextflow](https://www.nextflow.io/) pipeline for viral genome assembly and id
 
 ## Requirements
 
-- [Nextflow](https://nextflow.io/) ≥ 21.05.0
-- [Docker](https://www.docker.com/) or [Singularity](https://sylabs.io/singularity/) (recommended for reproducibility)
+To run the this pipelines, you will need the following software installed:
+
+- [Nextflow](https://nextflow.io/) Tested versions: 21.05.0, 26.04.1.
+- [Singularity](https://sylabs.io/singularity/) (recommended for reproducibility)
 - The following databases (paths provided as parameters):
   - [NCBI BLAST](https://blast.ncbi.nlm.nih.gov/doc/blast-help/downloadblastdata.html) nucleotide database (e.g. `core_nt`)
   - [TaxonKit](https://bioinf.shenwei.me/taxonkit/) taxonomy database
@@ -151,7 +153,7 @@ Input FASTQ files
       ▼
  BBMAP_BBSPLIT ──── PhiX decontamination
       │
-      ├──► KRAKEN2_KRAKEN2 ──► BRACKEN ──► KRAKEN2_TO_KRONA ──► (Krona chart)
+      ├──► KRAKEN2_KRAKEN2 ──► KRAKEN2_ABUNDANCE_ESTIMATE ──► KRAKEN2_TO_KRONA ──► (Krona chart)
       │         │
       │         └──► RETRIEVE_VIRAL_READS_KRAKEN2 ── Extract viral + unclassified reads
       │                         │
@@ -163,13 +165,13 @@ Input FASTQ files
  SPADES ─────────── De novo assembly (rnaSPAdes)
       │
       ▼
- SEQTK ──────────── Filter contigs < 150 bp
+ SEQTK_SEQ ──────────── Filter contigs < 150 bp
       │
       ▼
- BLASTN ─────────── Megablast search (split input for parallel execution)
+ MEGABLAST ─────────── Megablast search (split input for parallel execution)
       │
       ▼
- EXTRACT_VIRAL_BLAST_HITS ── Identify viral contigs
+ EXTRACT_RAW_VIRAL_BLAST_HITS ── Identify viral contigs
       │
       ├──► EXTRACT_CONTIGS ─── Separate viral / other contigs
       │         │
@@ -360,7 +362,7 @@ The pipeline includes several execution profiles selectable with `-profile`:
 | `singularity` | Run processes inside Singularity containers (recommended on HPC) |
 | `test` | Test profile |
 
-Multiple profiles can be combined with commas, e.g. `-profile singularity,mtdt_test`.
+Multiple profiles can be combined with commas, e.g. `-profile singularity,test`.
 
 ## Evidence used to flag potential novel virus candidates
 
@@ -402,7 +404,7 @@ flowchart LR
     Ka1 --> Ka2[≥ 1000 reads]
   end
 ```
-## Evidence used to flag candidate novel viruses with contig support in the summary table
+## Evidence used to flag candidate novel viruses with contig support in the Summary table
 ```mermaid
 flowchart LR
 

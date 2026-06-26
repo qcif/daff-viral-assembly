@@ -159,7 +159,7 @@ workflow VIEW {
     configyaml = Channel.fromPath(yamlFile)
     
     //Probably best place to perform subsampling
-    //Subsampling to 60M reads is as slow using the nf-core subsample module or seqtk sample (40-50 minutes)
+    //Subsampling to 40M reads is as slow using the nf-core subsample module or seqtk sample (40-50 minutes)
     if ( params.subsample_enabled ) {
             //Check size of fastq file first before subsampling!
             //FQ_SUBSAMPLE ( BBMAP_BBSPLIT.out.all_fastq )
