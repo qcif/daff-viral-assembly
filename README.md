@@ -335,6 +335,95 @@ The pipeline includes several execution profiles selectable with `-profile`:
 
 Multiple profiles can be combined with commas, e.g. `-profile singularity,test`.
 
+## Selecting best representative per species
+**1. Pre-filtering before representative selection** 
+The script first:
+- Adds taxonomy using pytaxonkit.
+- Removes hits where species contains: synthetic construct or expression vector
+- Sorts hits by qseqid and descending bitscore.
+- Keeps only one BLAST hit per contig, so each contig contributes only its highest-bit-score BLAST hit.
+- Then it keeps only entries classified as viruses or viroids.
+- The script also builds a modified species label called species_updated, where segmented viruses can be split into RNA components:
+
+```species_updated = species + RNA_type```
+
+  RNA_type is inferred from the BLAST title if it contains terms such as:
+```
+  RNA1, RNA 1, segment 1, polyprotein P1
+  RNA2, RNA 2, segment 2, polyprotein P2
+  RNA3, RNA 3, segment 3, polyprotein P3
+```
+
+**2. Selecting the best representative**  
+Grouping is done by accession number, species and species/RNA segment.
+Only the best representative per species is rendered in the hmlt report so we will ficus the rest of this section on this.   
+For each species, each row gets points when it is the best within that species for specific metrics.
+The total species score is:
+```
+total_score_spp =
+    pident_score_spp
+  + bitscore_score_spp
+  + evalue_score_spp
+  + assembly_kmer_cov_score_spp
+  + qcovs_score
+  + best_qcovs_score_spp
+  + completeness_score
+  + alignment_length_score_spp
+  + query_length_score_spp
+```
+| Feature | Rule | Points |
+|---|---|---:|
+| `% identity` / `pident` | Highest within species | +1 |
+| `bitscore` | Highest within species | +2 |
+| `evalue` | Lowest within species | +2 |
+| SPAdes `assembly_kmer_cov` | Highest within species | +2 |
+| `qcovs` global threshold | `qcovs > 75` | +1 |
+| `qcovs` best in species | Highest within species | +2 |
+| `alignment_length` | Longest within species | +2 |
+| `qlen` | Longest query/contig length within species | +2 |
+| Completeness wording in `stitle` | Complete-genome / partial-sequence wording, see table below | +3, 0, or -3 |
+
+For the completeness title score, the BLAST subject title, stitle, is used to favour complete genomes/sequences and penalise partial/limited gene hits.
+
+Score are: 
+```
++3 if stitle contains:
+- complete sequence
+- complete genome
+- polyprotein gene complete cds
+- polyprotein 1 gene complete cds
+- polyprotein 2 gene complete cds
+
+-3 if stitle contains:
+- nearly complete sequence
+- partial
+- polymerase protein
+- RNA-dependent RNA polymerase
+
+0 otherwise
+```
+So a complete-genome reference is preferred over a partial gene-level match, all else being equal.
+
+The best representative per species is the contig/reference hit with the highest ```total_score_spp``` within that species.
+
+(The same is done for species_updated. This is important for multipartite/segmented viruses, because it can retain a best representative for RNA1, RNA2, RNA3 separately.)
+
+**3. Final reporting filters** 
+The script creates boolean columns that dowstream steps can use:
+```
+term_filter
+cov_filter
+best_contig_per_sp_filter
+best_contig_per_sp_rna_filter
+best_contig_per_acc_filter
+```
+The ```cov_filter``` requires:
+```
+assembly_kmer_cov >= 1
+qcovs >= 30
+```
+The ```term_filter``` removes rows where species_updated or stitle match exclusion terms from the filter file.
+
 ## Evidence used to flag potential novel virus candidates
 
 A contig or taxonomic signal is flagged as potential novel-virus evidence if it
