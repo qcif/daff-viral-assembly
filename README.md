@@ -135,119 +135,90 @@ Multiple FASTQ files from the same sample (e.g. different sequencing lanes) can 
 Input FASTQ files
       │
       ▼
- CAT_FASTQ ──────── Concatenate files from the same sample
+ CAT_FASTQ ────────────────────────── Concatenate files from same sample
+      │
+      ├──► COUNT_FASTQ_READS ──► (optional) SEQTK_SAMPLE
+      │
+      ├──► FASTQC_RAW
       │
       ▼
- (optional) SEQTK_SAMPLE ── Subsample to 40 M reads (default)
+ FASTP ───────────────────────────── Adapter trimming and quality filtering
       │
-      ├──► FASTQC_RAW ──── Raw read quality control
-      │
-      ▼
- FASTP ──────────── Adapter trimming and quality filtering
-      │
-      ├──► FASTQC_TRIM ─── Post-trimming quality control
+      ├──► FASTQC_TRIM
       │
       ▼
- BBMAP_BBDUK ────── rRNA read removal
+ BBMAP_BBDUK ─────────────────────── rRNA read removal
       │
       ▼
- BBMAP_BBSPLIT ──── PhiX decontamination
+ BBMAP_BBSPLIT ───────────────────── PhiX decontamination
       │
-      ├──► KRAKEN2_KRAKEN2 ──► KRAKEN2_ABUNDANCE_ESTIMATE ──► KRAKEN2_TO_KRONA ──► (Krona chart)
-      │         │
-      │         └──► RETRIEVE_VIRAL_READS_KRAKEN2 ── Extract viral + unclassified reads
-      │                         │
-      ├──► KAIJU_KAIJU ──────►  │          ── Protein-level classification + Krona chart
-      │         │               │
-      │         └──► SUMMARISE_READ_CLASSIFICATION
-      │                         │
-      ▼                         ▼
- SPADES ─────────── De novo assembly (rnaSPAdes)
+      ├──► KRAKEN2_KRAKEN2 ─► KRAKEN2_ABUNDANCE_ESTIMATE ─► KRAKEN2_TO_KRONA
+      │            │
+      │            └──► RETRIEVE_VIRAL_READS_KRAKEN2 ─► SPADES ─► SEQTK_SEQ
+      │                                                  │
+      │                                                  ▼
+      │                                            MEGABLAST
+      │                                                  │
+      │                                                  ▼
+      │                                 EXTRACT_RAW_VIRAL_BLAST_HITS
+      │                                                  │
+      │                         EXTRACT_CONTIGS ◄────────┤
+      │                           │                      │
+      │                           ├──► MAP_TO_CONTIGS ─► SAMTOOLS_MPILEUP ─► IDENTIFY_ERRORS ─► TRIM_ENDS ─► REALIGN ─► SAMTOOLS_CONTIGS
+      │                           │                                                                                           ├──► PYFAIDX_CONTIGS
+      │                           │                                                                                           └──► MOSDEPTH_CONTIGS
+      │                           │
+      │                           ├──► ORFIPY ─► HMMSCAN
+      │                           ├──► GENOMAD_ENDTOEND
+      │                           └──► DIAMOND_BLASTX
       │
-      ▼
- SEQTK_SEQ ──────────── Filter contigs < 150 bp
+      │                TRIM_ENDS ─► MEGABLAST_ROUND2 ─► EXTRACT_FINAL_VIRAL_BLAST_HITS ─► FASTA2TABLE_CONTIGS
+      │                                                                                          │
+      │                                                                                          ├──► CONTIG_COVSTATS
+      │                                                                                          └──► EXTRACT_REF_FASTA ─► CLUSTER ─► MEGABLAST_TO_REF
+      │                                                                                                                  │
+      │                                                                                                                  └──► MAPPING_BACK_TO_REF ─► SAMTOOLS_REF ─► BCFTOOLS ─► BEDTOOLS
+      │                                                                                                                                                 ├──► PYFAIDX_REF
+      │                                                                                                                                                 ├──► MOSDEPTH_REF ─► REF_COVSTATS
+      │                                                                                                                                                 └──► FASTA2TABLE_REF
       │
-      ▼
- MEGABLAST ─────────── Megablast search (split input for parallel execution)
+      ├──► KAIJU_KAIJU ─► KRONA_KTIMPORTTEXT
       │
-      ▼
- EXTRACT_RAW_VIRAL_BLAST_HITS ── Identify viral contigs
-      │
-      ├──► EXTRACT_CONTIGS ─── Separate viral / other contigs
-      │         │
-      │         ▼
-      │    MAPPING_BACK_TO_CONTIGS ──► PILEUP ──► IDENTIFY_ERRORS ──► TRIM_ENDS
-      │              │                                                      │
-      │              └──────────────────────────── REALIGN ◄────────────────┘
-      │                                               │
-      │                          SAMTOOLS_CONTIGS ◄───┘
-      │                          MOSDEPTH_CONTIGS
-      │                          PYFAIDX_CONTIGS
-      │
-      ├──► BLASTN_ROUND2 ──── Second BLAST on trimmed contigs
-      │         │
-      │         ▼
-      │    EXTRACT_VIRAL_BLAST_HITS_ROUND2 ──► FASTA2TABLE
-      │                                              │
-      │              ┌───────────────────────────────┘
-      │              ▼
-      │    EXTRACT_REF_FASTA ──► CLUSTER ──► MAPPING_BACK_TO_REF
-      │                                            │
-      │                                       SAMTOOLS2 ──► BCFTOOLS ──► BEDTOOLS
-      │                                       PYFAIDX / MOSDEPTH
-      │                                       REF_COVSTATS ──► FASTA2TABLE2
-      │                                       CONTIG_COVSTATS
-      │
-      ├──► ORFIPY ──────────── ORF prediction from contigs
-      │         │
-      │         ▼
-      │    HMMSCAN ─────────── Protein domain annotation (Pfam)
-      │
-      ├──► GENOMAD ─────────── Virus / provirus classification
-      │
-      ├──► DIAMOND ─────────── Protein-level contig alignment (RVDB)
+      ├──► SUMMARISE_READ_CLASSIFICATION (Kraken2 + Kaiju + BBSplit stats)
       │
       ▼
- SUMMARISE_RESULTS ── Combine all evidence into per-sample summary table
-                       (includes novel virus candidate identification)
+ SUMMARISE_RESULTS ───────────────── Integrate read, contig, reference and protein evidence
       │
- QCREPORT ────────── Run-level QC report
+ START_TIMESTAMP + QC_REPORT ─────── Run-level metadata and QC summary
       │
- HTML_REPORT ──────── Per-sample interactive HTML report
+ HTML_REPORT ─────────────────────── Per-sample interactive HTML report
 ```
 
 ### Step Descriptions
 
-| Step | Tool | Description |
-|------|------|-------------|
-| Read concatenation | `cat` | Merges multiple FASTQ files per sample |
-| Subsampling | seqtk | Randomly subsample reads to a target depth (default 40 M reads) |
-| Raw QC | FastQC | Quality metrics for raw reads |
-| Adapter trimming | fastp | Trims adapters, low-quality bases, and short reads |
-| Trimmed QC | FastQC | Quality metrics after trimming |
-| rRNA removal | BBDuk | Removes ribosomal RNA reads using a reference |
-| PhiX removal | BBSplit | Removes PhiX174 spike-in reads |
-| Taxonomic classification | Kraken2 + Bracken | k-mer based classification; Bracken re-estimates abundance |
-| Taxonomic classification | Kaiju | Protein-level classification against nr/euk database |
-| Visualisation | Krona | Interactive pie-chart visualisation of classifications |
-| Viral read retrieval | KrakenTools | Extracts unclassified + viral-classified reads |
-| De novo assembly | SPAdes (rnaSPAdes mode) | Assembles viral genome contigs |
-| Contig filtering | seqtk | Removes contigs shorter than 150 bp |
-| BLAST annotation | BLASTN | Searches assembled contigs against the NCBI nucleotide database |
-| Hit extraction | custom script | Filters to top viral BLAST hits |
-| Reference retrieval | Entrez Direct | Downloads matched reference sequences from NCBI |
-| Reference clustering | CD-HIT | Clusters highly similar references |
-| Reference mapping | BWA | Aligns cleaned reads back to reference sequences |
-| Consensus calling | bcftools | Calls variants and applies them to generate consensus sequences |
-| Coverage masking | bedtools | Masks low-coverage regions in the consensus |
-| Depth analysis | mosdepth | Calculates per-base sequencing depth |
-| ORF prediction | orfipy | Predicts open reading frames from assembled contigs |
-| Protein domain annotation | HMMER (hmmscan) | Searches ORFs against Pfam protein domain database |
-| Virus/provirus prediction | GeNomad | Classifies contigs as viral or proviral |
-| Protein-level alignment | DIAMOND (blastx) | Protein-level alignment of contigs against a protein database (e.g. RVDB) |
-| Results summary | custom script | Integrates evidence from all tools into a summary table (including novel virus candidates) |
-| QC report | custom script | Generates run-level quality control report |
-| HTML report | custom script | Generates interactive per-sample HTML report |
+| Step | Tool / module | Description |
+|------|---------------|-------------|
+| Read concatenation | `CAT_FASTQ` | Merges multiple FASTQ files per sample |
+| Read counting + optional subsampling | `COUNT_FASTQ_READS`, `SEQTK_SAMPLE` | Counts reads and optionally subsamples to target depth |
+| Raw QC | `FASTQC_RAW` | Quality metrics for pre-trimmed reads |
+| Adapter trimming | `FASTP` | Trims adapters and low-quality sequence |
+| Trimmed QC | `FASTQC_TRIM` | Quality metrics after trimming |
+| rRNA removal | `BBMAP_BBDUK` | Removes ribosomal RNA reads |
+| PhiX removal | `BBMAP_BBSPLIT` | Removes PhiX174 spike-in reads and exports read filtering stats |
+| Taxonomic classification (nucleotide) | `KRAKEN2_KRAKEN2`, `KRAKEN2_ABUNDANCE_ESTIMATE`, `KRAKEN2_TO_KRONA` | Kraken2 classification, abundance estimation, and Krona-compatible output |
+| Taxonomic classification (protein) | `KAIJU_KAIJU`, `KRONA_KTIMPORTTEXT` | Kaiju classification and Krona chart generation |
+| Viral read retrieval | `RETRIEVE_VIRAL_READS_KRAKEN2` | Extracts viral and unclassified read pairs for assembly |
+| Read-level classification summary | `SUMMARISE_READ_CLASSIFICATION` | Combines Kraken2, Kaiju, and BBSplit evidence per sample |
+| De novo assembly | `SPADES` | Assembles candidate viral contigs |
+| Contig filtering | `SEQTK_SEQ` | Removes contigs below minimum length |
+| Initial contig BLAST + viral hit extraction | `MEGABLAST`, `EXTRACT_RAW_VIRAL_BLAST_HITS` | Screens contigs against BLAST DB and retains viral candidates |
+| Contig extraction, trimming, and remapping | `EXTRACT_CONTIGS`, `MAP_TO_CONTIGS`, `SAMTOOLS_MPILEUP`, `IDENTIFY_ERRORS`, `TRIM_ENDS`, `REALIGN`, `SAMTOOLS_CONTIGS`, `MOSDEPTH_CONTIGS`, `PYFAIDX_CONTIGS` | Trims contig ends based on pileup evidence and recomputes contig-level mapping metrics |
+| Final viral contig annotation | `MEGABLAST_ROUND2`, `EXTRACT_FINAL_VIRAL_BLAST_HITS`, `FASTA2TABLE_CONTIGS`, `CONTIG_COVSTATS` | Final viral BLAST table and contig coverage summary metrics |
+| Reference retrieval and mapping | `EXTRACT_REF_FASTA`, `CLUSTER`, `MEGABLAST_TO_REF`, `MAPPING_BACK_TO_REF`, `SAMTOOLS_REF`, `BCFTOOLS`, `BEDTOOLS`, `MOSDEPTH_REF`, `PYFAIDX_REF`, `REF_COVSTATS`, `FASTA2TABLE_REF` | Builds clustered reference set, maps reads to references, and derives consensus/coverage summaries |
+| Protein/domain evidence | `ORFIPY`, `HMMSCAN`, `GENOMAD_ENDTOEND`, `DIAMOND_BLASTX` | Adds ORF prediction, Pfam domains, GeNomad calls, and protein-level alignments |
+| Results summary | `SUMMARISE_RESULTS` | Integrates all evidence, including novel virus candidate support |
+| Run QC + timestamp | `START_TIMESTAMP`, `QC_REPORT` | Generates run-level QC and timing metadata |
+| Interactive reporting | `HTML_REPORT` | Builds per-sample HTML report with linked supporting outputs |
 
 ## Parameters
 
