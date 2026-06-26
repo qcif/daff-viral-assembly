@@ -13,6 +13,7 @@ A [Nextflow](https://www.nextflow.io/) pipeline for viral genome assembly and id
 - [Output](#output)
 - [Profiles](#profiles)
 - [Selecting best representative per species](#selecting-best-representative-per-species)
+- [Confidence score derivation](#confidence-score-derivation)
 - [Evidence used to flag potential novel virus candidates](#evidence-used-to-flag-potential-novel-virus-candidates)
 - [Evidence used to flag candidate novel in summary table](#evidence-used-to-flag-candidate-novel-in-summary-table)
 - [Tool Versions](#tool-versions)
