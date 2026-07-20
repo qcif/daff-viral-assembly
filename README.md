@@ -42,7 +42,7 @@ To run the this pipelines, you will need the following software installed:
   - [NCBI BLAST](https://blast.ncbi.nlm.nih.gov/doc/blast-help/downloadblastdata.html) nucleotide database (e.g. `core_nt`)
   - [TaxonKit](https://bioinf.shenwei.me/taxonkit/) taxonomy database
   - [RVDB viral database](https://rvdb.dbi.udel.edu/download/U-RVDBv31.0.fasta.gz) and [taxonomy tab](https://rvdb.dbi.udel.edu/download/RVDBv31_taxonomy.tab.gz) for Diamond analysis. Build the diamon database using the command `diamond makedb --quiet --threads 2 --in U-RVDBv31.0-prot.fasta -d rvdb`.
-  - [Kraken2](https://ccb.jhu.edu/software/kraken2/) database (e.g. `core_nt`)
+  - [Kraken2](https://benlangmead.github.io/aws-indexes/k2) database (e.g. `core_nt`)
   - [Kaiju](https://github.com/bioinformatics-centre/kaiju) database (e.g. `kaiju_db_nr_euk`)
   - [GeNomad](https://github.com/apcamargo/genomad) database (follow the instructions on the github repo)
   - [HMMER](http://hmmer.org/) Pfam database (`Pfam-A.hmm`)
