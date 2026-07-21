@@ -1,0 +1,38 @@
+# Seed taxa for the wf4 "dev" reference databases.
+#
+# Format: one entry per non-comment line. Each entry is either
+#   - an NCBI taxid (numeric), or
+#   - an NCBI nucleotide/genome accession (letters+digits, e.g. NC_042239.1)
+# The section headers below are consumed by the build scripts to route each
+# entry to the right download path.
+
+# ---- viruses ------------------------------------------------------------
+# Full viral RefSeq (all families incl. Potyviridae).
+[viruses]
+10239
+
+# ---- fabaceae -----------------------------------------------------------
+# Clitoria ternatea is the required primary representative. The others are
+# well-annotated legumes included so reads that don't hit C. ternatea still
+# land in Fabaceae. Organelles + proteome only; nuclear genomes are excluded
+# to stay under the size budget.
+[fabaceae]
+# Clitoria ternatea — chloroplast
+NC_042239.1
+# Glycine max — chloroplast, mitochondrion
+NC_007942.1
+NC_020455.1
+# Medicago truncatula — chloroplast, mitochondrion
+NC_003119.8
+NC_029641.1
+
+# ---- context ------------------------------------------------------------
+# Small non-target genomes so host/contaminant reads classify somewhere
+# plausible rather than falling entirely into "unclassified".
+[context]
+# Escherichia coli K-12 MG1655 (whole genome, ~4.6 Mb)
+NC_000913.3
+# Saccharomyces cerevisiae S288C chromosome I (~230 kb) — representative only
+NC_001133.9
+# Human GRCh38 chromosome 21 (~46 Mb)
+NC_000021.9
