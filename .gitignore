@@ -1,6 +1,9 @@
 # Test data
 output/
 
+# Dev reference databases (built by scripts/build_dev_dbs/)
+refdata_dev/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -100,6 +103,9 @@ celerybeat.pid
 
 # Environments
 .env
+.env.*
+!.env*sample
+!.env*example
 .venv
 env/
 venv/

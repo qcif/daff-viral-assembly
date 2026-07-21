@@ -1,6 +1,6 @@
 {
   "id": "view_test",
-  "vmSize": "standard_l4as_v3",
+  "vmSize": "Standard_L4as_v3",
   "taskSchedulingPolicy": {
     "nodeFillType": "spread"
   },

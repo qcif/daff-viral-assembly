@@ -1,0 +1,33 @@
+{
+  "id": "view_speedtest",
+  "vmSize": "Standard_L8as_v3",
+  "taskSchedulingPolicy": {
+    "nodeFillType": "spread"
+  },
+  "taskSlotsPerNode": 1,
+  "targetDedicatedNodes": 1,
+  "virtualMachineConfiguration": {
+    "imageReference": {
+      "publisher": "microsoft-azure-batch",
+      "offer": "ubuntu-server-container",
+      "sku": "20-04-lts"
+    },
+    "nodeAgentSKUId": "batch.node.ubuntu 20.04"
+  },
+  "startTask": {
+    "commandLine": "/bin/bash setup.sh",
+    "resourceFiles": [
+      {
+        "httpUrl": "https://daffstandard.blob.core.windows.net/scripts/setup-wf4-speedtest.sh?<SETUP_SCRIPT_SAS_TOKEN>",
+        "filePath": "setup.sh"
+      }
+    ],
+    "waitForSuccess": true,
+    "userIdentity": {
+      "autoUser": {
+        "scope": "pool",
+        "elevationLevel": "admin"
+      }
+    }
+  }
+}
