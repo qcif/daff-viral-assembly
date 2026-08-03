@@ -32,6 +32,8 @@ A [Nextflow](https://www.nextflow.io/) pipeline for viral genome assembly and id
 8. Novel virus candidate identification (within results summary)
 9. Per-sample HTML report generation
 
+<p><img src="docs/images/view_workflow.png" width="1025"></p>
+ 
 ## Requirements
 
 To run the this pipelines, you will need the following software installed:
