@@ -87,10 +87,10 @@ workflow VIEW {
         else {
             error "Required parameter 'genomad_db' is missing. Please set it in your -params-file."
         }
-        ch_genomad_db = db_results.db
+        ch_genomad_db = db_results.db.first()
     }
     else {
-        ch_genomad_db = Channel.fromPath(params.genomad_db)
+        ch_genomad_db = Channel.value(file(params.genomad_db))
     }
     
     def otherRequiredParams = [
@@ -362,7 +362,6 @@ workflow VIEW {
     ch_genomad = TRIM_ENDS.out.trimmed_contigs.join(EXTRACT_CONTIGS.out.other_fasta)
     //GENOMAD_ENDTOEND ( genomad_ch, params.genomad_db )
     GENOMAD_ENDTOEND ( ch_genomad, ch_genomad_db )
-
     //Enhancement: Option to perform a blastx alignment of contig ORFs?
     ch_diamond = TRIM_ENDS.out.trimmed_contigs.join(EXTRACT_CONTIGS.out.other_fasta) 
     DIAMOND_BLASTX ( ch_diamond, params.prot_db )
