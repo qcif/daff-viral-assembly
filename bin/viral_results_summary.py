@@ -684,8 +684,8 @@ def build_known_viral_summary(
     # Keep only filtered best contigs
     # ---------------------------------------------------------
     filtered_blast_df = blast_df2[
-        (blast_df2["term_filter"].astype(str) == "True") &
-        (blast_df2["cov_filter"].astype(str) == "True") &
+        (blast_df2["term_filter"].astype(str) == "False") &
+        (blast_df2["cov_filter"].astype(str) == "False") &
         (blast_df2["best_contig_per_sp_filter"].astype(str) == "True")
     ]
 

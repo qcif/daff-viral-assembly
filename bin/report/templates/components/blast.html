@@ -95,9 +95,9 @@
           {% elif colname == 'contig_seq' %}
             {{ render_view_sequence_button("Assembled sequence " + contig_id, row[colname]) }}
           {% elif colname == 'term_filter' %}
-            {{ '' if row[colname] else 'Y' }}
+            {{ 'Y' if row[colname] else '-' }}
           {% elif colname == 'cov_filter' %}
-            {{ 'Y' if not row[colname] else '' }}
+            {{ 'Y' if row[colname] else '-' }}
           {% else %}
             {{ row[colname] }}
           {% endif %}
@@ -291,19 +291,17 @@ $(document).ready(function () {
     var $termSelect = $('<select class="form-select form-select-sm">' +
         '<option value="">All</option>' +
         '<option value="Y">Y</option>' +
-        '<option value="blank" selected>—</option>' +
+        '<option value="-" selected>—</option>' +
       '</select>')
       .appendTo(cell)
       .on('change', function () {
         var val = $(this).val();
-        if (val === "blank") {
-          column.search('^$', true, false).draw();
-        } else {
-          column.search(val ? '^' + val + '$' : '', true, false).draw();
-        }
+        var escapedVal = $.fn.dataTable.util.escapeRegex(val);
+
+        column
+          .search(val ? '^' + escapedVal + '$' : '', true, false)
+          .draw();
       });
-    // apply default filter on load
-    column.search('^$', true, false);
   })();
   (function () {
     var column = table.column(covFilterIdx);
@@ -312,19 +310,17 @@ $(document).ready(function () {
     var $covSelect = $('<select class="form-select form-select-sm">' +
         '<option value="">All</option>' +
         '<option value="Y">Y</option>' +
-        '<option value="blank" selected>—</option>' +
+        '<option value="-" selected>—</option>' +
       '</select>')
       .appendTo(cell)
       .on('change', function () {
         var val = $(this).val();
-        if (val === "blank") {
-          column.search('^$', true, false).draw();
-        } else {
-          column.search(val ? '^' + val + '$' : '', true, false).draw();
-        }
+        var escapedVal = $.fn.dataTable.util.escapeRegex(val);
+
+        column
+          .search(val ? '^' + escapedVal + '$' : '', true, false)
+          .draw();
       });
-    // apply default filter on load
-    column.search('^$', true, false);
   })();
   table.draw();
 

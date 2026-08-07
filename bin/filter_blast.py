@@ -216,10 +216,27 @@ def filter_and_format(df, sample_name, filter_file, headers):
     with open(filter_file, "r") as f:
         exclude_patterns = [line.strip() for line in f if line.strip()]
 
-    pattern = "|".join(exclude_patterns)
+    # Build a regex that:
+    # 1. Treats filter terms as literal text
+    # 2. Allows spaces to match spaces or underscores
+    # 3. Prevents matches inside longer words
+    pattern_parts = []
+
+    for term in exclude_patterns:
+        escaped_term = re.escape(term)
+
+        # Allow a space in the filter term to match either whitespace or underscores
+        escaped_term = escaped_term.replace(r"\ ", r"[\s_]+")
+
+        # Do not match the term within a longer alphanumeric word
+        pattern_parts.append(
+            rf"(?<![A-Za-z0-9]){escaped_term}(?![A-Za-z0-9])"
+        )
+
+    pattern = "|".join(pattern_parts)
 
     # Create a new column that indicates whether the row is filtered
-    df["term_filter"] = ~(
+    df["term_filter"] = (
         df["species_updated"].str.contains(pattern, case=False, na=False)
         | df["stitle"].str.contains(pattern, case=False, na=False)
         )
@@ -229,8 +246,8 @@ def filter_and_format(df, sample_name, filter_file, headers):
     #top_hits_df = top_hits_df[top_hits_df["qcovs"] >= 30].copy()    
     
     df["cov_filter"] = (
-        (df["assembly_kmer_cov"] >= 1) &
-        (df["qcovs"] >= 30)
+        (df["assembly_kmer_cov"] < 1) |
+        (df["qcovs"] < 30)
         )
     
     final_columns_filt = ["sample_name", "qseqid", "sacc", "alignment_length", "evalue", "bitscore", "pident", "mismatch",

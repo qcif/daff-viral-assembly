@@ -10,3 +10,4 @@ prot_db: /work/daff_viral_rnaseq/databases/rvdb.dmnd
 qfiltered_reads_threshold: 8000000
 clean_reads_threshold: 2500000
 rvdb_taxonomy: /work/daff_viral_rnaseq/databases/RVDBv31_taxonomy.tab
+subsample_size: 80000000
