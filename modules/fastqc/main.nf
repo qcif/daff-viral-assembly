@@ -34,23 +34,23 @@ process FASTQC {
     
     //def old_new_pairs = reads instanceof Path || reads.size() == 1 ? [[ reads, "${prefix}.${reads.extension}" ]] : reads.withIndex().collect { entry, index -> [ entry, "${prefix}_${index + 1}.${entry.extension}" ] }
     // Generate renaming pairs (keep original filename prefix)
-    def old_new_pairs =
-        (reads instanceof Path || reads.size() == 1)
-        ? [[ reads, "${strip_gz(reads)}.fastq.gz" ]]
-        : reads.withIndex().collect { entry, index ->
-            [ entry, "${strip_gz(entry)}_${index + 1}.fastq.gz" ]
-        }
-    def rename_to = old_new_pairs*.join(' ').join(' ')
-    def renamed_files = old_new_pairs.collect{ old_name, new_name -> new_name }.join(' ')
+    //def old_new_pairs =
+    //    (reads instanceof Path || reads.size() == 1)
+    //    ? [[ reads, "${strip_gz(reads)}.fastq.gz" ]]
+    //    : reads.withIndex().collect { entry, index ->
+    //        [ entry, "${strip_gz(entry)}_${index + 1}.fastq.gz" ]
+    //    }
+    //def rename_to = old_new_pairs*.join(' ').join(' ')
+    //def renamed_files = old_new_pairs.collect{ old_name, new_name -> new_name }.join(' ')
+    
+    //printf "%s %s\\n" $rename_to | while read old_name new_name; do
+    //    [ -f "\${new_name}" ] || ln -s \$old_name \$new_name
+    //done
     """
-    printf "%s %s\\n" $rename_to | while read old_name new_name; do
-        [ -f "\${new_name}" ] || ln -s \$old_name \$new_name
-    done
-
     fastqc \\
         $args \\
         --threads $task.cpus \\
-        $renamed_files
+        $reads
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

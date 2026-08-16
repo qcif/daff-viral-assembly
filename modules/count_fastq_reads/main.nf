@@ -10,7 +10,7 @@ process COUNT_FASTQ_READS {
 
   script:
   """
-  FWD=\$(ls ${reads} | grep '_1.merged.fastq.gz')
+  FWD=\$(ls ${reads} | grep '_merged_1.fastq.gz')
   zgrep -c '^@' "\$FWD" > ${meta.id}_read_count.txt
   """
 }

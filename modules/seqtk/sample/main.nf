@@ -11,7 +11,7 @@ process SEQTK_SAMPLE {
     val(sample_size)
     
     output:
-    tuple val(meta), path("*_subsampled.fastq.gz"), emit: reads
+    tuple val(meta), path("${meta.id}_subsampled_*.fastq.gz"), emit: reads
     path "versions.yml"                , emit: versions
     when:
     task.ext.when == null || task.ext.when
@@ -30,22 +30,24 @@ process SEQTK_SAMPLE {
     # Read count
     READS=\$(cat $read_count)
     THRESHOLD=$sample_size
-    if [ "\$READS" -gt "\$THRESHOLD" ]; then
-        for f in $reads; do
-            gunzip -c "\$f" |
-            seqtk \\
-                sample \\
-                $args \\
-                - \\
-                $sample_size \\
-                | gzip --no-name > "\${f%.fastq.gz}_subsampled.fastq.gz"
-        done
-    else
-        # Just copy or symlink if below threshold
-        for f in $reads; do
-            cp "\$f" "\${f%.fastq.gz}_subsampled.fastq.gz"
-        done
-    fi
+    i=1
+    for f in ${reads}; do
+
+        outfile="${meta.id}_subsampled_\${i}.fastq.gz"
+
+        if [ "\$READS" -gt "\$THRESHOLD" ]; then
+            gunzip -c "\$f" | \\
+                seqtk sample \\
+                    ${args} \\
+                    - \\
+                    ${sample_size} \\
+                | gzip --no-name > "\$outfile"
+        else
+            cp "\$f" "\$outfile"
+        fi
+
+        i=\$((i + 1))
+    done
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
         seqtk: \$(seqtk 2>&1 | sed -n 's/^Version: //p')
