@@ -40,7 +40,7 @@ process FASTP {
     tag "$meta.id"
     label 'setting_12'
     //publishDir "${params.outdir}/$meta.id/02_qtrimmed", mode: 'copy', pattern: '{*fastq.gz}'
-    publishDir { "${params.outdir}/$meta.id/02_qtrimmed" }, mode: 'copy', pattern: '{*fastp.html,*fastp.json}'
+    publishDir { "${params.outdir}/$meta.id/02_qtrimmed" }, mode: 'copy', pattern: '{*fastp.html,*fastp.json,*fastp.log}'
 
     conda "bioconda::fastp=0.23.4"
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
@@ -52,12 +52,16 @@ process FASTP {
     //path  adapter_fasta
     val   save_trimmed_fail
     val   save_merged
+    val   min_read_length
+    val   average_qual
+    val   low_complexity_threshold
+    val   poly_x_threshold
 
     output:
     //path("*.fastp.fastq.gz")
     path("*.fastp.html")
     path("*.fastp.json")
-    tuple val(meta), path('*.fastp.fastq.gz') , emit: reads
+    tuple val(meta), path('*fastp*.fastq.gz') , emit: reads
     tuple val(meta), path('*.json')           , emit: json
     tuple val(meta), path('*.html')           , emit: html
     tuple val(meta), path('*.log')            , emit: log
@@ -122,19 +126,23 @@ process FASTP {
         fastp \\
             --in1 ${prefix}_1.fastq.gz \\
             --in2 ${prefix}_2.fastq.gz \\
-            --out1 ${prefix}_1.fastp.fastq.gz \\
-            --out2 ${prefix}_2.fastp.fastq.gz \\
+            --out1 ${prefix}_fastp_1.fastq.gz \\
+            --out2 ${prefix}_fastp_2.fastq.gz \\
             --json ${prefix}.fastp.json \\
             --html ${prefix}.fastp.html \\
             $fail_fastq \\
             $merge_fastq \\
             --thread $task.cpus \\
             --detect_adapter_for_pe \\
-            --length_required 50 --average_qual 20 \\
+            --length_required ${min_read_length} --average_qual ${average_qual} \\
             --cut_front \\
             --cut_tail \\
             --cut_window_size 4 \\
             --cut_mean_quality 20 \\
+            --low_complexity_filter \\
+            --complexity_threshold ${low_complexity_threshold} \\
+            --trim_poly_x \\
+            --poly_x_min_len ${poly_x_threshold} \\
             $args \\
             2> >(tee ${prefix}.fastp.log >&2)
 
