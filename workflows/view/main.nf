@@ -207,7 +207,7 @@ workflow VIEW {
     }
     */
     
-    FASTP ( merged_fastq, params.save_trimmed_fail, params.save_merged )
+    FASTP ( merged_fastq, params.save_trimmed_fail, params.save_merged, params.fastp_min_read_length, params.fastp_average_qual, params.fastp_low_complexity_threshold, params.fastp_poly_x_threshold )
     trim_html         = FASTP.out.html
     trim_reads_for_fastqc   = FASTP.out.reads
     trim_reads_for_bbduk   = FASTP.out.reads
