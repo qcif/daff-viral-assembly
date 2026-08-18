@@ -5,7 +5,7 @@ process SUMMARISE_READ_CLASSIFICATION {
 
     input:
     tuple val(sampleid), path(kaiju_results), path(kraken2_results), path(stats)
-    path(taxonkit_db)
+    val(taxonkit_db)
 
     output:
     path("${sampleid}_kaiju_summary.txt")

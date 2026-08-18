@@ -5,7 +5,7 @@ process EXTRACT_FINAL_VIRAL_BLAST_HITS {
 
     input:
     tuple val(sampleid), path(blast_results), path(assembly_headers)
-    path(taxonkit_db)
+    val(taxonkit_db)
 
     output:
     tuple val(sampleid), path("${sampleid}_megablast_top_viral_hits.txt"), emit: viral_blast_results
