@@ -2,7 +2,7 @@
 
 Branch `azure-refdata-test`.
 
-## The pool
+## Azure Batch pool
 
 `view_test` — a single `Standard_L8as_v3` (8 cores, 8 task slots), autoscaling
 0→1 on pending tasks. Its start task
@@ -11,17 +11,6 @@ Branch `azure-refdata-test`.
 the launcher: `taxdump` and `genomad_db`, both to `/mnt/nvme/refdata/`. Everything
 else the test case needs is the ~8MB of test DBs in `tests/`, which Nextflow
 stages per-task as normal `path` inputs.
-
-Two notes on that start task:
-
-- The taxdump is **doubly nested** on blob (`refdata/taxdump/taxdump/*.dmp`) — the
-  inner dir is the real source.
-- geNomad's `genomad_mini_db_*` symlinks can't live on blob, so they're excluded
-  from the upload and recreated on-node. `genomad_mini_db.dbtype` and `.index` are
-  *not* symlinks upstream — they're real files and come down with the rest.
-
-Batch allows 2 pools and `taxodactyl` holds one, so `view` was deleted to make
-room. Prod and test can't currently coexist.
 
 ## Entrypoint
 
