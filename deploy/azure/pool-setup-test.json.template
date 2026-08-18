@@ -1,10 +1,10 @@
 {
   "id": "view_test",
-  "vmSize": "Standard_L4as_v3",
+  "vmSize": "Standard_L8as_v3",
   "taskSchedulingPolicy": {
     "nodeFillType": "spread"
   },
-  "taskSlotsPerNode": 4,
+  "taskSlotsPerNode": 8,
   "targetDedicatedNodes": 0,
   "virtualMachineConfiguration": {
     "imageReference": {
@@ -17,13 +17,6 @@
       "type": "dockerCompatible",
       "containerImageNames": [
         "docker.io/library/ubuntu:20.04"
-      ],
-      "containerVolumes": [
-        {
-          "source": "/mnt/nvme/refdata",
-          "destination": "/mnt/nvme/refdata",
-          "mountOptions": "ro"
-        }
       ]
     }
   },
@@ -31,7 +24,7 @@
     "commandLine": "/bin/bash setup.sh",
     "resourceFiles": [
       {
-        "httpUrl": "https://daffstandard.blob.core.windows.net/scripts/setup-wf4-test.sh?<SETUP_SCRIPT_SAS_TOKEN>",
+        "httpUrl": "https://daffstandard.blob.core.windows.net/scripts/setup-wf4-test.sh",
         "filePath": "setup.sh"
       }
     ],

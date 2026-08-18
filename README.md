@@ -57,11 +57,8 @@ unxz U-RVDBv32.0-prot.fasta.xz
 diamond makedb --quiet --threads 2 --in U-RVDBv32.0-prot.fasta -d rvdb
 rm U-RVDBv32.0-prot.fasta
 
-# Extract the rest of these during staging to save on blob storage:
-
-# RVDB
+# RVDB taxonomy
 wget https://rvdb.dbi.udel.edu/download/RVDB_Taxon_Current.tab.gz
-wget https://rvdb.dbi.udel.edu/download/U-RVDBvCurrent.fasta.tar.gz
 
 # Kraken
 wget https://genome-idx.s3.amazonaws.com/kraken/k2_core_nt_20251015.tar.gz
@@ -264,9 +261,7 @@ Parameters can be provided via a YAML params file (`-params-file`) or on the com
 | `--blastn_db` | Path to BLAST nucleotide database (e.g. NCBI `core_nt`) |
 | `--taxdump` | Path to TaxonKit taxonomy database directory |
 | `--kraken2_db` | Path to Kraken2 database directory |
-| `--kaiju_dbname` | Path to Kaiju `.fmi` index file |
-| `--kaiju_names` | Path to Kaiju `names.dmp` file |
-| `--kaiju_nodes` | Path to Kaiju `nodes.dmp` file |
+| `--kaiju_db` | Path to the Kaiju `.fmi` index file. Its containing directory must also hold the matching `names.dmp` and `nodes.dmp` from the same Kaiju release — the pipeline discovers all three by globbing that directory |
 | `--genomad_db` | Path to GeNomad database directory |
 | `--hmmer_db` | Path to Pfam HMM database file (`Pfam-A.hmm`) |
 | `--rrna_ref` | Path to rRNA reference FASTA file (for BBDuk filtering) |

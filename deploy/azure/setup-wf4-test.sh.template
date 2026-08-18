@@ -1,0 +1,158 @@
+#!/usr/bin/env bash
+#
+# Start task for the view_test pool.
+#
+# Stages ONLY the TaxonKit taxdump (~2.6GB). Everything else the test case
+# needs lives in tests/ (~8MB) and is staged per-task by Nextflow, because
+# those databases are declared as `path` inputs by their modules.
+#
+# The taxdump is the exception: it is consumed as a `val` input (see
+# modules/{summarise_read_classification,extract_raw_viral_blast_hits,
+# extract_final_viral_blast_hits}/main.nf) so that the node-local path is used
+# directly rather than uploaded from the launching machine on every run.
+#
+# Unlike the production start task this does NOT format or mount the NVMe
+# disk — 2.6GB fits comfortably on the OS disk, and skipping that removes the
+# main source of start-task failures. The path is kept identical to production
+# so the same --taxdump value works on both pools.
+
+# Enable verbose logging for debugging (all commands echo to stderr)
+set -x
+
+# Exit on error
+set -euo pipefail
+
+# -----------------------------------------------------------------------------
+# CONFIGURATION
+# -----------------------------------------------------------------------------
+
+TAXDUMP_DIR="/mnt/nvme/refdata/taxdump"
+
+# Anonymous blob access (same container as the production start task).
+# NOTE the doubled path: the dumps live at refdata/taxdump/taxdump/*.dmp in
+# blob, so the inner directory is the actual source. Copying from the outer
+# one would land the files at $TAXDUMP_DIR/taxdump/ instead.
+TAXDUMP_BLOB_URL="https://daffpremium.blob.core.windows.net/refdata/taxdump/taxdump"
+
+# -----------------------------------------------------------------------------
+# FUNCTIONS
+# -----------------------------------------------------------------------------
+
+install_azcopy() {
+    echo "=== Installing azcopy ===" >&2
+
+    if command -v azcopy >/dev/null 2>&1; then
+        echo "azcopy already installed" >&2
+        azcopy --version >&2 || true
+        return
+    fi
+
+    echo "Downloading azcopy from Microsoft..." >&2
+    wget -q -O azcopy.tar.gz https://aka.ms/downloadazcopy-v10-linux
+
+    echo "Extracting azcopy..." >&2
+    tar -xf azcopy.tar.gz --strip-components=1
+
+    echo "Installing azcopy to /usr/local/bin..." >&2
+    mv azcopy /usr/local/bin/
+    chmod +x /usr/local/bin/azcopy
+
+    echo "Cleaning up..." >&2
+    rm -f azcopy.tar.gz
+
+    echo "azcopy installed successfully" >&2
+    azcopy --version >&2 || true
+}
+
+stage_taxdump() {
+    echo "=== Staging TaxonKit taxdump ===" >&2
+    date >&2
+
+    # names.dmp is the largest file and written last-ish; treat its presence
+    # as the marker for an already-staged node (start tasks re-run on reboot).
+    if [[ -f "$TAXDUMP_DIR/names.dmp" ]]; then
+        echo "taxdump already staged at $TAXDUMP_DIR — skipping." >&2
+        ls -lh "$TAXDUMP_DIR" >&2 || true
+        return
+    fi
+
+    echo "Creating taxdump directory: $TAXDUMP_DIR" >&2
+    mkdir -p "$TAXDUMP_DIR"
+
+    echo "Downloading taxdump from: ${TAXDUMP_BLOB_URL}" >&2
+    azcopy copy \
+        "${TAXDUMP_BLOB_URL}/*" \
+        "${TAXDUMP_DIR}" \
+        --recursive \
+        --check-md5 NoCheck \
+        --cap-mbps 0
+
+    echo "taxdump download completed" >&2
+    du -sh "$TAXDUMP_DIR" >&2 || true
+    date >&2
+}
+
+verify_taxdump() {
+    echo "=== Verifying taxdump ===" >&2
+
+    # TaxonKit needs all four dumps; a partial download fails later inside a
+    # task with a much less obvious error.
+    local missing=0
+    for f in names.dmp nodes.dmp merged.dmp delnodes.dmp; do
+        if [[ -f "$TAXDUMP_DIR/$f" ]]; then
+            echo "OK   $f" >&2
+        else
+            echo "MISS $f" >&2
+            missing=1
+        fi
+    done
+
+    if [[ "$missing" -ne 0 ]]; then
+        echo "ERROR: taxdump is incomplete at $TAXDUMP_DIR" >&2
+        return 1
+    fi
+
+    # Containers run as a different user; make sure the tree is readable.
+    chmod -R a+rX "$TAXDUMP_DIR"
+
+    echo "taxdump verified" >&2
+}
+
+# -----------------------------------------------------------------------------
+# MAIN
+# -----------------------------------------------------------------------------
+
+echo "===== START TASK (test pool): staging taxdump =====" >&2
+echo "Date: $(date)" >&2
+echo "User: $(whoami)" >&2
+
+echo "" >&2
+echo "STEP 1: Installing azcopy" >&2
+if install_azcopy; then
+    echo "✓ azcopy installed successfully" >&2
+else
+    echo "✗ Failed to install azcopy" >&2
+    exit 1
+fi
+
+echo "" >&2
+echo "STEP 2: Staging taxdump" >&2
+if stage_taxdump; then
+    echo "✓ taxdump staging completed" >&2
+else
+    echo "✗ Failed to stage taxdump" >&2
+    exit 1
+fi
+
+echo "" >&2
+echo "STEP 3: Verifying taxdump" >&2
+if verify_taxdump; then
+    echo "✓ taxdump verified" >&2
+else
+    echo "✗ taxdump verification failed" >&2
+    exit 1
+fi
+
+echo "" >&2
+echo "===== START TASK: Completed Successfully =====" >&2
+exit 0

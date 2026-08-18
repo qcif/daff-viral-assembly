@@ -24,18 +24,19 @@ PID=$$
 RUN_ID="$(date +"%Y%m%d_%H%M%S")_$PID"
 
 # Default values
-INPUT="index.csv"
+INPUT="tests/index-test.csv"
 OUTDIR="output/$RUN_ID"
 RESUME=""
 
 # Azure Batch node paths (staged by start task to NVMe under /mnt/nvme/refdata/)
 # Shared refdata (also used by taxodactyl):
 BLASTN_DB="/mnt/nvme/refdata/core_nt/core_nt"
-TAXDUMP="/mnt/nvme/refdata/taxdump"
+TAXDUMP="/mnt/nvme/refdata/taxdump/taxdump"
 # wf4-specific refdata (merged directly into /mnt/nvme/refdata/):
 KRAKEN2_DB="/mnt/nvme/refdata/kraken2_db"
-KAIJU_DB_PATH="/mnt/nvme/refdata/kaiju_db"
-KAIJU_DBNAME="kaiju_db.fmi"
+# Path to the .fmi itself — the workflow derives the containing directory and
+# globs it for *.fmi, *names.dmp and *nodes.dmp
+KAIJU_DB="/mnt/nvme/refdata/kaiju_db/kaiju_db.fmi"
 HMMER_DB="/mnt/nvme/refdata/pfam/Pfam-A.hmm"
 PROT_DB="/mnt/nvme/refdata/diamond/viral.dmnd"
 GENOMAD_DB="/mnt/nvme/refdata/genomad_db"
@@ -97,7 +98,7 @@ echo "Output dir:      $OUTDIR"
 echo "BLAST DB:        $BLASTN_DB (on Azure Batch nodes)"
 echo "Taxdump:         $TAXDUMP (on Azure Batch nodes)"
 echo "Kraken2 DB:      $KRAKEN2_DB (on Azure Batch nodes)"
-echo "Kaiju DB:        $KAIJU_DB_PATH/$KAIJU_DBNAME (on Azure Batch nodes)"
+echo "Kaiju DB:        $KAIJU_DB (on Azure Batch nodes)"
 echo "Pfam HMM:        $HMMER_DB (on Azure Batch nodes)"
 echo "Protein DB:      $PROT_DB (on Azure Batch nodes)"
 echo "GeNomad DB:      $GENOMAD_DB (on Azure Batch nodes)"
@@ -128,8 +129,7 @@ nextflow run main.nf \
     --blastn_db "$BLASTN_DB" \
     --taxdump "$TAXDUMP" \
     --kraken2_db "$KRAKEN2_DB" \
-    --kaiju_db_path "$KAIJU_DB_PATH" \
-    --kaiju_dbname "$KAIJU_DBNAME" \
+    --kaiju_db "$KAIJU_DB" \
     --hmmer_db "$HMMER_DB" \
     --prot_db "$PROT_DB" \
     --genomad_db "$GENOMAD_DB" \

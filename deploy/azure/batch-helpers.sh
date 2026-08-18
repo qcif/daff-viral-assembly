@@ -18,13 +18,25 @@ DEFAULT_POOL_ID="view"
 DEFAULT_AUTOSCALE_INTERVAL="PT5M"
 
 # Autoscale: fast scale-up (5min window), slow scale-down (15min window)
-# Scales to 1 node if any tasks pending in last 15min
+# Scales to 1 node if any tasks pending in either window.
+#
+# Every GetSample() call is guarded by GetSamplePercent(). GetSample() aborts
+# the WHOLE formula with InsufficientSampleData when the metric has no history,
+# in which case Batch falls back to $TargetDedicatedNodes=0. On a freshly
+# created pool that deadlocks the first run: no samples -> formula aborts ->
+# no nodes -> tasks stay pending forever. GetSamplePercent() never aborts, so
+# it is safe to call unguarded and is used to decide whether history exists.
 DEFAULT_AUTOSCALE_FORMULA='
 $keepWarmMinutes = 15;
+$scaleUpMinutes = 5;
 $concurrentNodes = 1;
 interval = TimeInterval_Minute * $keepWarmMinutes;
+upInterval = TimeInterval_Minute * $scaleUpMinutes;
 
-$tasks = max( $PendingTasks.GetSample(1), avg($PendingTasks.GetSample(interval)));
+$recent = $PendingTasks.GetSamplePercent(upInterval) > 0 ? max($PendingTasks.GetSample(upInterval)) : 0;
+$sustained = $PendingTasks.GetSamplePercent(interval) > 0 ? avg($PendingTasks.GetSample(interval)) : 0;
+
+$tasks = max($recent, $sustained);
 targetPoolSize = $tasks > 0 ? $concurrentNodes : 0;
 $TargetDedicatedNodes = targetPoolSize;
 $NodeDeallocationOption = taskcompletion;'

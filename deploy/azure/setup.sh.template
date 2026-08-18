@@ -16,13 +16,13 @@ NVME_MNT="/mnt/nvme"
 #   refdata-wf4 → /mnt/nvme/refdata/  (kraken2, kaiju, pfam, etc.)
 REFDATA_DIR="$NVME_MNT"
 
-# SAS tokens for premium blob storage (expires annually - rotate before expiry)
-# Permissions: read + list on container
+# Anonymous blob access enabled for both containers
 # refdata: shared with taxodactyl (core_nt, taxdump)
-REFDATA_BLOB_URL="https://daffpremium.blob.core.windows.net/refdata?<REFDATA_SAS_TOKEN>"
+REFDATA_BLOB_URL="https://daffpremium.blob.core.windows.net/refdata"
+
 # refdata-wf4: wf4-specific reference databases (kraken2, kaiju, pfam, etc.)
 # Downloading into /mnt/nvme/refdata so everything is under one directory
-REFDATA_WF4_BLOB_URL="https://daffpremium.blob.core.windows.net/refdata-wf4?<REFDATA_WF4_SAS_TOKEN>"
+REFDATA_WF4_BLOB_URL="https://daffstandard.blob.core.windows.net/refdata-wf4"
 
 # -----------------------------------------------------------------------------
 # FUNCTIONS
@@ -158,6 +158,54 @@ stage_refdata_wf4() {
     date >&2
 }
 
+restore_genomad_symlinks() {
+    echo "=== Restoring geNomad mini-DB symlinks ===" >&2
+
+    # The geNomad DB ships genomad_mini_db_* as symlinks to their genomad_db_*
+    # counterparts. Blob storage cannot represent symlinks, so they are excluded
+    # from the upload and recreated here — following them at upload time would
+    # roughly double the size of genomad_db for no benefit.
+    #
+    # Note: genomad_mini_db.dbtype and genomad_mini_db.index are NOT symlinks
+    # upstream; they are real files and must be present in the container.
+    local db_dir="$REFDATA_DIR/refdata/genomad_db"
+
+    if [[ ! -d "$db_dir" ]]; then
+        echo "ERROR: geNomad DB directory not found: $db_dir" >&2
+        return 1
+    fi
+
+    # link name -> target (both relative to $db_dir)
+    local links=(
+        "genomad_mini_db:genomad_db"
+        "genomad_mini_db_h:genomad_db_h"
+        "genomad_mini_db_h.dbtype:genomad_db_h.dbtype"
+        "genomad_mini_db_h.index:genomad_db_h.index"
+        "genomad_mini_db.lookup:genomad_db.lookup"
+        "genomad_mini_db_mapping:genomad_db_mapping"
+        "genomad_mini_db.source:genomad_db.source"
+        "genomad_mini_db_taxonomy:genomad_db_taxonomy"
+    )
+
+    local entry link target
+    for entry in "${links[@]}"; do
+        link="${entry%%:*}"
+        target="${entry##*:}"
+
+        if [[ ! -e "$db_dir/$target" ]]; then
+            echo "ERROR: symlink target missing: $db_dir/$target" >&2
+            return 1
+        fi
+
+        # -f replaces an existing link, -n avoids descending into one that
+        # already points at a directory (makes re-runs idempotent)
+        ln -sfn "$target" "$db_dir/$link"
+    done
+
+    echo "geNomad symlinks restored:" >&2
+    ls -l "$db_dir"/genomad_mini_db* >&2 || true
+}
+
 # -----------------------------------------------------------------------------
 # MAIN
 # -----------------------------------------------------------------------------
@@ -205,6 +253,15 @@ if stage_refdata_wf4; then
     echo "✓ wf4 reference data staging completed" >&2
 else
     echo "✗ Failed to stage wf4 reference data" >&2
+    exit 1
+fi
+
+echo "" >&2
+echo "STEP 6: Restoring geNomad mini-DB symlinks" >&2
+if restore_genomad_symlinks; then
+    echo "✓ geNomad symlinks restored" >&2
+else
+    echo "✗ Failed to restore geNomad symlinks" >&2
     exit 1
 fi
 
