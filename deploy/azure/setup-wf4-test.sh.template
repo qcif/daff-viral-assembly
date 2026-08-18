@@ -34,6 +34,14 @@ TAXDUMP_DIR="/mnt/nvme/refdata/taxdump"
 # one would land the files at $TAXDUMP_DIR/taxdump/ instead.
 TAXDUMP_BLOB_URL="https://daffpremium.blob.core.windows.net/refdata/taxdump/taxdump"
 
+# geNomad. Without this the workflow falls into the GENOMAD_DOWNLOAD_DB branch
+# (see workflows/view/main.nf), which re-downloads ~750MB from the internet on
+# every run and publishes it back to the launching machine via
+# publishDir "${params.databases}". Staging it here makes params.genomad_db
+# non-null, so that branch never fires.
+GENOMAD_DIR="/mnt/nvme/refdata/genomad_db"
+GENOMAD_BLOB_URL="https://daffstandard.blob.core.windows.net/refdata-wf4/genomad_db"
+
 # -----------------------------------------------------------------------------
 # FUNCTIONS
 # -----------------------------------------------------------------------------
@@ -90,6 +98,67 @@ stage_taxdump() {
     echo "taxdump download completed" >&2
     du -sh "$TAXDUMP_DIR" >&2 || true
     date >&2
+}
+
+stage_genomad_db() {
+    echo "=== Staging geNomad DB ===" >&2
+    date >&2
+
+    if [[ -f "$GENOMAD_DIR/genomad_db" ]]; then
+        echo "geNomad DB already staged at $GENOMAD_DIR — skipping." >&2
+        return
+    fi
+
+    echo "Creating geNomad directory: $GENOMAD_DIR" >&2
+    mkdir -p "$GENOMAD_DIR"
+
+    echo "Downloading geNomad DB from: ${GENOMAD_BLOB_URL}" >&2
+    azcopy copy \
+        "${GENOMAD_BLOB_URL}/*" \
+        "${GENOMAD_DIR}" \
+        --recursive \
+        --check-md5 NoCheck \
+        --cap-mbps 0
+
+    echo "geNomad DB download completed" >&2
+    du -sh "$GENOMAD_DIR" >&2 || true
+    date >&2
+}
+
+restore_genomad_symlinks() {
+    echo "=== Restoring geNomad mini-DB symlinks ===" >&2
+
+    # Identical to the production start task. The geNomad DB ships
+    # genomad_mini_db_* as symlinks to their genomad_db_* counterparts. Blob
+    # storage cannot represent symlinks, so they are excluded from the upload
+    # and recreated here.
+    #
+    # Note: genomad_mini_db.dbtype and genomad_mini_db.index are NOT symlinks
+    # upstream; they are real files and are downloaded with everything else.
+    local links=(
+        "genomad_mini_db:genomad_db"
+        "genomad_mini_db_h:genomad_db_h"
+        "genomad_mini_db_h.dbtype:genomad_db_h.dbtype"
+        "genomad_mini_db_h.index:genomad_db_h.index"
+        "genomad_mini_db.lookup:genomad_db.lookup"
+        "genomad_mini_db_mapping:genomad_db_mapping"
+        "genomad_mini_db.source:genomad_db.source"
+        "genomad_mini_db_taxonomy:genomad_db_taxonomy"
+    )
+
+    local entry link target
+    for entry in "${links[@]}"; do
+        link="${entry%%:*}"
+        target="${entry##*:}"
+        if [[ ! -e "$GENOMAD_DIR/$target" ]]; then
+            echo "ERROR: symlink target missing: $GENOMAD_DIR/$target" >&2
+            return 1
+        fi
+        ln -sfn "$target" "$GENOMAD_DIR/$link"
+    done
+
+    chmod -R a+rX "$GENOMAD_DIR"
+    echo "geNomad symlinks restored" >&2
 }
 
 verify_taxdump() {
@@ -150,6 +219,24 @@ if verify_taxdump; then
     echo "✓ taxdump verified" >&2
 else
     echo "✗ taxdump verification failed" >&2
+    exit 1
+fi
+
+echo "" >&2
+echo "STEP 4: Staging geNomad DB" >&2
+if stage_genomad_db; then
+    echo "✓ geNomad DB staging completed" >&2
+else
+    echo "✗ Failed to stage geNomad DB" >&2
+    exit 1
+fi
+
+echo "" >&2
+echo "STEP 5: Restoring geNomad symlinks" >&2
+if restore_genomad_symlinks; then
+    echo "✓ geNomad symlinks restored" >&2
+else
+    echo "✗ Failed to restore geNomad symlinks" >&2
     exit 1
 fi
 

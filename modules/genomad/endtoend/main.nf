@@ -6,7 +6,10 @@ process GENOMAD_ENDTOEND {
 
     input:
     tuple val(sampleid), path(viral_fasta), path(other_fasta)
-    path(genomad_db)
+    // `val`, not `path`: the DB is staged to the node by the pool start task
+    // and read through the /mnt/nvme/refdata bind mount, so Nextflow must not
+    // resolve or upload it from the launching machine.
+    val(genomad_db)
 
     output:
     file "*_summary/*_virus.fna"

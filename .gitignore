@@ -141,3 +141,7 @@ dmypy.json
 *.swo
 *~
 .DS_Store
+
+# geNomad DB published by GENOMAD_DOWNLOAD_DB (params.databases = launchDir/databases).
+# Staged to the node by the start task instead; never commit it.
+databases/

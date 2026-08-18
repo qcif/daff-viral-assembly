@@ -87,10 +87,17 @@ workflow VIEW {
         else {
             error "Required parameter 'genomad_db' is missing. Please set it in your -params-file."
         }
-        ch_genomad_db = db_results.db
+        // GENOMAD_ENDTOEND takes genomad_db as a `val`, so pass the absolute
+        // path rather than the file object. Local executors bind-mount the
+        // work directory, so the downloaded DB is readable at this path.
+        // This branch is local-only: every Azure profile sets genomad_db.
+        ch_genomad_db = db_results.db.map { it.toString() }
     }
     else {
-        ch_genomad_db = Channel.fromPath(params.genomad_db)
+        // A `val`, not fromPath: on Azure this is a node-local path staged by
+        // the pool start task, which must not be resolved or uploaded from the
+        // launching machine.
+        ch_genomad_db = Channel.value(params.genomad_db)
     }
     
     def otherRequiredParams = [
