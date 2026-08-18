@@ -1,6 +1,10 @@
 # Test data
 output/
 
+# Nextflow stuff
+.nextflow/
+*.log.*
+
 # Dev reference databases (built by scripts/build_dev_dbs/)
 refdata_dev/
 
