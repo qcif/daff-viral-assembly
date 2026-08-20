@@ -290,7 +290,7 @@ workflow VIEW {
     
     ch_read_classification = KAIJU_KAIJU.out.kaiju_results.join(KRAKEN2_ABUNDANCE_ESTIMATE.out.kraken2_results)
                                                         .join(ch_stats)
-    SUMMARISE_READ_CLASSIFICATION ( ch_read_classification, params.taxdump )
+    SUMMARISE_READ_CLASSIFICATION ( ch_read_classification, params.taxdump, params.filter_terms )
 
     //perform de novo assembly with spades using rnaspades
     SPADES ( RETRIEVE_VIRAL_READS_KRAKEN2.out.fastq )
