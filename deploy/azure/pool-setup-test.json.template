@@ -24,7 +24,7 @@
     "commandLine": "/bin/bash setup.sh",
     "resourceFiles": [
       {
-        "httpUrl": "https://daffstandard.blob.core.windows.net/scripts/setup-wf4-test.sh",
+        "httpUrl": "https://daffstandard.blob.core.windows.net/scripts/wf4/setup-test.sh",
         "filePath": "setup.sh"
       }
     ],
