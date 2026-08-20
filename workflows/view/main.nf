@@ -312,7 +312,7 @@ workflow VIEW {
         .set { ch_blastresults }
     ch_extract_raw_viral_blast_hits = ch_blastresults
         .join(SEQTK_SEQ.out.filt_headers)
-    EXTRACT_RAW_VIRAL_BLAST_HITS(ch_extract_raw_viral_blast_hits, params.taxdump)
+    EXTRACT_RAW_VIRAL_BLAST_HITS(ch_extract_raw_viral_blast_hits, params.taxdump, params.filter_terms)
     //Add contig sequence to blast results summary table
     //Mapping back to contigs that had viral blast hits
     EXTRACT_CONTIGS ( EXTRACT_RAW_VIRAL_BLAST_HITS.out.viral_blast_results.join(SEQTK_SEQ.out.filt_fasta) )
@@ -341,7 +341,7 @@ workflow VIEW {
     MOSDEPTH_CONTIGS (SAMTOOLS_CONTIGS.out.sorted_bam.join(pyfaidx_contigs.bed))
     MEGABLAST_ROUND2 ( TRIM_ENDS.out.trimmed_contigs, ch_blast_db )
     ch_extract_final_viral_blast_hits = MEGABLAST_ROUND2.out.blast_results.join(SEQTK_SEQ.out.filt_headers) 
-    EXTRACT_FINAL_VIRAL_BLAST_HITS ( ch_extract_final_viral_blast_hits, params.taxdump )
+    EXTRACT_FINAL_VIRAL_BLAST_HITS ( ch_extract_final_viral_blast_hits, params.taxdump, params.filter_terms )
     ch_fasta2table_contigs_input = EXTRACT_FINAL_VIRAL_BLAST_HITS.out.viral_blast_results
         .join(TRIM_ENDS.out.trimmed_contigs)
         .map { sampleid, tophits, fasta -> tuple(sampleid, tophits, fasta, 'contigs') }

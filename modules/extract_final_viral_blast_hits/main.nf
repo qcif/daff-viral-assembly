@@ -6,6 +6,7 @@ process EXTRACT_FINAL_VIRAL_BLAST_HITS {
     input:
     tuple val(sampleid), path(blast_results), path(assembly_headers)
     val(taxonkit_db)
+    path(filter_terms)
 
     output:
     tuple val(sampleid), path("${sampleid}_megablast_top_viral_hits.txt"), emit: viral_blast_results
@@ -17,7 +18,7 @@ process EXTRACT_FINAL_VIRAL_BLAST_HITS {
     filter_blast.py --blastn_results ${sampleid}_blastn.txt \
                     --sample_name ${sampleid} \
                     --taxonkit_database_dir ${taxonkit_db} \
-                    --filter ${params.filter_terms} \
+                    --filter ${filter_terms} \
                     --assembly_headers ${assembly_headers}
     """
 }
