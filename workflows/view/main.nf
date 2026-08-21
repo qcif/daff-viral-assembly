@@ -36,6 +36,7 @@ include { FASTQC as FASTQC_RAW } from '../../modules/fastqc/main'
 include { FASTQC as FASTQC_TRIM } from '../../modules/fastqc/main'
 include { FQ_SUBSAMPLE } from '../../modules/fq/subsample/main'
 include { GENOMAD_ENDTOEND } from '../../modules/genomad/endtoend/main'
+include { GENOMAD_ENDTOEND_TEST } from '../../modules/genomad/endtoend_test/main'
 include { GENOMAD_DOWNLOAD_DB } from '../../modules/genomad/download_db/main'
 include { HMMSCAN } from '../../modules/hmmscan/main'
 include { HTML_REPORT } from '../../modules/html_report/main'
@@ -80,26 +81,31 @@ workflow VIEW {
     else {
         params.kaiju_db_dir = file(params.kaiju_db).parent
     }
-    if ( !params.genomad_db) {
-        if (workflow.profile.tokenize(',').contains('test')) {
-            db_results = GENOMAD_DOWNLOAD_DB()
-        }
-        else {
-            error "Required parameter 'genomad_db' is missing. Please set it in your -params-file."
-        }
-        // GENOMAD_ENDTOEND takes genomad_db as a `val`, so pass the absolute
-        // path rather than the file object. Local executors bind-mount the
-        // work directory, so the downloaded DB is readable at this path.
-        // This branch is local-only: every Azure profile sets genomad_db.
-        ch_genomad_db = db_results.db.map { it.toString() }
-    }
-    else {
-        // A `val`, not fromPath: on Azure this is a node-local path staged by
-        // the pool start task, which must not be resolved or uploaded from the
-        // launching machine.
-        ch_genomad_db = Channel.value(params.genomad_db)
-    }
+    log.info "PROFILE: ${workflow.profile}"
+    log.info "GENOMAD DB: ${params.genomad_db}"
+    log.info "GENOMAD DB CLASS: ${params.genomad_db?.getClass()?.name}"
+    log.info "NO GENOMAD DB: ${!params.genomad_db}"
+    // if (workflow.profile.tokenize(',').contains('test')) {
+    //         db_results = GENOMAD_DOWNLOAD_DB()
+    //         // GENOMAD_ENDTOEND takes genomad_db as a `val`, so pass the absolute
+    //         // path rather than the file object. Local executors bind-mount the
+    //         // work directory, so the downloaded DB is readable at this path.
+    //         // This branch is local-only: every Azure profile sets genomad_db.
+    //         ch_genomad_db = db_results.db.map { it.toString() }
+    //         ch_genomad_db.view { "Resolved GENOMAD DB: $it" }
+    // }
     
+    // else {
+    //     if (!params.genomad_db) {
+    //         error "Required parameter 'genomad_db' is missing. Please set it in your -params-file."
+    //     }
+    //     // A `val`, not fromPath: on Azure this is a node-local path staged by
+    //     // the pool start task, which must not be resolved or uploaded from the
+    //     // launching machine.
+    //     ch_genomad_db = Channel.value(params.genomad_db)
+    // }
+
+
     def otherRequiredParams = [
         'blastn_db',
         'hmmer_db',
@@ -368,7 +374,30 @@ workflow VIEW {
     HMMSCAN ( ORFIPY.out.orf_fasta, ch_hmmer_db )
     ch_genomad = TRIM_ENDS.out.trimmed_contigs.join(EXTRACT_CONTIGS.out.other_fasta)
     //GENOMAD_ENDTOEND ( genomad_ch, params.genomad_db )
-    GENOMAD_ENDTOEND ( ch_genomad, ch_genomad_db )
+    //GENOMAD_ENDTOEND ( ch_genomad, ch_genomad_db )
+    def is_test = workflow.profile.tokenize(',').contains('test')
+
+    if (is_test) {
+        db_results = GENOMAD_DOWNLOAD_DB()
+
+        GENOMAD_ENDTOEND_TEST(
+            ch_genomad,
+            db_results.db
+        )
+        ch_genomad_virus_preds = GENOMAD_ENDTOEND_TEST.out.virus_preds
+    }
+    else {
+        if (!params.genomad_db) {
+            error "Required parameter 'genomad_db' is missing. Please set it in your -params-file."
+        }
+
+        GENOMAD_ENDTOEND(
+            ch_genomad,
+            Channel.value(params.genomad_db)
+        )
+        ch_genomad_virus_preds = GENOMAD_ENDTOEND.out.virus_preds
+    }
+
 
     //Enhancement: Option to perform a blastx alignment of contig ORFs?
     ch_diamond = TRIM_ENDS.out.trimmed_contigs.join(EXTRACT_CONTIGS.out.other_fasta) 
@@ -421,7 +450,7 @@ workflow VIEW {
         .join(HMMSCAN.out.hmmscan_preds)
         .join(ch_fasta2table_ref.detections_summary_final)
         .join(SEQTK_SEQ.out.filt_fasta)
-        .join(GENOMAD_ENDTOEND.out.virus_preds)
+        .join(ch_genomad_virus_preds)
         .join(EXTRACT_FINAL_VIRAL_BLAST_HITS.out.viral_blast_results)
         .join(DIAMOND_BLASTX.out.diamond_results)
         .map { sampleid, kraken_results, kaiju_results, blast, hmmscan, map2ref, contigs, genomad, blast_novel, diamond_results ->
