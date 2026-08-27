@@ -8,6 +8,9 @@ process HTML_REPORT {
     path(qcreport_html),
     path(qcreport_txt),
     path(configyaml),
+    path(versions_yml),
+    path(default_params_yml),
+    path(filter_terms_txt),
     path(samplesheet)
 
     output:
@@ -22,11 +25,15 @@ process HTML_REPORT {
     analyst_name = params.analyst_name ? params.analyst_name.replaceAll(/ /, '_') : "unknown"
     facility = params.facility ? params.facility.replaceAll(/ /, '_') : "unknown"
     """
-    #cp ${qcreport_html} .
-    cp ${params.tool_versions} versions.yml
-    cp ${params.default_params} default_params.yml
-    cp ${params.filter_terms} filterKeyWords.txt
-
+    set +e
     build_report.py --samplesheet ${samplesheet} --result_dir . --params_file ${configyaml} --analyst ${analyst_name} --facility ${facility} --versions versions.yml --default_params_file default_params.yml
+    
+    status=\$?
+
+    echo "BUILD_REPORT_EXIT_STATUS=\$status"
+    echo "FILES AFTER REPORT:"
+    ls -lah
+
+    exit \$status
     """
 }

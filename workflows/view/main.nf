@@ -81,10 +81,6 @@ workflow VIEW {
     else {
         params.kaiju_db_dir = file(params.kaiju_db).parent
     }
-    log.info "PROFILE: ${workflow.profile}"
-    log.info "GENOMAD DB: ${params.genomad_db}"
-    log.info "GENOMAD DB CLASS: ${params.genomad_db?.getClass()?.name}"
-    log.info "NO GENOMAD DB: ${!params.genomad_db}"
     // if (workflow.profile.tokenize(',').contains('test')) {
     //         db_results = GENOMAD_DOWNLOAD_DB()
     //         // GENOMAD_ENDTOEND takes genomad_db as a `val`, so pass the absolute
@@ -487,10 +483,16 @@ workflow VIEW {
         .join(SUMMARISE_RESULTS.out.diamond_summary)
         .join(SUMMARISE_RESULTS.out.novel_contig_summary)
         
+    ch_tool_versions  = Channel.value(file(params.tool_versions))
+    ch_default_params = Channel.value(file(params.default_params))
+    ch_filter_terms   = Channel.value(file(params.filter_terms))
     ch_files_for_report_global = START_TIMESTAMP.out.timestamp
         .concat(QC_REPORT.out.qc_report_html)
         .concat(QC_REPORT.out.qc_report_txt)
         .concat(configyaml)
+        .concat(ch_tool_versions)
+        .concat(ch_default_params)
+        .concat(ch_filter_terms)
         .concat(Channel.from(params.input).map { file(it) }).toList()
     HTML_REPORT(ch_files_for_report_ind_samples
         .combine(ch_files_for_report_global))
