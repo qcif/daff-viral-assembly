@@ -12,7 +12,7 @@ process CAT_FASTQ {
 
     output:
     //tuple val(meta), path("*.merged.fastq.gz"), path("*read_count.txt"), emit: reads
-    tuple val(meta), path("*.merged.fastq.gz"), emit: reads
+    tuple val(meta), path("*_merged*.fastq.gz"), emit: reads
     path "versions.yml"                       , emit: versions
 
     when:
@@ -25,7 +25,7 @@ process CAT_FASTQ {
     if (meta.single_end) {
         if (readList.size >= 1) {
             """
-            cat ${readList.join(' ')} > ${prefix}.merged.fastq.gz
+            cat ${readList.join(' ')} > ${prefix}_merged.fastq.gz
 
             cat <<-END_VERSIONS > versions.yml
             "${task.process}":
@@ -39,12 +39,12 @@ process CAT_FASTQ {
             def read2 = []
             readList.eachWithIndex{ v, ix -> ( ix & 1 ? read2 : read1 ) << v }
             """
-            cat ${read1.join(' ')} > ${prefix}_1.merged.fastq.gz
-            cat ${read2.join(' ')} > ${prefix}_2.merged.fastq.gz
+            cat ${read1.join(' ')} > ${prefix}_merged_1.fastq.gz
+            cat ${read2.join(' ')} > ${prefix}_merged_2.fastq.gz
 
-            #zgrep -c '^@' ${prefix}_1.merged.fastq.gz > ${prefix}_read_count.txt
-            #zgrep -c '^@.*' ${prefix}_1.merged.fastq.gz > ${prefix}_read_count.txt
-            #echo \$(( \$(zcat ${prefix}_1.merged.fastq.gz | wc -l) / 4 )) > ${prefix}_read_count.txt
+            #zgrep -c '^@' ${prefix}_merged_1.fastq.gz > ${prefix}_read_count.txt
+            #zgrep -c '^@.*' ${prefix}_merged_1.fastq.gz > ${prefix}_read_count.txt
+            #echo \$(( \$(zcat ${prefix}_merged_1.fastq.gz | wc -l) / 4 )) > ${prefix}_read_count.txt
             
             cat <<-END_VERSIONS > versions.yml
             "${task.process}":
@@ -71,8 +71,8 @@ process CAT_FASTQ {
     } else {
         if (readList.size > 2) {
             """
-            touch ${prefix}_1.merged.fastq.gz
-            touch ${prefix}_2.merged.fastq.gz
+            touch ${prefix}_merged_1.fastq.gz
+            touch ${prefix}_merged_2.fastq.gz
 
             cat <<-END_VERSIONS > versions.yml
             "${task.process}":

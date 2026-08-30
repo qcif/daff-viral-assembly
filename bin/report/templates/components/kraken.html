@@ -1,7 +1,7 @@
 {% set term_filter_idx = kraken.columns_primary_display.index('term_filter') %}
 {% set cov_filter_idx  = kraken.columns_primary_display.index('cov_filter') %}
 
-<h2>Direct taxonomic read classification (Kraken/Braken)</h2>
+<h2>Direct taxonomic read classification (Kraken)</h2>
 
 <div class="alert alert-info">
   <div class="row align-items-center">
@@ -114,7 +114,7 @@
             Pytaxonkit is subsequently used to retrieve the full taxonomic lineage for each taxid identified by Kraken, and the NCBI taxonomy is used to determine which of those are viruses/viroids.
           </li>
           <li>
-            The table below shows the number and percent of quality filtered reads assigned to each taxon identified by Kraken. With the expection of viruses and viroids, taxa that account for less than 0.1% of reads are filtered out of the table.
+            The table below shows the number and percent of quality filtered reads assigned to each taxon identified by Kraken. With the expection of viruses and viroids, taxa that account for less than 0.001% of reads are filtered out of the table.
           </li>
           <li>
             Sort the table by alphabetical or numerical order by clicking on column headers, and adjust the number of displayed entries using the dropdown menu above the table.

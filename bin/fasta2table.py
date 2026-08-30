@@ -58,8 +58,11 @@ def process_denovo_contigs(fasta_df, blastn_results, sample_name, blast_file):
         merged_df.to_csv(output_file, index=False, sep="\t")
         
         # Apply filters
-        filtered_df = merged_df[merged_df["term_filter"] & merged_df["cov_filter"]]
-        
+        #filtered_df = merged_df[merged_df["term_filter"] & merged_df["cov_filter"]]
+        filtered_df = merged_df[
+            (merged_df["term_filter"] == False) &
+            (merged_df["cov_filter"] == False)
+        ]
         # Save filtered results
         filtered_output = os.path.basename(blast_file).replace("_top_viral_hits.txt", "_top_viral_hits_filtered_with_contigs.txt")
         filtered_df.to_csv(filtered_output, index=False, sep="\t")

@@ -155,11 +155,11 @@ class Config:
 
     @property
     def run_qc_raw_fastqc_path(self) -> Path:
-        return self._get_file_by_pattern("*.merged_subsampled_1_fastqc.html")
+        return self._get_file_by_pattern("*_subsampled_1_fastqc.html")
 
     @property
     def run_qc_clean_fastqc_path(self) -> Path:
-        return self._get_file_by_pattern("*.fastp_1_fastqc.html")
+        return self._get_file_by_pattern("*_fastp_1_fastqc.html")
 
     #@property
     #def read_distribution_chart_path(self) -> Path:
