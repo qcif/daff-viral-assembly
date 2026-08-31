@@ -19,7 +19,7 @@ The `refdata-wf4` container must be populated before the first run:
 |---|---|---|---|
 | Kraken2 DB | 315GB | `kraken2_db/` | `/mnt/nvme/refdata/kraken2_db/` |
 | Kaiju DB | 175GB | `kaiju_db/` | `/mnt/nvme/refdata/kaiju_db/` |
-| DIAMOND protein DB | 45GB | `diamond/` | `/mnt/nvme/refdata/diamond/` |
+| DIAMOND RVDB protein DB | 45GB | `diamond/` | `/mnt/nvme/refdata/diamond/` |
 | RVDB taxonomy | 4GB | `rvdb_taxonomy/` | `/mnt/nvme/refdata/rvdb_taxonomy/` |
 | GeNomad DB | 1.4GB | `genomad_db/` | `/mnt/nvme/refdata/genomad_db/` |
 | Pfam-A.hmm | 1.8GB | `pfam/` | `/mnt/nvme/refdata/pfam/` |
@@ -50,37 +50,51 @@ Use azcopy for large transfers (much faster than `az storage blob upload-batch`)
 
 ```sh
 # Upload Kraken2 DB
-azcopy copy '/path/to/kraken2_db/*' \
-  "https://daffpremium.blob.core.windows.net/refdata-wf4/kraken2_db/" \
+# Extracts to ...
+azcopy copy 'k2_core_nt_20251015.tar.gz' \
+  "https://daffpremium.blob.core.windows.net/refdata-wf4/" \
   --recursive --overwrite=ifSourceNewer
 
 # Upload Kaiju DB
-azcopy copy '/path/to/kaiju_db/*' \
-  "https://daffpremium.blob.core.windows.net/refdata-wf4/kaiju_db/" \
+# Extracts to ...
+azcopy copy 'kaiju_db_nr_euk_2023-05-10.tgz' \
+  "https://daffpremium.blob.core.windows.net/refdata-wf4/" \
   --recursive --overwrite=ifSourceNewer
 
 # Upload Pfam-A.hmm
-azcopy copy '/path/to/Pfam-A.hmm' \
-  "https://daffpremium.blob.core.windows.net/refdata-wf4/pfam/"
+# Extracts to ...
+azcopy copy '/path/to/Pfam-A.hmm.gz' \
+  "https://daffpremium.blob.core.windows.net/refdata-wf4/"
 
 # Upload DIAMOND DB
-azcopy copy '/path/to/viral.dmnd' \
-  "https://daffpremium.blob.core.windows.net/refdata-wf4/diamond/"
+# Extracts to ...
+azcopy copy '/path/to/rvdb.dmnd' \
+  "https://daffpremium.blob.core.windows.net/refdata-wf4/diamond/rvdb.dmnd"
 
 # Upload GeNomad DB
-azcopy copy '/path/to/genomad_db/*' \
-  "https://daffpremium.blob.core.windows.net/refdata-wf4/genomad_db/" \
+# Extracts to ./genomd_db/genomad_db*
+azcopy copy 'genomad_db_v1.9.tar.gz' \
+  "https://daffpremium.blob.core.windows.net/refdata-wf4/" \
   --recursive --overwrite=ifSourceNewer
 
 # Upload RVDB taxonomy
-azcopy copy '/path/to/rvdb_taxonomy/*' \
-  "https://daffpremium.blob.core.windows.net/refdata-wf4/rvdb_taxonomy/" \
+# Extracts to ...
+azcopy copy 'RVDB_Taxon_Current.tab.gz' \
+  "https://daffpremium.blob.core.windows.net/refdata-wf4/" \
   --recursive --overwrite=ifSourceNewer
 
 # Upload rRNA/contaminant references
-azcopy copy '/path/to/rrna_ref/*' \
-  "https://daffpremium.blob.core.windows.net/refdata-wf4/rrna_ref/" \
+# Extracts to ...
+azcopy copy 'smr_v4.tar.gz' \
+  "https://daffpremium.blob.core.windows.net/refdata-wf4/smr_v4.tar.gz" \
   --recursive --overwrite=ifSourceNewer
+
+k2_core_nt_20251015.tar.gz
+kaiju_db_nr_euk_2023-05-10.tgz
+Pfam-A.hmm.gz
+rvdb.dmnd
+RVDB_Taxon_Current.tab.gz
+smr_v4.tar.gz
 ```
 
 The `core_nt` and `taxdump` data already exist in the `refdata` container from Taxodactyl setup. No re-upload needed.
@@ -101,6 +115,23 @@ azcopy copy './tests/kaiju_test_db/*' \
 # These land on the test node at:
 #   /mnt/nvme/refdata/test/kraken_test_db/
 #   /mnt/nvme/refdata/test/kaiju_test_db/
+```
+
+### Upload dev databases
+
+Between the tiny CI test DBs and the full ~490 GB production DBs sits a "dev"
+tier (~500 MB each) built locally by
+[`scripts/build_dev_dbs/`](../../scripts/build_dev_dbs/README.md). Upload them
+to a `dev/` prefix if a dev Azure pool needs them:
+
+```sh
+azcopy copy './refdata_dev/kraken2_db/*' \
+  "https://daffpremium.blob.core.windows.net/refdata-wf4/dev/kraken2_db/" \
+  --recursive
+
+azcopy copy './refdata_dev/kaiju_db/*' \
+  "https://daffpremium.blob.core.windows.net/refdata-wf4/dev/kaiju_db/" \
+  --recursive
 ```
 
 ## Generating SAS Tokens

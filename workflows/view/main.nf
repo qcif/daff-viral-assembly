@@ -8,6 +8,7 @@ include { fromSamplesheet } from 'plugin/nf-validation'
 def isNonEmptyFile(file) {
     return file.exists() && file.size() > 0
 }
+    
 
 include { BBMAP_BBDUK } from '../../modules/bbmap/bbduk/main'
 include { BBMAP_BBSPLIT } from '../../modules/bbmap/bbsplit/main'
@@ -36,6 +37,7 @@ include { FASTQC as FASTQC_RAW } from '../../modules/fastqc/main'
 include { FASTQC as FASTQC_TRIM } from '../../modules/fastqc/main'
 include { FQ_SUBSAMPLE } from '../../modules/fq/subsample/main'
 include { GENOMAD_ENDTOEND } from '../../modules/genomad/endtoend/main'
+include { GENOMAD_ENDTOEND_TEST } from '../../modules/genomad/endtoend_test/main'
 include { GENOMAD_DOWNLOAD_DB } from '../../modules/genomad/download_db/main'
 include { HMMSCAN } from '../../modules/hmmscan/main'
 include { HTML_REPORT } from '../../modules/html_report/main'
@@ -67,12 +69,12 @@ include { TRIM_ENDS } from '../../modules/trim_ends/main'
 workflow VIEW {
     // Show help message
     
-    if ( !params.taxdump ) {
-        error "Required parameter 'taxdump' is missing. Please set it in your -params-file."
-    }
-    else {
-        params.taxdump_dir = file(params.taxdump).parent
-    }
+    // if ( !params.taxdump ) {
+    //     error "Required parameter 'taxdump' is missing. Please set it in your -params-file."
+    // }
+    // else {
+    //     params.taxdump_dir = file(params.taxdump).parent
+    // }
 
     if ( !params.kaiju_db ) {
         error "Required parameter 'kaiju_db' is missing. Please set it in your -params-file."
@@ -80,19 +82,27 @@ workflow VIEW {
     else {
         params.kaiju_db_dir = file(params.kaiju_db).parent
     }
-    if ( !params.genomad_db) {
-        if (workflow.profile.tokenize(',').contains('test')) {
-            db_results = GENOMAD_DOWNLOAD_DB()
-        }
-        else {
-            error "Required parameter 'genomad_db' is missing. Please set it in your -params-file."
-        }
-        ch_genomad_db = db_results.db.first()
-    }
-    else {
-        ch_genomad_db = Channel.value(file(params.genomad_db))
-    }
+    // if (workflow.profile.tokenize(',').contains('test')) {
+    //         db_results = GENOMAD_DOWNLOAD_DB()
+    //         // GENOMAD_ENDTOEND takes genomad_db as a `val`, so pass the absolute
+    //         // path rather than the file object. Local executors bind-mount the
+    //         // work directory, so the downloaded DB is readable at this path.
+    //         // This branch is local-only: every Azure profile sets genomad_db.
+    //         ch_genomad_db = db_results.db.map { it.toString() }
+    //         ch_genomad_db.view { "Resolved GENOMAD DB: $it" }
+    // }
     
+    // else {
+    //     if (!params.genomad_db) {
+    //         error "Required parameter 'genomad_db' is missing. Please set it in your -params-file."
+    //     }
+    //     // A `val`, not fromPath: on Azure this is a node-local path staged by
+    //     // the pool start task, which must not be resolved or uploaded from the
+    //     // launching machine.
+    //     ch_genomad_db = Channel.value(params.genomad_db)
+    // }
+
+
     def otherRequiredParams = [
         'blastn_db',
         'hmmer_db',
@@ -102,13 +112,14 @@ workflow VIEW {
         'rrna_ref',
         'kraken2_db',
     ]
+    
 
     otherRequiredParams.each { p ->
         if (!params[p]) {
             error "Required parameter '${p}' is missing. Please set it in your -params-file."
         }
     }
-    
+
 
     START_TIMESTAMP ()
     ch_versions = Channel.empty()
@@ -283,7 +294,8 @@ workflow VIEW {
     
     ch_read_classification = KAIJU_KAIJU.out.kaiju_results.join(KRAKEN2_ABUNDANCE_ESTIMATE.out.kraken2_results)
                                                         .join(ch_stats)
-    SUMMARISE_READ_CLASSIFICATION ( ch_read_classification, params.taxdump )
+ 
+    SUMMARISE_READ_CLASSIFICATION ( ch_read_classification, params.taxdump, params.filter_terms )
 
     //perform de novo assembly with spades using rnaspades
     SPADES ( RETRIEVE_VIRAL_READS_KRAKEN2.out.fastq )
@@ -305,7 +317,7 @@ workflow VIEW {
         .set { ch_blastresults }
     ch_extract_raw_viral_blast_hits = ch_blastresults
         .join(SEQTK_SEQ.out.filt_headers)
-    EXTRACT_RAW_VIRAL_BLAST_HITS(ch_extract_raw_viral_blast_hits, params.taxdump)
+    EXTRACT_RAW_VIRAL_BLAST_HITS(ch_extract_raw_viral_blast_hits, params.taxdump, params.filter_terms)
     //Add contig sequence to blast results summary table
     //Mapping back to contigs that had viral blast hits
     EXTRACT_CONTIGS ( EXTRACT_RAW_VIRAL_BLAST_HITS.out.viral_blast_results.join(SEQTK_SEQ.out.filt_fasta) )
@@ -334,7 +346,7 @@ workflow VIEW {
     MOSDEPTH_CONTIGS (SAMTOOLS_CONTIGS.out.sorted_bam.join(pyfaidx_contigs.bed))
     MEGABLAST_ROUND2 ( TRIM_ENDS.out.trimmed_contigs, ch_blast_db )
     ch_extract_final_viral_blast_hits = MEGABLAST_ROUND2.out.blast_results.join(SEQTK_SEQ.out.filt_headers) 
-    EXTRACT_FINAL_VIRAL_BLAST_HITS ( ch_extract_final_viral_blast_hits, params.taxdump )
+    EXTRACT_FINAL_VIRAL_BLAST_HITS ( ch_extract_final_viral_blast_hits, params.taxdump, params.filter_terms )
     ch_fasta2table_contigs_input = EXTRACT_FINAL_VIRAL_BLAST_HITS.out.viral_blast_results
         .join(TRIM_ENDS.out.trimmed_contigs)
         .map { sampleid, tophits, fasta -> tuple(sampleid, tophits, fasta, 'contigs') }
@@ -361,7 +373,31 @@ workflow VIEW {
     HMMSCAN ( ORFIPY.out.orf_fasta, ch_hmmer_db )
     ch_genomad = TRIM_ENDS.out.trimmed_contigs.join(EXTRACT_CONTIGS.out.other_fasta)
     //GENOMAD_ENDTOEND ( genomad_ch, params.genomad_db )
-    GENOMAD_ENDTOEND ( ch_genomad, ch_genomad_db )
+    //GENOMAD_ENDTOEND ( ch_genomad, ch_genomad_db )
+    def is_test = workflow.profile.tokenize(',').contains('test')
+
+    if (is_test) {
+        db_results = GENOMAD_DOWNLOAD_DB()
+
+        GENOMAD_ENDTOEND_TEST(
+            ch_genomad,
+            db_results.db
+        )
+        ch_genomad_virus_preds = GENOMAD_ENDTOEND_TEST.out.virus_preds
+    }
+    else {
+        if (!params.genomad_db) {
+            error "Required parameter 'genomad_db' is missing. Please set it in your -params-file."
+        }
+
+        GENOMAD_ENDTOEND(
+            ch_genomad,
+            Channel.value(params.genomad_db)
+        )
+        ch_genomad_virus_preds = GENOMAD_ENDTOEND.out.virus_preds
+    }
+
+
     //Enhancement: Option to perform a blastx alignment of contig ORFs?
     ch_diamond = TRIM_ENDS.out.trimmed_contigs.join(EXTRACT_CONTIGS.out.other_fasta) 
     DIAMOND_BLASTX ( ch_diamond, params.prot_db )
@@ -413,7 +449,7 @@ workflow VIEW {
         .join(HMMSCAN.out.hmmscan_preds)
         .join(ch_fasta2table_ref.detections_summary_final)
         .join(SEQTK_SEQ.out.filt_fasta)
-        .join(GENOMAD_ENDTOEND.out.virus_preds)
+        .join(ch_genomad_virus_preds)
         .join(EXTRACT_FINAL_VIRAL_BLAST_HITS.out.viral_blast_results)
         .join(DIAMOND_BLASTX.out.diamond_results)
         .map { sampleid, kraken_results, kaiju_results, blast, hmmscan, map2ref, contigs, genomad, blast_novel, diamond_results ->
@@ -450,10 +486,16 @@ workflow VIEW {
         .join(SUMMARISE_RESULTS.out.diamond_summary)
         .join(SUMMARISE_RESULTS.out.novel_contig_summary)
         
+    ch_tool_versions  = Channel.value(file(params.tool_versions))
+    ch_default_params = Channel.value(file(params.default_params))
+    ch_filter_terms   = Channel.value(file(params.filter_terms))
     ch_files_for_report_global = START_TIMESTAMP.out.timestamp
         .concat(QC_REPORT.out.qc_report_html)
         .concat(QC_REPORT.out.qc_report_txt)
         .concat(configyaml)
+        .concat(ch_tool_versions)
+        .concat(ch_default_params)
+        .concat(ch_filter_terms)
         .concat(Channel.from(params.input).map { file(it) }).toList()
     HTML_REPORT(ch_files_for_report_ind_samples
         .combine(ch_files_for_report_global))

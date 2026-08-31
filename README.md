@@ -43,12 +43,40 @@ To run the this pipelines, you will need the following software installed:
 - The following databases (paths provided as parameters):
   - [NCBI BLAST](https://blast.ncbi.nlm.nih.gov/doc/blast-help/downloadblastdata.html) nucleotide database (e.g. `core_nt`)
   - [TaxonKit](https://bioinf.shenwei.me/taxonkit/) taxonomy database
-  - [RVDB viral database](https://rvdb.dbi.udel.edu/download/U-RVDBv31.0.fasta.gz) and [taxonomy tab](https://rvdb.dbi.udel.edu/download/RVDBv31_taxonomy.tab.gz) for Diamond analysis. Build the diamon database using the command `diamond makedb --quiet --threads 2 --in U-RVDBv31.0-prot.fasta -d rvdb`.
+  - [RVDB viral database](https://rvdb.dbi.udel.edu/download/U-RVDBvCurrent.fasta.tar.gz) and [taxonomy tab](https://rvdb.dbi.udel.edu/download/RVDB_Taxon_Current.tab.gz) for Diamond analysis. Build the diamon database using the command `diamond makedb --quiet --threads 2 --in U-RVDBv31.0-prot.fasta -d rvdb`.
   - [Kraken2](https://benlangmead.github.io/aws-indexes/k2) database (e.g. `core_nt`)
   - [Kaiju](https://github.com/bioinformatics-centre/kaiju) database (e.g. `kaiju_db_nr_euk`)
   - [GeNomad](https://github.com/apcamargo/genomad) database (follow the instructions on the github repo)
   - [HMMER](http://hmmer.org/) Pfam database (`Pfam-A.hmm`)
   - rRNA reference sequences for rRNA filtering. Download and untar [smr_v4.3_sensitive_db.fasta](https://github.com/sortmerna/sortmerna/releases/download/v4.3.4/database.tar.gz). Make sure to convert the uracils to thymines in the fasta file: `sed '/^[^>]/s/U/T/g; /^[^>]/s/u/t/g' smr_v4.3_sensitive_db.fasta > smr_v4.3_sensitive_db_DNA.fasta`.
+
+```sh
+# This worked as of 2026-07-21, but will likely need to be updated in future
+
+# Build rvdb.dmnd
+wget https://rvdb-prot.pasteur.fr/files/U-RVDBv32.0-prot.fasta.xz
+unxz U-RVDBv32.0-prot.fasta.xz
+diamond makedb --quiet --threads 2 --in U-RVDBv32.0-prot.fasta -d rvdb
+rm U-RVDBv32.0-prot.fasta
+
+# RVDB taxonomy
+wget https://rvdb.dbi.udel.edu/download/RVDB_Taxon_Current.tab.gz
+
+# Kraken
+wget https://genome-idx.s3.amazonaws.com/kraken/k2_core_nt_20251015.tar.gz
+
+# Kaiju
+wget https://kaiju-idx.s3.eu-central-1.amazonaws.com/2023/kaiju_db_nr_euk_2023-05-10.tgz
+
+# GeNomad DB
+wget -o genomad_db_v1.9.tar.gz 'https://zenodo.org/records/14886553/files/genomad_db_v1.9.tar.gz?download=1'
+
+# HMMER PFAM-A.hmm
+wget https://ftp.ebi.ac.uk/pub/databases/Pfam/current_release/Pfam-A.hmm.dat.gz
+
+# SMRNA
+wget -o smr_v4.3_sensitive_db.fasta https://github.com/sortmerna/sortmerna/releases/download/v4.3.4/database.tar.gz
+```
 
 ## Quick Start
 
@@ -235,9 +263,7 @@ Parameters can be provided via a YAML params file (`-params-file`) or on the com
 | `--blastn_db` | Path to BLAST nucleotide database (e.g. NCBI `core_nt`) |
 | `--taxdump` | Path to TaxonKit taxonomy database directory |
 | `--kraken2_db` | Path to Kraken2 database directory |
-| `--kaiju_dbname` | Path to Kaiju `.fmi` index file |
-| `--kaiju_names` | Path to Kaiju `names.dmp` file |
-| `--kaiju_nodes` | Path to Kaiju `nodes.dmp` file |
+| `--kaiju_db` | Path to the Kaiju `.fmi` index file. Its containing directory must also hold the matching `names.dmp` and `nodes.dmp` from the same Kaiju release — the pipeline discovers all three by globbing that directory |
 | `--genomad_db` | Path to GeNomad database directory |
 | `--hmmer_db` | Path to Pfam HMM database file (`Pfam-A.hmm`) |
 | `--rrna_ref` | Path to rRNA reference FASTA file (for BBDuk filtering) |

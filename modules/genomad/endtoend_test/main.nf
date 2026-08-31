@@ -1,4 +1,4 @@
-process GENOMAD_ENDTOEND {
+process GENOMAD_ENDTOEND_TEST {
     tag "${sampleid}"
     label 'setting_14'
     //containerOptions "--bind ${file(params.genomad_db).parent}"
@@ -9,7 +9,7 @@ process GENOMAD_ENDTOEND {
     // `val`, not `path`: the DB is staged to the node by the pool start task
     // and read through the /mnt/nvme/refdata bind mount, so Nextflow must not
     // resolve or upload it from the launching machine.
-    val(genomad_db)
+    path(genomad_db)
 
     output:
     file "*_summary/*_virus.fna"
