@@ -1,0 +1,245 @@
+#!/usr/bin/env bash
+#
+# Start task for the view_test pool.
+#
+# Stages ONLY the TaxonKit taxdump (~2.6GB). Everything else the test case
+# needs lives in tests/ (~8MB) and is staged per-task by Nextflow, because
+# those databases are declared as `path` inputs by their modules.
+#
+# The taxdump is the exception: it is consumed as a `val` input (see
+# modules/{summarise_read_classification,extract_raw_viral_blast_hits,
+# extract_final_viral_blast_hits}/main.nf) so that the node-local path is used
+# directly rather than uploaded from the launching machine on every run.
+#
+# Unlike the production start task this does NOT format or mount the NVMe
+# disk — 2.6GB fits comfortably on the OS disk, and skipping that removes the
+# main source of start-task failures. The path is kept identical to production
+# so the same --taxdump value works on both pools.
+
+# Enable verbose logging for debugging (all commands echo to stderr)
+set -x
+
+# Exit on error
+set -euo pipefail
+
+# -----------------------------------------------------------------------------
+# CONFIGURATION
+# -----------------------------------------------------------------------------
+
+TAXDUMP_DIR="/mnt/nvme/refdata/taxdump"
+
+# Anonymous blob access (same container as the production start task).
+# NOTE the doubled path: the dumps live at refdata/taxdump/taxdump/*.dmp in
+# blob, so the inner directory is the actual source. Copying from the outer
+# one would land the files at $TAXDUMP_DIR/taxdump/ instead.
+TAXDUMP_BLOB_URL="https://daffpremium.blob.core.windows.net/refdata/taxdump/taxdump"
+
+# geNomad. Without this the workflow falls into the GENOMAD_DOWNLOAD_DB branch
+# (see workflows/view/main.nf), which re-downloads ~750MB from the internet on
+# every run and publishes it back to the launching machine via
+# publishDir "${params.databases}". Staging it here makes params.genomad_db
+# non-null, so that branch never fires.
+GENOMAD_DIR="/mnt/nvme/refdata/genomad_db"
+GENOMAD_BLOB_URL="https://daffstandard.blob.core.windows.net/refdata-wf4/genomad_db"
+
+# -----------------------------------------------------------------------------
+# FUNCTIONS
+# -----------------------------------------------------------------------------
+
+install_azcopy() {
+    echo "=== Installing azcopy ===" >&2
+
+    if command -v azcopy >/dev/null 2>&1; then
+        echo "azcopy already installed" >&2
+        azcopy --version >&2 || true
+        return
+    fi
+
+    echo "Downloading azcopy from Microsoft..." >&2
+    wget -q -O azcopy.tar.gz https://aka.ms/downloadazcopy-v10-linux
+
+    echo "Extracting azcopy..." >&2
+    tar -xf azcopy.tar.gz --strip-components=1
+
+    echo "Installing azcopy to /usr/local/bin..." >&2
+    mv azcopy /usr/local/bin/
+    chmod +x /usr/local/bin/azcopy
+
+    echo "Cleaning up..." >&2
+    rm -f azcopy.tar.gz
+
+    echo "azcopy installed successfully" >&2
+    azcopy --version >&2 || true
+}
+
+stage_taxdump() {
+    echo "=== Staging TaxonKit taxdump ===" >&2
+    date >&2
+
+    # names.dmp is the largest file and written last-ish; treat its presence
+    # as the marker for an already-staged node (start tasks re-run on reboot).
+    if [[ -f "$TAXDUMP_DIR/names.dmp" ]]; then
+        echo "taxdump already staged at $TAXDUMP_DIR — skipping." >&2
+        ls -lh "$TAXDUMP_DIR" >&2 || true
+        return
+    fi
+
+    echo "Creating taxdump directory: $TAXDUMP_DIR" >&2
+    mkdir -p "$TAXDUMP_DIR"
+
+    echo "Downloading taxdump from: ${TAXDUMP_BLOB_URL}" >&2
+    azcopy copy \
+        "${TAXDUMP_BLOB_URL}/*" \
+        "${TAXDUMP_DIR}" \
+        --recursive \
+        --check-md5 NoCheck \
+        --cap-mbps 0
+
+    echo "taxdump download completed" >&2
+    du -sh "$TAXDUMP_DIR" >&2 || true
+    date >&2
+}
+
+stage_genomad_db() {
+    echo "=== Staging geNomad DB ===" >&2
+    date >&2
+
+    if [[ -f "$GENOMAD_DIR/genomad_db" ]]; then
+        echo "geNomad DB already staged at $GENOMAD_DIR — skipping." >&2
+        return
+    fi
+
+    echo "Creating geNomad directory: $GENOMAD_DIR" >&2
+    mkdir -p "$GENOMAD_DIR"
+
+    echo "Downloading geNomad DB from: ${GENOMAD_BLOB_URL}" >&2
+    azcopy copy \
+        "${GENOMAD_BLOB_URL}/*" \
+        "${GENOMAD_DIR}" \
+        --recursive \
+        --check-md5 NoCheck \
+        --cap-mbps 0
+
+    echo "geNomad DB download completed" >&2
+    du -sh "$GENOMAD_DIR" >&2 || true
+    date >&2
+}
+
+restore_genomad_symlinks() {
+    echo "=== Restoring geNomad mini-DB symlinks ===" >&2
+
+    # Identical to the production start task. The geNomad DB ships
+    # genomad_mini_db_* as symlinks to their genomad_db_* counterparts. Blob
+    # storage cannot represent symlinks, so they are excluded from the upload
+    # and recreated here.
+    #
+    # Note: genomad_mini_db.dbtype and genomad_mini_db.index are NOT symlinks
+    # upstream; they are real files and are downloaded with everything else.
+    local links=(
+        "genomad_mini_db:genomad_db"
+        "genomad_mini_db_h:genomad_db_h"
+        "genomad_mini_db_h.dbtype:genomad_db_h.dbtype"
+        "genomad_mini_db_h.index:genomad_db_h.index"
+        "genomad_mini_db.lookup:genomad_db.lookup"
+        "genomad_mini_db_mapping:genomad_db_mapping"
+        "genomad_mini_db.source:genomad_db.source"
+        "genomad_mini_db_taxonomy:genomad_db_taxonomy"
+    )
+
+    local entry link target
+    for entry in "${links[@]}"; do
+        link="${entry%%:*}"
+        target="${entry##*:}"
+        if [[ ! -e "$GENOMAD_DIR/$target" ]]; then
+            echo "ERROR: symlink target missing: $GENOMAD_DIR/$target" >&2
+            return 1
+        fi
+        ln -sfn "$target" "$GENOMAD_DIR/$link"
+    done
+
+    chmod -R a+rX "$GENOMAD_DIR"
+    echo "geNomad symlinks restored" >&2
+}
+
+verify_taxdump() {
+    echo "=== Verifying taxdump ===" >&2
+
+    # TaxonKit needs all four dumps; a partial download fails later inside a
+    # task with a much less obvious error.
+    local missing=0
+    for f in names.dmp nodes.dmp merged.dmp delnodes.dmp; do
+        if [[ -f "$TAXDUMP_DIR/$f" ]]; then
+            echo "OK   $f" >&2
+        else
+            echo "MISS $f" >&2
+            missing=1
+        fi
+    done
+
+    if [[ "$missing" -ne 0 ]]; then
+        echo "ERROR: taxdump is incomplete at $TAXDUMP_DIR" >&2
+        return 1
+    fi
+
+    # Containers run as a different user; make sure the tree is readable.
+    chmod -R a+rX "$TAXDUMP_DIR"
+
+    echo "taxdump verified" >&2
+}
+
+# -----------------------------------------------------------------------------
+# MAIN
+# -----------------------------------------------------------------------------
+
+echo "===== START TASK (test pool): staging taxdump =====" >&2
+echo "Date: $(date)" >&2
+echo "User: $(whoami)" >&2
+
+echo "" >&2
+echo "STEP 1: Installing azcopy" >&2
+if install_azcopy; then
+    echo "✓ azcopy installed successfully" >&2
+else
+    echo "✗ Failed to install azcopy" >&2
+    exit 1
+fi
+
+echo "" >&2
+echo "STEP 2: Staging taxdump" >&2
+if stage_taxdump; then
+    echo "✓ taxdump staging completed" >&2
+else
+    echo "✗ Failed to stage taxdump" >&2
+    exit 1
+fi
+
+echo "" >&2
+echo "STEP 3: Verifying taxdump" >&2
+if verify_taxdump; then
+    echo "✓ taxdump verified" >&2
+else
+    echo "✗ taxdump verification failed" >&2
+    exit 1
+fi
+
+echo "" >&2
+echo "STEP 4: Staging geNomad DB" >&2
+if stage_genomad_db; then
+    echo "✓ geNomad DB staging completed" >&2
+else
+    echo "✗ Failed to stage geNomad DB" >&2
+    exit 1
+fi
+
+echo "" >&2
+echo "STEP 5: Restoring geNomad symlinks" >&2
+if restore_genomad_symlinks; then
+    echo "✓ geNomad symlinks restored" >&2
+else
+    echo "✗ Failed to restore geNomad symlinks" >&2
+    exit 1
+fi
+
+echo "" >&2
+echo "===== START TASK: Completed Successfully =====" >&2
+exit 0

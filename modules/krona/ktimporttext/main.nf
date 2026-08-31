@@ -1,5 +1,5 @@
 process KRONA_KTIMPORTTEXT {
-    publishDir { "${params.outdir}/${sampleid}/05_read_classification" }, mode: 'link'
+    publishDir { "${params.outdir}/${sampleid}/05_read_classification" }, mode: 'copy'
     label 'setting_2'
     tag "${sampleid}"
 

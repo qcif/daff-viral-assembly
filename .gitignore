@@ -1,6 +1,13 @@
 # Test data
 output/
 
+# Nextflow stuff
+.nextflow/
+*.log.*
+
+# Dev reference databases (built by scripts/build_dev_dbs/)
+refdata_dev/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -100,6 +107,9 @@ celerybeat.pid
 
 # Environments
 .env
+.env.*
+!.env*sample
+!.env*example
 .venv
 env/
 venv/
@@ -131,3 +141,7 @@ dmypy.json
 *.swo
 *~
 .DS_Store
+
+# geNomad DB published by GENOMAD_DOWNLOAD_DB (params.databases = launchDir/databases).
+# Staged to the node by the start task instead; never commit it.
+databases/
