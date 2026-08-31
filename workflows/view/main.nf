@@ -8,6 +8,7 @@ include { fromSamplesheet } from 'plugin/nf-validation'
 def isNonEmptyFile(file) {
     return file.exists() && file.size() > 0
 }
+    
 
 include { BBMAP_BBDUK } from '../../modules/bbmap/bbduk/main'
 include { BBMAP_BBSPLIT } from '../../modules/bbmap/bbsplit/main'
@@ -68,12 +69,12 @@ include { TRIM_ENDS } from '../../modules/trim_ends/main'
 workflow VIEW {
     // Show help message
     
-    if ( !params.taxdump ) {
-        error "Required parameter 'taxdump' is missing. Please set it in your -params-file."
-    }
-    else {
-        params.taxdump_dir = file(params.taxdump).parent
-    }
+    // if ( !params.taxdump ) {
+    //     error "Required parameter 'taxdump' is missing. Please set it in your -params-file."
+    // }
+    // else {
+    //     params.taxdump_dir = file(params.taxdump).parent
+    // }
 
     if ( !params.kaiju_db ) {
         error "Required parameter 'kaiju_db' is missing. Please set it in your -params-file."
@@ -111,13 +112,14 @@ workflow VIEW {
         'rrna_ref',
         'kraken2_db',
     ]
+    
 
     otherRequiredParams.each { p ->
         if (!params[p]) {
             error "Required parameter '${p}' is missing. Please set it in your -params-file."
         }
     }
-    
+
 
     START_TIMESTAMP ()
     ch_versions = Channel.empty()
@@ -292,6 +294,7 @@ workflow VIEW {
     
     ch_read_classification = KAIJU_KAIJU.out.kaiju_results.join(KRAKEN2_ABUNDANCE_ESTIMATE.out.kraken2_results)
                                                         .join(ch_stats)
+ 
     SUMMARISE_READ_CLASSIFICATION ( ch_read_classification, params.taxdump, params.filter_terms )
 
     //perform de novo assembly with spades using rnaspades

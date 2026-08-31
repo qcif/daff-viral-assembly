@@ -14,7 +14,8 @@ process HTML_REPORT {
     path(samplesheet)
 
     output:
-    path("*"), optional: true
+    path("${sampleid}_report.html")
+    path("report_context.json")
     path(raw_fastqc)
     path(filtered_fastqc)
     path(qcreport_html)

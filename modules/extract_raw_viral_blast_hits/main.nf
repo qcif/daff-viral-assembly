@@ -24,8 +24,3 @@ process EXTRACT_RAW_VIRAL_BLAST_HITS {
                     --assembly_headers ${assembly_headers}
     """
 }
-
-
-/*
-
-*/
