@@ -377,14 +377,14 @@ workflow VIEW {
 
     MAPPING_BACK_TO_REF ( ch_mapping )
     SAMTOOLS_REF ( MAPPING_BACK_TO_REF.out.aligned_sam )
-    BCFTOOLS ( SAMTOOLS_REF.out.sorted_bam )
-    BEDTOOLS ( BCFTOOLS.out.vcf_applied_fasta )
+    BEDTOOLS ( SAMTOOLS_REF.out.sorted_bam )
+    BCFTOOLS ( BEDTOOLS.out.bed_results )
     ch_pyfaidx_ref_input = EXTRACT_REF_FASTA.out.fasta_files.map { sampleid, fasta ->
             tuple(sampleid, fasta, 'reference')
     }
     ch_pyfaidx_ref = PYFAIDX_REF ( ch_pyfaidx_ref_input )
     MOSDEPTH_REF (SAMTOOLS_REF.out.sorted_bam.join(ch_pyfaidx_ref.bed))
-    ch_ref_cov_stats_summary =  MOSDEPTH_REF.out.mosdepth_results.join(ch_fasta2table_contigs.blast_results)
+    ch_ref_cov_stats_summary =  MOSDEPTH_REF.out.mosdepth_results.join(ch_fasta2table_contigs.blast_results2)
         .join(ch_stats)
         .join(SAMTOOLS_REF.out.coverage)
         .join(SAMTOOLS_REF.out.mapping_quality)
@@ -393,7 +393,7 @@ workflow VIEW {
 
     REF_COVSTATS(ch_ref_cov_stats_summary)
     ch_fasta2table_ref_input = REF_COVSTATS.out.detections_summary
-        .join(BEDTOOLS.out.bcftools_masked_consensus_fasta)
+        .join(BCFTOOLS.out.bcftools_masked_consensus_fasta)
         .map { sampleid, stats, fasta -> tuple(sampleid, stats, fasta, 'reference') }
     ch_fasta2table_ref = FASTA2TABLE_REF ( ch_fasta2table_ref_input )
     
