@@ -7,7 +7,7 @@ process SUMMARISE_RESULTS {
     publishDir { "${params.outdir}/${sampleid}/07_annotation" }, mode: 'copy', pattern: '{*hmm_domain_summary_counts.tsv}'
 
     input:
-    tuple val(sampleid), path(kraken_results), path(kaiju_results), path(blast), path(hmmscan), path(map2ref), path(contigs), path(genomad), path(blast_novel), path(diamond_results), path(taxonomy)
+    tuple val(sampleid), path(kraken_results), path(kaiju_results), path(blast), path(hmmscan), path(map2ref), path(contigs), path(genomad), path(blast_novel), path(diamond_results), val(taxonomy)
 
     output:
     path("${sampleid}_summary_viral_results.tsv")

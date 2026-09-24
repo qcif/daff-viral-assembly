@@ -301,10 +301,18 @@ workflow VIEW {
     SPADES ( RETRIEVE_VIRAL_READS_KRAKEN2.out.fastq )
     //Filter contigs by length less than 150 bp with SEQTK
     SEQTK_SEQ ( SPADES.out.assembly )
+    // ch_blast_db = Channel.value(
+    //     tuple(
+    //         file(params.blastn_db).parent,
+    //         file(params.blastn_db).name
+    //     )
+    // )
+    def blastDb = new File(params.blastn_db.toString())
+
     ch_blast_db = Channel.value(
         tuple(
-            file(params.blastn_db).parent,
-            file(params.blastn_db).name
+            blastDb.parent,
+            blastDb.name
         )
     )
 

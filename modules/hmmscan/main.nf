@@ -9,7 +9,7 @@ process HMMSCAN {
     
     input:
     tuple val(sampleid), path(fasta)
-    tuple path(db_dir), val(db_name)
+    tuple val(db_dir), val(db_name)
     
     output:
     file "${sampleid}_orfs.fasta"

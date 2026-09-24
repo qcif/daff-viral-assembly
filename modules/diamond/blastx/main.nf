@@ -8,7 +8,7 @@ process DIAMOND_BLASTX {
 
     input:
     tuple val(sampleid), path(viral_fasta), path(other_fasta)
-    path(prot_db)
+    val(prot_db)
     
     output:
     file "${sampleid}_diamond_matches*.txt"
