@@ -11,6 +11,8 @@
 #       --input /path/to/index.csv \
 #       --outdir /path/to/output
 #
+# Defaults to --input tests/index_test.csv --outdir output/$RUN_ID
+#
 
 set -euo pipefail
 
@@ -24,7 +26,7 @@ PID=$$
 RUN_ID="$(date +"%Y%m%d_%H%M%S")_$PID"
 
 # Default values
-INPUT="tests/index-test.csv"
+INPUT="tests/index_test.csv"
 OUTDIR="output/$RUN_ID"
 RESUME=""
 
