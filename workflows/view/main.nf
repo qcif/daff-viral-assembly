@@ -167,7 +167,7 @@ workflow VIEW {
         yamlFile = "${projectDir}/params/user_params_test.yml"
     }
     
-    configyaml = Channel.fromPath(yamlFile)
+    configyaml = channel.fromPath(yamlFile)
     
     //Probably best place to perform subsampling
     //Subsampling to 40M reads is as slow using the nf-core subsample module or seqtk sample (40-50 minutes)
