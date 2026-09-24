@@ -8,6 +8,7 @@
 #
 # Usage:
 #   ./deploy/azure/run-wf4.sh \
+#       --params-file params/azure_params.yml
 #       --input /path/to/index.csv \
 #       --outdir /path/to/output
 #
@@ -24,48 +25,93 @@ PID=$$
 RUN_ID="$(date +"%Y%m%d_%H%M%S")_$PID"
 
 # Default values
-INPUT="tests/index-test.csv"
+INPUT="index.csv"
+PARAMS_FILE="params/azure_params.yml"
 OUTDIR="output/$RUN_ID"
-RESUME=""
+RESUME="false"
 
 # Azure Batch node paths (staged by start task to NVMe under /mnt/nvme/refdata/)
 # Shared refdata (also used by taxodactyl):
-BLASTN_DB="/mnt/nvme/refdata/core_nt/core_nt"
-TAXDUMP="/mnt/nvme/refdata/taxdump/taxdump"
-# wf4-specific refdata (merged directly into /mnt/nvme/refdata/):
-KRAKEN2_DB="/mnt/nvme/refdata/kraken2_db"
-# Path to the .fmi itself — the workflow derives the containing directory and
-# globs it for *.fmi, *names.dmp and *nodes.dmp
-KAIJU_DB="/mnt/nvme/refdata/kaiju_db/kaiju_db.fmi"
-HMMER_DB="/mnt/nvme/refdata/pfam/Pfam-A.hmm"
-PROT_DB="/mnt/nvme/refdata/diamond/viral.dmnd"
-GENOMAD_DB="/mnt/nvme/refdata/genomad_db"
-RVDB_TAXONOMY="/mnt/nvme/refdata/rvdb_taxonomy"
-RRNA_REF="/mnt/nvme/refdata/rrna_ref"
+# BLASTN_DB="/mnt/nvme/refdata/core_nt/core_nt"
+# TAXDUMP="/mnt/nvme/refdata/taxdump/taxdump"
+# # wf4-specific refdata (merged directly into /mnt/nvme/refdata/):
+# KRAKEN2_DB="/mnt/nvme/refdata/kraken2_db"
+# # Path to the .fmi itself — the workflow derives the containing directory and
+# # globs it for *.fmi, *names.dmp and *nodes.dmp
+# KAIJU_DB="/mnt/nvme/refdata/kaiju_db/kaiju_db.fmi"
+# HMMER_DB="/mnt/nvme/refdata/pfam/Pfam-A.hmm"
+# PROT_DB="/mnt/nvme/refdata/diamond/viral.dmnd"
+# GENOMAD_DB="/mnt/nvme/refdata/genomad_db"
+# RVDB_TAXONOMY="/mnt/nvme/refdata/rvdb_taxonomy"
+# RRNA_REF="/mnt/nvme/refdata/rrna_ref"
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --input)
-            INPUT="$2"
+        --params-file)
+            if [[ $# -lt 2 ]]; then
+                echo -e "${RED}ERROR: --params-file requires a value${NC}"
+                exit 1
+            fi
+
+            PARAMS_FILE="$2"
             shift 2
             ;;
         --outdir)
             OUTDIR="$2"
             shift 2
             ;;
+        --input)
+            INPUT="$2"
+            shift 2
+            ;;
         -resume)
-            RESUME="-resume"
+            RESUME=true
             shift
             ;;
+        -h|--help)
+            echo "Usage:"
+            echo "  $0 [--params-file <params.yml>] [--input <index.csv>] [--outdir <outdir>] [-resume]"
+            echo ""
+            echo "Requirements:"
+            echo "  --params-file FILE   Nextflow YAML parameters file"
+            echo "                       Default: params/azure_params.yml"
+            echo "Options:"
+            echo "  --input FILE         Input index CSV file"
+            echo "                       Default: index.csv"
+            echo "  --outdir DIR         Output directory"
+            echo "                       Default: output/$RUN_ID"
+            echo "  -resume              Resume the previous Nextflow execution"
+            echo "                       Default: false"
+            echo "  -h, --help           Show this help message"
+            exit 0
+            ;;
+
         *)
             echo -e "${RED}ERROR: Unknown argument: $1${NC}"
             echo ""
-            echo "Usage: $0 --input <index.csv> --outdir <dir> [-resume]"
+            echo "Usage: $0 [--params-file <params.yml>] [--input <index.csv>] [--outdir <outdir>] [-resume]"
             exit 1
             ;;
     esac
 done
+
+
+# ---------------------------------------------------------------------------
+# Validate required files
+# ---------------------------------------------------------------------------
+
+if [[ ! -f "$PARAMS_FILE" ]]; then
+    echo -e "${RED}ERROR: Params file not found: $PARAMS_FILE${NC}"
+    exit 1
+fi
+
+
+if [[ ! -f "main.nf" ]]; then
+    echo -e "${RED}ERROR: main.nf not found${NC}"
+    echo "Run this script from the repository root directory."
+    exit 1
+fi
 
 # Load Azure credentials
 if [[ ! -f .env.azure ]]; then
@@ -92,20 +138,13 @@ fi
 
 # Show configuration
 echo ""
-echo -e "${YELLOW}=== VIEW Workflow Azure Batch Configuration ===${NC}"
-echo "Input:           $INPUT"
-echo "Output dir:      $OUTDIR"
-echo "BLAST DB:        $BLASTN_DB (on Azure Batch nodes)"
-echo "Taxdump:         $TAXDUMP (on Azure Batch nodes)"
-echo "Kraken2 DB:      $KRAKEN2_DB (on Azure Batch nodes)"
-echo "Kaiju DB:        $KAIJU_DB (on Azure Batch nodes)"
-echo "Pfam HMM:        $HMMER_DB (on Azure Batch nodes)"
-echo "Protein DB:      $PROT_DB (on Azure Batch nodes)"
-echo "GeNomad DB:      $GENOMAD_DB (on Azure Batch nodes)"
-echo "RVDB taxonomy:   $RVDB_TAXONOMY (on Azure Batch nodes)"
-echo "rRNA ref:        $RRNA_REF (on Azure Batch nodes)"
-echo "Profile:         azure"
-echo "Resume:          ${RESUME:-false}"
+echo -e "${YELLOW}=== VIEW Workflow Azure Batch Run ===${NC}"
+echo "Profile:       azure"
+echo "Params file:   $PARAMS_FILE"
+echo "Resume:        $RESUME"
+echo ""
+echo "Workflow parameters will be read from:"
+echo "  $PARAMS_FILE"
 echo ""
 
 # Confirm execution
@@ -115,31 +154,42 @@ if [[ "$confirm" != "yes" ]]; then
     exit 0
 fi
 
+mkdir -p "$OUTDIR"
+
+# ---------------------------------------------------------------------------
+# Construct Nextflow command
+# ---------------------------------------------------------------------------
+
+nextflow_args=(
+    run
+    main.nf
+    -profile
+    azure
+    -params-file
+    "$PARAMS_FILE"
+)
+
+if [[ "$RESUME" == true ]]; then
+    nextflow_args+=("-resume")
+fi
+    
+# ---------------------------------------------------------------------------
+# Run workflow
+# ---------------------------------------------------------------------------
+
 echo ""
 echo -e "${GREEN}=== Starting VIEW Workflow ===${NC}"
 echo ""
 
-mkdir -p "$OUTDIR"
-
-# Run Nextflow with Azure Batch profile
-nextflow run main.nf \
-    -profile azure \
-    --input "$INPUT" \
-    --outdir "$OUTDIR" \
-    --blastn_db "$BLASTN_DB" \
-    --taxdump "$TAXDUMP" \
-    --kraken2_db "$KRAKEN2_DB" \
-    --kaiju_db "$KAIJU_DB" \
-    --hmmer_db "$HMMER_DB" \
-    --prot_db "$PROT_DB" \
-    --genomad_db "$GENOMAD_DB" \
-    --rvdb_taxonomy "$RVDB_TAXONOMY" \
-    --rrna_ref "$RRNA_REF" \
-    --analyst_name "${ANALYST_NAME:-}" \
-    --facility "${FACILITY_NAME:-}" \
-    $RESUME
-
+set +e
+nextflow "${nextflow_args[@]}"
 exit_code=$?
+set -e
+
+# ---------------------------------------------------------------------------
+# Report result
+# ---------------------------------------------------------------------------
+
 
 echo ""
 if [[ $exit_code -eq 0 ]]; then

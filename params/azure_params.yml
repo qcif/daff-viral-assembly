@@ -1,0 +1,18 @@
+input: index.csv
+input_dir: /Users/gauthiem@qut.edu.au/Documents/Code/daff-viral-assembly
+
+analyst_name: "Maely"
+facility: "QUT"
+
+blastn_db: /mnt/nvme/refdata/core_nt/core_nt
+taxdump:  /mnt/nvme/refdata/taxdump/taxdump
+genomad_db: /mnt/nvme/refdata/genomad_db
+hmmer_db: /mnt/nvme/refdata/pfam/Pfam-A.hmm
+kraken2_db: /mnt/nvme/refdata/kraken2_db
+kaiju_db: /mnt/nvme/refdata/kaiju_db/kaiju_db.fmi
+rrna_ref: /mnt/nvme/refdata/rrna_ref
+prot_db: /mnt/nvme/refdata/diamond/viral.dmnd
+qfiltered_reads_threshold: 8000000
+clean_reads_threshold: 2500000
+rvdb_taxonomy: /mnt/nvme/refdata/rvdb_taxonomy
+subsample_size: 40000000
