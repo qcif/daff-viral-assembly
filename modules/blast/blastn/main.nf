@@ -5,7 +5,7 @@ process BLAST_BLASTN {
 
     input:
     tuple val(sampleid), path(assembly)
-    tuple path(db_dir), val(db_name)
+    tuple val(db_dir), val(db_name)
     
     output:
     tuple val(sampleid), path("${sampleid}*_blastn.bls"), emit: blast_results

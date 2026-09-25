@@ -83,7 +83,7 @@ process KAIJU_KAIJU {
     
     input:
     tuple val(meta), path(reads)
-    path(db)
+    val(db)
 
     output:
     //tuple val(meta), path('*.tsv'), emit: results

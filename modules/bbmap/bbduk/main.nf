@@ -42,7 +42,7 @@ process BBMAP_BBDUK {
     
     input:
     tuple val(meta), path(reads)
-    path(contaminants)
+    val(contaminants)
 
     output:
     //path("${meta.id}_non_rRNA_1.fastq.gz")
