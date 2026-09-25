@@ -8,6 +8,19 @@ include { fromSamplesheet } from 'plugin/nf-validation'
 def isNonEmptyFile(file) {
     return file.exists() && file.size() > 0
 }
+
+//We need to define how the references are accessed based on the database mode (mounted or staged)
+// def databaseInputs(String reference) {
+//     if (params.database_mode == 'mounted') {
+//         return [reference, []]
+//     }
+
+//     if (params.database_mode == 'staged') {
+//         return ['', file(reference, checkIfExists: true)]
+//     }
+
+//     error "Unknown database_mode: ${params.database_mode}"
+// }
     
 
 include { BBMAP_BBDUK } from '../../modules/bbmap/bbduk/main'
@@ -157,11 +170,13 @@ workflow VIEW {
     ch_versions = ch_versions.mix(CAT_FASTQ.out.versions.first().ifEmpty(null))
 
     //This is a bit hacky but it allows us to capture the params file used in the run and pass it to the report module without having to specify it as an output in every process. 
-    //It also allows us to use a default params file for testing when the user does not specify one.
     def yamlFile
 
     if (workflow.commandLine.contains('-params-file')) {
         yamlFile = workflow.commandLine.split(" -params-file ")[1].split(" ")[0]
+    }
+    else if (workflow.profile.tokenize(',').contains('hpc_test')) {
+        yamlFile = "${projectDir}/params/user_params_hpc_test.yml"
     }
     else if (workflow.profile.tokenize(',').contains('test')) {
         yamlFile = "${projectDir}/params/user_params_test.yml"
@@ -239,6 +254,11 @@ workflow VIEW {
     //When using a chanmnel, for ex. ch_rrna, it has only one item, it stops pairing after the first sample, only one task runs
     //This is why only the first sample is processed.
     //Provide the rrna ref as a file parameter instead
+    // def (mounted_rrna_ref, staged_rrna_ref) =
+    //     databaseInputs(params.rrna_ref)
+
+    // BBMAP_BBDUK ( trim_reads_for_bbduk, mounted_rrna_ref, staged_rrna_ref)
+
     BBMAP_BBDUK ( trim_reads_for_bbduk, file(params.rrna_ref))
 
     //remove phiX reads
@@ -263,6 +283,7 @@ workflow VIEW {
         def stats1 = stats
         tuple(sampleid, stats1)
     }
+    
     KRAKEN2_KRAKEN2(BBMAP_BBSPLIT.out.all_fastq, params.kraken2_db, params.kraken2_save_classified_reads, params.kraken2_save_unclassified_reads, params.kraken2_save_readclassifications)
     
     //The logic of the original Bracken est_abundance.py had to be modified as it was not working as intended for viral species 
@@ -382,7 +403,8 @@ workflow VIEW {
     ch_genomad = TRIM_ENDS.out.trimmed_contigs.join(EXTRACT_CONTIGS.out.other_fasta)
     //GENOMAD_ENDTOEND ( genomad_ch, params.genomad_db )
     //GENOMAD_ENDTOEND ( ch_genomad, ch_genomad_db )
-    def is_test = workflow.profile.tokenize(',').contains('test')
+    
+    def is_test = workflow.profile.tokenize(',').any { it in ['test', 'hpc_test'] }
 
     if (is_test) {
         db_results = GENOMAD_DOWNLOAD_DB()

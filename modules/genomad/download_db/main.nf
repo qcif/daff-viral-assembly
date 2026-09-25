@@ -1,5 +1,6 @@
 process GENOMAD_DOWNLOAD_DB {
     publishDir "${params.databases}", mode: 'copy'
+    label "setting_2"
 
     output:
     path "databases/genomad_db", emit: db

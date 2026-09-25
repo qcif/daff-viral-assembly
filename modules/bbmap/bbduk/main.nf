@@ -42,7 +42,9 @@ process BBMAP_BBDUK {
     
     input:
     tuple val(meta), path(reads)
-    val(contaminants)
+    val(db)
+    //val(mounted_db)
+    //path(staged_db)
 
     output:
     //path("${meta.id}_non_rRNA_1.fastq.gz")
@@ -61,7 +63,8 @@ process BBMAP_BBDUK {
     def prefix = task.ext.prefix ?: "${meta.id}"
     def raw      = meta.single_end ? "in=${reads[0]}" : "in1=${reads[0]} in2=${reads[1]}"
     def trimmed  = meta.single_end ? "out=${prefix}.fastq.gz" : "out1=${prefix}_non_rRNA_1.fastq.gz out2=${prefix}_non_rRNA_2.fastq.gz"
-    def contaminants_fa = contaminants ? "ref=$contaminants" : ''
+    //def db = mounted_db ?: staged_db
+    def contaminants_fa = db ? "ref=${db}" : ''
     """
     bbduk.sh \\
         -Xmx${task.memory.toGiga()}g \\
