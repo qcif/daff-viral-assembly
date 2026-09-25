@@ -4,20 +4,37 @@ process BCFTOOLS {
   label 'setting_7'
 
   input:
-   tuple val(sampleid), path(ref), path(bam), path(bai)
+   tuple val(sampleid), path(ref), path(bam), path(bai), path(zero_coverage_bed)
 
   output:
     path("${sampleid}_vcf_applied.fasta")
+    path("${sampleid}_bcftools_masked_consensus.fasta")
     path("${sampleid}_annotated.vcf.gz")
-    tuple val(sampleid), path(ref), path(bam), path(bai), path("${sampleid}_vcf_applied.fasta"), emit: vcf_applied_fasta
-
+    tuple val(sampleid),
+          path("${sampleid}_bcftools_masked_consensus.fasta"),
+          emit: bcftools_masked_consensus_fasta
   script:
   """
-  awk '/^>/ {print; next} {gsub(/[WSMKRYBDHVNwsmskrybdhvn]/, "N"); print}' "${ref}" > "${sampleid}_ref_cleaned.fasta"
-  bcftools mpileup -Ou -f ${sampleid}_ref_cleaned.fasta ${bam} | bcftools call -Ou -mv --ploidy=1 | bcftools norm -f ${sampleid}_ref_cleaned.fasta -Oz -o ${sampleid}_raw.vcf.gz
-  # -M, --keep-masked-ref           keep sites with masked reference allele (REF=N)
+  awk '/^>/ {print; next} {gsub(/[WSMKRYBDHVNwsmskrybdhvn]/, "N"); print}' \\
+      "${ref}" \\
+      > "${sampleid}_ref_cleaned.fasta"
+  bcftools mpileup \\
+      -Ou -f ${sampleid}_ref_cleaned.fasta \\
+      ${bam} \\
+  | bcftools call \\
+      -Ou \\
+      -mv \\
+      --ploidy=1 \\
+  | bcftools norm \\
+      -f ${sampleid}_ref_cleaned.fasta \\
+      -Oz \\
+      -o ${sampleid}_raw.vcf.gz
+
+  #-M, --keep-masked-ref           keep sites with masked reference allele (REF=N)
   #-c, --check-ref <e|w|x|s>         check REF alleles and exit (e), warn (w), exclude (x), or set (s) bad sites [e]
-  bcftools reheader ${sampleid}_raw.vcf.gz -s <(echo '${sampleid}') \\
+  bcftools reheader \\
+      ${sampleid}_raw.vcf.gz \\
+      -s <(echo '${sampleid}') \\
   | bcftools filter \\
       -e 'INFO/DP < 20' \\
       -s LOW_DEPTH \\
@@ -25,7 +42,18 @@ process BCFTOOLS {
       -Oz -o ${sampleid}_annotated.vcf.gz
   
   bcftools index ${sampleid}_annotated.vcf.gz
-  # create consensus
-  bcftools consensus -f ${sampleid}_ref_cleaned.fasta ${sampleid}_annotated.vcf.gz -o ${sampleid}_vcf_applied.fasta
+  
+  # Optional unmasked consensus
+  bcftools consensus \\
+      -f ${sampleid}_ref_cleaned.fasta \\
+      ${sampleid}_annotated.vcf.gz \\
+      -o ${sampleid}_vcf_applied.fasta
+
+  # Final consensus with zero-coverage regions masked
+  bcftools consensus \\
+      -f ${sampleid}_ref_cleaned.fasta \\
+      --mask ${zero_coverage_bed} \\
+      ${sampleid}_annotated.vcf.gz \\
+      -o ${sampleid}_bcftools_masked_consensus.fasta
   """
 }

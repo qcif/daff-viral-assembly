@@ -18,7 +18,7 @@ REFDATA_DIR="$NVME_MNT"
 
 # Anonymous blob access enabled for both containers
 # refdata: shared with taxodactyl (core_nt, taxdump)
-REFDATA_BLOB_URL="https://daffpremium.blob.core.windows.net/refdata"
+REFDATA_BLOB_URL="https://daffstandard.blob.core.windows.net/refdata-wf2/"
 
 # refdata-wf4: wf4-specific reference databases (kraken2, kaiju, pfam, etc.)
 # Downloading into /mnt/nvme/refdata so everything is under one directory
@@ -116,13 +116,18 @@ stage_refdata() {
         return
     fi
 
-    echo "Creating refdata directory: $REFDATA_DIR" >&2
-    mkdir -p "$REFDATA_DIR"
+    echo "Creating refdata directory: $REFDATA_DIR/refdata" >&2
+    mkdir -p "$REFDATA_DIR/refdata"
 
     echo "Downloading shared refdata from: ${REFDATA_BLOB_URL}" >&2
+    echo "Target: $REFDATA_DIR/refdata" >&2
+    # The trailing `*` and the explicit `/refdata` destination are both load
+    # bearing: copying the container root instead lands the contents in a
+    # directory named after the container (/mnt/nvme/refdata-wf2), which is
+    # outside the path the tasks bind-mount.
     azcopy copy \
-        "${REFDATA_BLOB_URL}" \
-        "${REFDATA_DIR}" \
+        "${REFDATA_BLOB_URL}*" \
+        "${REFDATA_DIR}/refdata" \
         --recursive \
         --check-md5 NoCheck \
         --cap-mbps 0

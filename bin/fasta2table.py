@@ -73,12 +73,25 @@ def process_denovo_contigs(fasta_df, blastn_results, sample_name, blast_file):
             for _, row in filtered_df.iterrows():
                 fout.write(f">{row['qseqid']}\n{row['contig_seq']}\n")
         
-        # Extract and save reference IDs, requiring both slen and contig length limits
+        #Extract and save reference IDs, requiring both slen and contig length limits
         if not filtered_df.empty and len(filtered_df.columns) > 3:
             eligible_df = filtered_df[
                 (pd.to_numeric(filtered_df["slen"], errors="coerce") < 25000)
                 & (filtered_df["contig_seq"].astype(str).str.len() <= 25000)
             ]
+        
+        #This is less stringent and will let much more entries through
+        # if not merged_df.empty and len(merged_df.columns) > 3:
+        #     eligible_df = merged_df[
+        #         (pd.to_numeric(merged_df["slen"], errors="coerce") < 25000)
+        #         & (merged_df["contig_seq"].astype(str).str.len() <= 25000)
+        #         & (~merged_df["term_filter"])
+        #         & (
+        #             (pd.to_numeric(merged_df["qcovs"], errors="coerce") >= 30)
+        #             | (merged_df["best_contig_per_sp_filter"])
+        #         )
+        #     ].copy()
+
             col4 = eligible_df.iloc[:, 3].astype(str)
             col4 = col4.str.replace(" ", "_")
             unique_ids = list(dict.fromkeys(col4))
