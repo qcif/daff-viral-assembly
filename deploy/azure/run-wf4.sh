@@ -27,7 +27,7 @@ PID=$$
 RUN_ID="$(date +"%Y%m%d_%H%M%S")_$PID"
 
 # Default values
-=======
+# =======
 INPUT="index.csv"
 PARAMS_FILE="params/azure_params.yml"
 OUTDIR="output/$RUN_ID"
