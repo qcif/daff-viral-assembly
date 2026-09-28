@@ -150,7 +150,7 @@ workflow VIEW {
         yamlFile = "${projectDir}/params/params_azure_test.yml"
     }
     
-    configyaml = channel.fromPath(yamlFile)
+    configyaml = Channel.fromPath(yamlFile)
     
     //Probably best place to perform subsampling
     //Subsampling to 40M reads is as slow using the nf-core subsample module or seqtk sample (40-50 minutes)

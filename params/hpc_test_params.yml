@@ -2,7 +2,7 @@ input: tests/index_test.csv
 kraken2_db: tests/kraken_test_db/
 kaiju_db_path: tests/kaiju_test_db/
 kaiju_dbname: tests/kaiju_test_db/kaiju_test_db.fmi
-taxdump: ~/.taxonkit
+taxdump: /home/gauthiem/.taxonkit
 blastn_db: tests/blast_test_db/Wsmv.fa
 prot_db: tests/diamond_test_db/prot_test.dmnd
 rrna_ref: tests/smr_v4.3_sensitive_db_DNA_test.fasta
