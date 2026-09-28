@@ -83,7 +83,8 @@ process KAIJU_KAIJU {
     
     input:
     tuple val(meta), path(reads)
-    val(db)
+    val(mounted_kaiju_db)
+    path(staged_kaiju_db)
 
     output:
     //tuple val(meta), path('*.tsv'), emit: results
@@ -98,6 +99,7 @@ process KAIJU_KAIJU {
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
     def input = meta.single_end ? "-i ${reads}" : "-i ${reads[0]} -j ${reads[1]}"
+    def db = mounted_kaiju_db ?: staged_kaiju_db
     """
     dbnodes=`find -L ${db} -name "*nodes.dmp"`
     #dbname=`find -L ${db} -name "*kaiju_db_nr_euk.fmi" -not -name "._*"`

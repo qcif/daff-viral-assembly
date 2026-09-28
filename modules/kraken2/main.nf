@@ -43,7 +43,8 @@ process KRAKEN2_KRAKEN2 {
 
     input:
     tuple val(meta), path(reads)
-    val(db)
+    val(mounted_kraken2_db)
+    path(staged_kraken2_db)
     val save_classified_output_fastqs
     val save_unclassified_output_fastqs
     val save_reads_assignment
@@ -72,7 +73,7 @@ process KRAKEN2_KRAKEN2 {
     def unclassified_option = save_unclassified_output_fastqs ? "--unclassified-out ${unclassified}" : ""
     def readclassification_option = save_reads_assignment ? "--output ${prefix}_kraken2_classified_reads.txt" : "--output /dev/null"
     def compress_reads_command = (save_classified_output_fastqs || save_unclassified_output_fastqs) ? "pigz -p $task.cpus *.fastq" : ""
-
+    def db = mounted_kraken2_db ?: staged_kraken2_db
     """
     kraken2 \\
         --db $db \\

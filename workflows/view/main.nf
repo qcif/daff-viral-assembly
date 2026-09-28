@@ -10,18 +10,17 @@ def isNonEmptyFile(file) {
 }
 
 //We need to define how the references are accessed based on the database mode (mounted or staged)
-// def databaseInputs(String reference) {
-//     if (params.database_mode == 'mounted') {
-//         return [reference, []]
-//     }
+def databaseInputs(String reference) {
+    if (params.database_mode == 'mounted') {
+        return [reference, []]
+    }
 
-//     if (params.database_mode == 'staged') {
-//         return ['', file(reference, checkIfExists: true)]
-//     }
+    if (params.database_mode == 'staged') {
+        return ['', file(reference, checkIfExists: true)]
+    }
 
-//     error "Unknown database_mode: ${params.database_mode}"
-// }
-    
+    error "Unknown database_mode: ${params.database_mode}"
+}
 
 include { BBMAP_BBDUK } from '../../modules/bbmap/bbduk/main'
 include { BBMAP_BBSPLIT } from '../../modules/bbmap/bbsplit/main'
@@ -81,41 +80,13 @@ include { TRIM_ENDS } from '../../modules/trim_ends/main'
 
 workflow VIEW {
     // Show help message
-    
-    // if ( !params.taxdump ) {
-    //     error "Required parameter 'taxdump' is missing. Please set it in your -params-file."
-    // }
-    // else {
-    //     params.taxdump_dir = file(params.taxdump).parent
-    // }
-
     if ( !params.kaiju_db ) {
         error "Required parameter 'kaiju_db' is missing. Please set it in your -params-file."
     }
     else {
         params.kaiju_db_dir = file(params.kaiju_db).parent
     }
-    // if (workflow.profile.tokenize(',').contains('test')) {
-    //         db_results = GENOMAD_DOWNLOAD_DB()
-    //         // GENOMAD_ENDTOEND takes genomad_db as a `val`, so pass the absolute
-    //         // path rather than the file object. Local executors bind-mount the
-    //         // work directory, so the downloaded DB is readable at this path.
-    //         // This branch is local-only: every Azure profile sets genomad_db.
-    //         ch_genomad_db = db_results.db.map { it.toString() }
-    //         ch_genomad_db.view { "Resolved GENOMAD DB: $it" }
-    // }
     
-    // else {
-    //     if (!params.genomad_db) {
-    //         error "Required parameter 'genomad_db' is missing. Please set it in your -params-file."
-    //     }
-    //     // A `val`, not fromPath: on Azure this is a node-local path staged by
-    //     // the pool start task, which must not be resolved or uploaded from the
-    //     // launching machine.
-    //     ch_genomad_db = Channel.value(params.genomad_db)
-    // }
-
-
     def otherRequiredParams = [
         'blastn_db',
         'hmmer_db',
@@ -126,13 +97,11 @@ workflow VIEW {
         'kraken2_db',
     ]
     
-
     otherRequiredParams.each { p ->
         if (!params[p]) {
             error "Required parameter '${p}' is missing. Please set it in your -params-file."
         }
     }
-
 
     START_TIMESTAMP ()
     ch_versions = Channel.empty()
@@ -176,10 +145,10 @@ workflow VIEW {
         yamlFile = workflow.commandLine.split(" -params-file ")[1].split(" ")[0]
     }
     else if (workflow.profile.tokenize(',').contains('hpc_test')) {
-        yamlFile = "${projectDir}/params/user_params_hpc_test.yml"
+        yamlFile = "${projectDir}/params/params_hpc_test.yml"
     }
-    else if (workflow.profile.tokenize(',').contains('test')) {
-        yamlFile = "${projectDir}/params/user_params_test.yml"
+    else if (workflow.profile.tokenize(',').contains('azure_test')) {
+        yamlFile = "${projectDir}/params/params_azure_test.yml"
     }
     
     configyaml = channel.fromPath(yamlFile)
@@ -254,12 +223,10 @@ workflow VIEW {
     //When using a chanmnel, for ex. ch_rrna, it has only one item, it stops pairing after the first sample, only one task runs
     //This is why only the first sample is processed.
     //Provide the rrna ref as a file parameter instead
-    // def (mounted_rrna_ref, staged_rrna_ref) =
-    //     databaseInputs(params.rrna_ref)
+    def (mounted_rrna_ref, staged_rrna_ref) =
+        databaseInputs(params.rrna_ref)
 
-    // BBMAP_BBDUK ( trim_reads_for_bbduk, mounted_rrna_ref, staged_rrna_ref)
-
-    BBMAP_BBDUK ( trim_reads_for_bbduk, file(params.rrna_ref))
+    BBMAP_BBDUK ( trim_reads_for_bbduk, mounted_rrna_ref, staged_rrna_ref)
 
     //remove phiX reads
     BBMAP_BBSPLIT (
@@ -284,7 +251,9 @@ workflow VIEW {
         tuple(sampleid, stats1)
     }
     
-    KRAKEN2_KRAKEN2(BBMAP_BBSPLIT.out.all_fastq, params.kraken2_db, params.kraken2_save_classified_reads, params.kraken2_save_unclassified_reads, params.kraken2_save_readclassifications)
+    def (mounted_kraken2_db, staged_kraken2_db) =
+        databaseInputs(params.kraken2_db)
+    KRAKEN2_KRAKEN2(BBMAP_BBSPLIT.out.all_fastq, mounted_kraken2_db, staged_kraken2_db, params.kraken2_save_classified_reads, params.kraken2_save_unclassified_reads, params.kraken2_save_readclassifications)
     
     //The logic of the original Bracken est_abundance.py had to be modified as it was not working as intended for viral species 
     // only defined at S1 (strain) level but not S level, these would just not appear in the bracken report. 
@@ -310,31 +279,43 @@ workflow VIEW {
     //READ CLASSIFICATION WITH KAIJU
     //Incorporate a separate module for kaiju2krona and kaiju2table?
     //Explore downtrack downloading krona taxonomy to see if it improves the visualisation?
-    KAIJU_KAIJU ( BBMAP_BBSPLIT.out.all_fastq, params.kaiju_db_dir )
+    def (mounted_kaiju_db, staged_kaiju_db) =
+        databaseInputs(params.kaiju_db_dir)
+    KAIJU_KAIJU ( BBMAP_BBSPLIT.out.all_fastq, mounted_kaiju_db, staged_kaiju_db )
     KRONA_KTIMPORTTEXT ( KAIJU_KAIJU.out.krona_results )
     
     ch_read_classification = KAIJU_KAIJU.out.kaiju_results.join(KRAKEN2_ABUNDANCE_ESTIMATE.out.kraken2_results)
                                                         .join(ch_stats)
- 
-    SUMMARISE_READ_CLASSIFICATION ( ch_read_classification, params.taxdump, params.filter_terms )
+    
+    // def (mounted_taxdump_db, staged_taxdump_db) =
+    //     databaseInputs(params.taxdump)
+    def profiles = workflow.profile.tokenize(',')
+    if (profiles.any { it in ['azure', 'azure_test'] }) {
+        if (!params.taxdump) {
+            error "Required parameter 'taxdump' is missing."
+        }
+        mounted_taxdump_db = params.taxdump
+        staged_taxdump_db  = []
+    }
+
+    //In other modes, if the database is not provided, it will download it automatically
+    else {
+        mounted_taxdump_db = ''
+        staged_taxdump_db  = file(params.taxdump, checkIfExists: true)
+    }
+    SUMMARISE_READ_CLASSIFICATION ( ch_read_classification, mounted_taxdump_db, staged_taxdump_db, params.filter_terms )
 
     //perform de novo assembly with spades using rnaspades
     SPADES ( RETRIEVE_VIRAL_READS_KRAKEN2.out.fastq )
     //Filter contigs by length less than 150 bp with SEQTK
     SEQTK_SEQ ( SPADES.out.assembly )
-    // ch_blast_db = Channel.value(
-    //     tuple(
-    //         file(params.blastn_db).parent,
-    //         file(params.blastn_db).name
-    //     )
-    // )
+
     def blastDb = new File(params.blastn_db.toString())
+    def (mountedBlastDir, stagedBlastDir) =
+        databaseInputs(blastDb.parent)
 
     ch_blast_db = Channel.value(
-        tuple(
-            blastDb.parent,
-            blastDb.name
-        )
+        tuple(mountedBlastDir, stagedBlastDir, blastDb.name)
     )
 
     MEGABLAST(
@@ -392,45 +373,55 @@ workflow VIEW {
     //https://github.com/urmi-21/orfipy?tab=readme-ov-file
     //Other options to consider are prodigal, OrfM and getorf 
     ORFIPY ( TRIM_ENDS.out.trimmed_contigs.join(EXTRACT_CONTIGS.out.other_fasta) )
+    def hmmer_db = new File(params.hmmer_db.toString())
+
+    def (mountedHmmerDir, stagedHmmerDir) =
+        databaseInputs(hmmer_db.parent)
+
     ch_hmmer_db = Channel.value(
-        tuple(
-            file(params.hmmer_db).parent,
-            file(params.hmmer_db).name
-        )
+        tuple(mountedHmmerDir, stagedHmmerDir, file(params.hmmer_db).name)
     )
 
     HMMSCAN ( ORFIPY.out.orf_fasta, ch_hmmer_db )
     ch_genomad = TRIM_ENDS.out.trimmed_contigs.join(EXTRACT_CONTIGS.out.other_fasta)
-    //GENOMAD_ENDTOEND ( genomad_ch, params.genomad_db )
-    //GENOMAD_ENDTOEND ( ch_genomad, ch_genomad_db )
+
     
-    def is_test = workflow.profile.tokenize(',').any { it in ['test', 'hpc_test'] }
-
-    if (is_test) {
-        db_results = GENOMAD_DOWNLOAD_DB()
-
-        GENOMAD_ENDTOEND_TEST(
-            ch_genomad,
-            db_results.db
-        )
-        ch_genomad_virus_preds = GENOMAD_ENDTOEND_TEST.out.virus_preds
+    //def profiles = workflow.profile.tokenize(',')
+    //In azure, the genomad database is expected to be provided as mount
+    //Do not download
+    if (profiles.any { it in ['azure'] }) {
+        if (!params.genomad_db) {
+            error "Required parameter 'genomad_db' is missing."
+        }
+        mounted_genomad_db = params.genomad_db
+        staged_genomad_db  = []
     }
+
+    //In other modes, if the database is not provided, it will download it automatically
     else {
         if (!params.genomad_db) {
-            error "Required parameter 'genomad_db' is missing. Please set it in your -params-file."
+            db_results = GENOMAD_DOWNLOAD_DB()
+            mounted_genomad_db = ''
+            staged_genomad_db  = db_results.db
         }
-
-        GENOMAD_ENDTOEND(
-            ch_genomad,
-            Channel.value(params.genomad_db)
-        )
-        ch_genomad_virus_preds = GENOMAD_ENDTOEND.out.virus_preds
+        else {
+            mounted_genomad_db = ''
+            staged_genomad_db  = file(params.genomad_db, checkIfExists: true)
+        }
     }
 
+    GENOMAD_ENDTOEND(
+        ch_genomad,
+        mounted_genomad_db,
+        staged_genomad_db
+    )
+    ch_genomad_virus_preds = GENOMAD_ENDTOEND.out.virus_preds
 
     //Enhancement: Option to perform a blastx alignment of contig ORFs?
-    ch_diamond = TRIM_ENDS.out.trimmed_contigs.join(EXTRACT_CONTIGS.out.other_fasta) 
-    DIAMOND_BLASTX ( ch_diamond, params.prot_db )
+    ch_diamond = TRIM_ENDS.out.trimmed_contigs.join(EXTRACT_CONTIGS.out.other_fasta)
+    def (mounted_prot_db, staged_prot_db) =
+        databaseInputs(params.prot_db)
+    DIAMOND_BLASTX ( ch_diamond, mounted_prot_db, staged_prot_db )
     CONTIG_COVSTATS( ch_contig_cov_stats_summary)
     //Mapping back to reference sequences retrieved from blast hits
     EXTRACT_REF_FASTA ( ch_fasta2table_contigs.ref_ids )
@@ -464,7 +455,7 @@ workflow VIEW {
     ch_fasta2table_ref = FASTA2TABLE_REF ( ch_fasta2table_ref_input )
     
     //Derive QC report
-    //Merge all the  files into one channel
+    //Merge all the files into one channel
     ch_multiqc_files = FASTP.out.json.map { meta, json ->
         json
         }
@@ -473,6 +464,11 @@ workflow VIEW {
         .collect()
 
     QC_REPORT(ch_multiqc_files)
+
+    //Provide the rrna ref as a file parameter instead
+    def (mounted_rvdb_taxonomy, staged_rvdb_taxonomy) =
+        databaseInputs(params.rvdb_taxonomy)
+    
     ch_summarise_results_input = SUMMARISE_READ_CLASSIFICATION.out.kraken_summary
         .join(SUMMARISE_READ_CLASSIFICATION.out.kaiju_summary)
         .join(CONTIG_COVSTATS.out.detections_summary)
@@ -483,7 +479,7 @@ workflow VIEW {
         .join(EXTRACT_FINAL_VIRAL_BLAST_HITS.out.viral_blast_results)
         .join(DIAMOND_BLASTX.out.diamond_results)
         .map { sampleid, kraken_results, kaiju_results, blast, hmmscan, map2ref, contigs, genomad, blast_novel, diamond_results ->
-            tuple(sampleid, kraken_results, kaiju_results, blast, hmmscan, map2ref, contigs, genomad, blast_novel, diamond_results, file(params.rvdb_taxonomy))
+            tuple(sampleid, kraken_results, kaiju_results, blast, hmmscan, map2ref, contigs, genomad, blast_novel, diamond_results, mounted_rvdb_taxonomy, staged_rvdb_taxonomy)
         }
 
     SUMMARISE_RESULTS(ch_summarise_results_input)

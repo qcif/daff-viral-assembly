@@ -5,7 +5,8 @@ process SUMMARISE_READ_CLASSIFICATION {
 
     input:
     tuple val(sampleid), path(kaiju_results), path(kraken2_results), path(stats)
-    val(taxonkit_db)
+    val(mounted_db_dir)
+    path(staged_db_dir)
     path(filter_terms)
 
     output:
@@ -15,6 +16,7 @@ process SUMMARISE_READ_CLASSIFICATION {
     tuple val(sampleid), path("${sampleid}_kraken_summary.txt"), emit: kraken_summary
 
     script:
+    def taxonkit_db = mounted_db_dir ?: staged_db_dir
     """
     filter_classification_results.py --kaiju ${kaiju_results} --sample_name ${sampleid} --kraken2 ${kraken2_results} --taxonkit_database_dir ${taxonkit_db} --stats ${stats} --filter ${filter_terms}
     """

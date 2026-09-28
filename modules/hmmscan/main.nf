@@ -9,7 +9,7 @@ process HMMSCAN {
     
     input:
     tuple val(sampleid), path(fasta)
-    tuple val(db_dir), val(db_name)
+    tuple val(mounted_db_dir), path(staged_db_dir), val(db_name)
     
     output:
     file "${sampleid}_orfs.fasta"
@@ -18,6 +18,7 @@ process HMMSCAN {
     tuple val(sampleid), path("${sampleid}_hmmscan_per_domain_output.txt"), emit: hmmscan_domain_preds
 
     script:
+    def db_dir = mounted_db_dir ?: staged_db_dir
     """
     hmmscan --cpu ${task.cpus} \\
             --domtblout ${sampleid}_hmmscan_per_domain_output.txt \\

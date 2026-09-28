@@ -8,13 +8,15 @@ process DIAMOND_BLASTX {
 
     input:
     tuple val(sampleid), path(viral_fasta), path(other_fasta)
-    val(prot_db)
-    
+    val(mounted_prot_db)
+    path(staged_prot_db)
+
     output:
     file "${sampleid}_diamond_matches*.txt"
     tuple val(sampleid), path("${sampleid}_diamond_matches.txt"), emit: diamond_results
 
     script:
+    def prot_db = mounted_prot_db ?: staged_prot_db
     """
     cat ${viral_fasta} ${other_fasta} > ${sampleid}_combined_contigs.fasta
     diamond blastx --query ${sampleid}_combined_contigs.fasta \\

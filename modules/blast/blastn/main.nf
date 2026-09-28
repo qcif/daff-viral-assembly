@@ -5,7 +5,7 @@ process BLAST_BLASTN {
 
     input:
     tuple val(sampleid), path(assembly)
-    tuple val(db_dir), val(db_name)
+    tuple val(mounted_db_dir), path(staged_db_dir), val(db_name)
     
     output:
     tuple val(sampleid), path("${sampleid}*_blastn.bls"), emit: blast_results
@@ -13,6 +13,7 @@ process BLAST_BLASTN {
     script:
     //def blastdb_dir  = file(db).parent
     //def blastdb_name = file(db).name
+    def db_dir = mounted_db_dir ?: staged_db_dir
     def blastoutput = assembly.getBaseName() + "_blastn.bls"
     """
     export BLASTDB=${db_dir}

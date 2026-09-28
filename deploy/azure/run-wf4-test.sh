@@ -31,11 +31,12 @@ RUN_ID="$(date +"%Y%m%d_%H%M%S")_$PID"
 # Default values
 OUTDIR="output/test_$RUN_ID"
 RESUME=""
+PARAMS_FILE="params/azure_test_params.yml"
 
 # TaxonKit taxdump — a node-local path staged by the pool start task, NOT a
 # path on this machine. It is a `val` input, so Nextflow passes it through
 # unchanged and the container reads it via the /mnt/nvme/refdata bind mount.
-TAXDUMP="${TAXDUMP:-/mnt/nvme/refdata/taxdump}"
+# TAXDUMP="${TAXDUMP:-/mnt/nvme/refdata/taxdump}"
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -47,6 +48,10 @@ while [[ $# -gt 0 ]]; do
         -resume)
             RESUME="-resume"
             shift
+            ;;
+        -params-file)
+            PARAMS_FILE="$2"
+            shift 2
             ;;
         *)
             echo -e "${RED}ERROR: Unknown argument: $1${NC}"
@@ -86,7 +91,7 @@ echo -e "${YELLOW}=== VIEW Test Case Azure Batch Configuration ===${NC}"
 echo "Input:           tests/index_test.csv (from test profile)"
 echo "Output dir:      $OUTDIR"
 echo "Test databases:  tests/ (staged to the node by Nextflow)"
-echo "Taxdump:         $TAXDUMP (on Azure Batch nodes)"
+echo "Params file:      $PARAMS_FILE"
 echo "Pool:            view_test"
 echo "Profile:         azure_test,test"
 echo "Resume:          ${RESUME:-false}"
@@ -110,7 +115,7 @@ mkdir -p "$OUTDIR"
 nextflow run main.nf \
     -profile azure_test,test \
     --outdir "$OUTDIR" \
-    --taxdump "$TAXDUMP" \
+    -params-file "$PARAMS_FILE" \
     --analyst_name "${ANALYST_NAME:-Tester}" \
     --facility "${FACILITY_NAME:-Unknown}" \
     $RESUME

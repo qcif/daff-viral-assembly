@@ -7,7 +7,7 @@ process SUMMARISE_RESULTS {
     publishDir { "${params.outdir}/${sampleid}/07_annotation" }, mode: 'copy', pattern: '{*hmm_domain_summary_counts.tsv}'
 
     input:
-    tuple val(sampleid), path(kraken_results), path(kaiju_results), path(blast), path(hmmscan), path(map2ref), path(contigs), path(genomad), path(blast_novel), path(diamond_results), val(taxonomy)
+    tuple val(sampleid), path(kraken_results), path(kaiju_results), path(blast), path(hmmscan), path(map2ref), path(contigs), path(genomad), path(blast_novel), path(diamond_results), val(mounted_rvdb_taxonomy), path(staged_rvdb_taxonomy)
 
     output:
     path("${sampleid}_summary_viral_results.tsv")
@@ -23,6 +23,7 @@ process SUMMARISE_RESULTS {
 
 
     script:
+    def rvdb_taxonomy = mounted_rvdb_taxonomy ?: staged_rvdb_taxonomy
     """
     viral_results_summary.py \\
       --sample_name ${sampleid} \\
@@ -34,7 +35,7 @@ process SUMMARISE_RESULTS {
       --genomad ${genomad} \\
       --blast_novel ${blast_novel} \\
       --diamond ${diamond_results} \\
-      --taxonomy ${taxonomy} \\
+      --taxonomy ${rvdb_taxonomy} \\
       --min-reads 2000 \\
       --fasta ${contigs}
     """

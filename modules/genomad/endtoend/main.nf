@@ -9,7 +9,8 @@ process GENOMAD_ENDTOEND {
     // `val`, not `path`: the DB is staged to the node by the pool start task
     // and read through the /mnt/nvme/refdata bind mount, so Nextflow must not
     // resolve or upload it from the launching machine.
-    val(genomad_db)
+    val(mounted_db)
+    path(staged_db)
 
     output:
     file "*_summary/*_virus.fna"
@@ -27,6 +28,7 @@ process GENOMAD_ENDTOEND {
     tuple val(sampleid), path("${sampleid}_combined_contigs_virus_summary.tsv"), emit: virus_preds
       
     script:
+    def genomad_db = mounted_db ?: staged_db
     """
     cat ${viral_fasta} ${other_fasta} > ${sampleid}_combined_contigs.fasta
     genomad \\
@@ -37,7 +39,8 @@ process GENOMAD_ENDTOEND {
       --threads ${task.cpus} \\
       --min-score 0.7 \\
       --splits 1 \\
-      > ${sampleid}_genomad.log 2>&1
-      cp ${sampleid}_combined_contigs_summary/${sampleid}_combined_contigs_virus_summary.tsv .
+      2>&1 | tee ${sampleid}_genomad.log
+    
+    cp ${sampleid}_combined_contigs_summary/${sampleid}_combined_contigs_virus_summary.tsv .
     """
 }
