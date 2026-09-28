@@ -5,7 +5,8 @@ process EXTRACT_FINAL_VIRAL_BLAST_HITS {
 
     input:
     tuple val(sampleid), path(blast_results), path(assembly_headers)
-    val(taxonkit_db)
+    val(mounted_db_dir)
+    path(staged_db_dir)
     path(filter_terms)
 
     output:
@@ -13,6 +14,7 @@ process EXTRACT_FINAL_VIRAL_BLAST_HITS {
     path("${sampleid}_blastn.txt")
 
     script:
+    def taxonkit_db = mounted_db_dir ?: staged_db_dir
     """
     cat ${blast_results} > ${sampleid}_blastn.txt
     filter_blast.py --blastn_results ${sampleid}_blastn.txt \
