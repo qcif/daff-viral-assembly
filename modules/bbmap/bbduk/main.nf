@@ -33,6 +33,7 @@ process BBMAP_BBDUK {
     def prefix = task.ext.prefix ?: "${meta.id}"
     def raw      = meta.single_end ? "in=${reads[0]}" : "in1=${reads[0]} in2=${reads[1]}"
     def trimmed  = meta.single_end ? "out=${prefix}_non_rRNA.fastq.gz" : "out1=${prefix}_non_rRNA_1.fastq.gz out2=${prefix}_non_rRNA_2.fastq.gz"
+    def trimmed_input = meta.single_end ? "in=${prefix}_non_rRNA.fastq.gz" : "in1=${prefix}_non_rRNA_1.fastq.gz in2=${prefix}_non_rRNA_2.fastq.gz"
     def subsampled = meta.single_end ? "out=${prefix}_subsampled.fastq.gz" : "out1=${prefix}_subsampled_1.fastq.gz out2=${prefix}_subsampled_2.fastq.gz"
     def db = mounted_db ?: staged_db
     def contaminants_fa = db ? "ref=${db}" : ''
@@ -56,13 +57,16 @@ process BBMAP_BBDUK {
         READS=\$(cat $read_count)
         THRESHOLD=$sample_size
 
+        SAMPLERATE=\$(awk -v target="\$THRESHOLD" -v total="\$READS" \
+        'BEGIN { printf "%.10f", target / total }')
+
         #If read counts exceed the threshold, perform subsampling
         if [ "\$READS" -gt "\$THRESHOLD" ]; then
             bbduk.sh \\
             -Xmx${task.memory.toGiga()}g \\
-            $trimmed \\
+            $trimmed_input \\
             $subsampled \\
-            samplerate=\$(echo "scale=6; \$THRESHOLD / \$READS" | bc) \\
+            samplerate=\$SAMPLERATE \\
             sampleseed=100
         else
             if [ "$meta.single_end" = true ]; then
