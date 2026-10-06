@@ -145,3 +145,10 @@ dmypy.json
 # geNomad DB published by GENOMAD_DOWNLOAD_DB (params.databases = launchDir/databases).
 # Staged to the node by the start task instead; never commit it.
 databases/
+
+# Nextflow work directory, run anywhere in the repo
+work/
+
+# Disposable batch-vs-per-query BLAST performance test (tests/blast-perf/):
+# run outputs, not the test itself.
+tests/blast-perf/results/
