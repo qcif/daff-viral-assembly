@@ -68,7 +68,7 @@ include { RETRIEVE_VIRAL_READS_KRAKEN2 } from '../../modules/retrieve_viral_read
 include { SAMTOOLS_CONTIGS } from '../../modules/samtools/contigs/main'
 include { SAMTOOLS_MPILEUP } from '../../modules/samtools/mpileup/main'
 include { SAMTOOLS_REF } from '../../modules/samtools/ref/main'
-include { SEQTK_SAMPLE } from '../../modules/seqtk/sample/main'
+//include { SEQTK_SAMPLE } from '../../modules/seqtk/sample/main'
 include { SEQTK_SEQ } from '../../modules/seqtk/seq/main'
 include { SEQTK_SUBSEQ as EXTRACT_CONTIGS } from '../../modules/seqtk/subseq/main'
 include { SPADES } from '../../modules/spades/main'
@@ -151,63 +151,14 @@ workflow VIEW {
     }
     
     configyaml = Channel.fromPath(yamlFile)
-    
-    //Probably best place to perform subsampling
-    //Subsampling to 40M reads is as slow using the nf-core subsample module or seqtk sample (40-50 minutes)
-    if ( params.subsample_enabled ) {
-            //Check size of fastq file first before subsampling!
-            //FQ_SUBSAMPLE ( BBMAP_BBSPLIT.out.all_fastq )
-        ch_with_counts = CAT_FASTQ.out.reads \
-            | COUNT_FASTQ_READS
-
-        SEQTK_SAMPLE(
-            ch_with_counts,
-            params.subsample_size
-        )
-
-        ch_versions = ch_versions.mix( SEQTK_SAMPLE.out.versions.first() )
-        merged_fastq = SEQTK_SAMPLE.out.reads.ifEmpty {
-            CAT_FASTQ.out.reads
-        }
-    } else {
-        merged_fastq = CAT_FASTQ.out.reads
-    }
-
-    /*
-    //revisit, this logic was bugging but it would be nice to combine COUNT_FASTQ_READS and SEQTK_SAMPLE into one process 
-    //that performs subsampling if the file is above a certain size threshold, otherwise just passes through the original fastq file. This would avoid the issue of the channel not pairing after the first sample when using SEQTK_SAMPLE on its own.
-    if ( params.subsample_enabled ) {
-        //Check size of fastq file first before subsampling!
-        //FQ_SUBSAMPLE ( BBMAP_BBSPLIT.out.all_fastq )
-        //ch_with_counts = CAT_FASTQ.out.reads \
-        //    | COUNT_FASTQ_READS
-
-        //SEQTK_SAMPLE(
-        //    ch_with_counts,
-        //    params.subsample_size
-        //)
-
-        SEQTK_SAMPLE(
-            CAT_FASTQ.out.reads,
-            params.subsample_size
-        )
-
-        ch_versions = ch_versions.mix( SEQTK_SAMPLE.out.versions.first() )
-        merged_fastq = SEQTK_SAMPLE.out.reads.ifEmpty {
-            CAT_FASTQ.out.reads
-        }
-    } else {
-        merged_fastq = CAT_FASTQ.out.reads
-    }
-    */
-    
-    FASTP ( merged_fastq, params.save_trimmed_fail, params.save_merged, params.fastp_min_read_length, params.fastp_average_qual, params.fastp_low_complexity_threshold, params.fastp_poly_x_threshold )
+   
+    FASTP ( CAT_FASTQ.out.reads , params.save_trimmed_fail, params.save_merged, params.fastp_min_read_length, params.fastp_average_qual, params.fastp_low_complexity_threshold, params.fastp_poly_x_threshold )
     trim_html         = FASTP.out.html
     trim_reads_for_fastqc   = FASTP.out.reads
     trim_reads_for_bbduk   = FASTP.out.reads
     ch_versions       = ch_versions.mix(FASTP.out.versions.first())
     
-    FASTQC_RAW ( merged_fastq )
+    FASTQC_RAW ( CAT_FASTQ.out.reads )
     fastqc_raw_html = FASTQC_RAW.out.html
     fastqc_raw_zip  = FASTQC_RAW.out.zip
     ch_versions     = ch_versions.mix(FASTQC_RAW.out.versions.first())
@@ -216,17 +167,19 @@ workflow VIEW {
     fastqc_trim_html = FASTQC_TRIM.out.html
     ch_versions      = ch_versions.mix(FASTQC_TRIM.out.versions.first())
     
+    //Filter for rRNA reads using BBMAP_BBDUK, followed by subsampling, if read pair counts exceed the specified sample size (specified using params.subsample_size)
     //Filtering with sortmerna takes much longer than bbduk so used bbduk for prototype
     //Nextflow zips channels together by default:
     //Task receives one item from trim_reads_for_bbduk + one item from ch_rrna
-    //When using a chanmnel, for ex. ch_rrna, it has only one item, it stops pairing after the first sample, only one task runs
+    //When using a chanmel, for ex. ch_rrna, it has only one item, it stops pairing after the first sample, only one task runs
     //This is why only the first sample is processed.
     //Provide the rrna ref as a file parameter instead
-    def (mounted_rrna_ref, staged_rrna_ref) =
-        databaseInputs(params.rrna_ref)
+    COUNT_FASTQ_READS(CAT_FASTQ.out.reads)
+    ch_with_counts = trim_reads_for_bbduk.join(COUNT_FASTQ_READS.out.read_count)
+    def (mounted_rrna_ref, staged_rrna_ref) = databaseInputs(params.rrna_ref)
 
-    BBMAP_BBDUK ( trim_reads_for_bbduk, mounted_rrna_ref, staged_rrna_ref)
-
+    BBMAP_BBDUK ( ch_with_counts, mounted_rrna_ref, staged_rrna_ref, params.subsample_enabled, params.subsample_size)
+    
     //remove phiX reads
     BBMAP_BBSPLIT (
         BBMAP_BBDUK.out.reads,

@@ -1,34 +1,3 @@
-// original process stated explicitly inputs and outputs.
-/*
-process BBDUK { 
-  tag "${sampleid}"
-  label "setting_22"
-  containerOptions "${bindOptions}"
-  publishDir "${params.outdir}/${sampleid}/04_cleaned", mode: 'copy'
-
-  input:
-    tuple val(sampleid), path(fastq1), path(fastq2), path(ref)
-  output:
-    path("${sampleid}_rRNA_reads.log")
-    path("${sampleid}_non_rRNA_fwd.fastq.gz")
-    path("${sampleid}_non_rRNA_rev.fastq.gz")
-    path("${sampleid}_rRNA_reads.log"), emit: bbduk_stats
-    tuple val(sampleid), path("${sampleid}_non_rRNA_fwd.fastq.gz"), path("${sampleid}_non_rRNA_rev.fastq.gz"), emit: bbduk_filtered_fq
-
-  script:
-  """
-  bbduk.sh -Xmx10g in=${fastq1} \
-                   in2=${fastq2} \
-                   out=${sampleid}_non_rRNA_fwd.fastq.gz \
-                   out2=${sampleid}_non_rRNA_rev.fastq.gz \
-                   outm=${sampleid}_rRNA_fwd.fastq.gz \
-                   outm2=${sampleid}_rRNA_rev.fastq.gz \
-                   k=31 ref=${ref} \
-                   2>${sampleid}_rRNA_reads.log
-  """
-}
-*/
-
 //might want to specify parameter k=31 outside of process in the future
 process BBMAP_BBDUK {
     tag "$meta.id"
@@ -41,16 +10,17 @@ process BBMAP_BBDUK {
         'community.wave.seqera.io/library/bbmap_pigz:07416fe99b090fa9' }"
     
     input:
-    tuple val(meta), path(reads)
-    //val(db)
+    tuple val(meta), path(reads), path(read_count)
     val(mounted_db)
     path(staged_db)
+    val(subsample_enabled)
+    val(sample_size)
 
     output:
     //path("${meta.id}_non_rRNA_1.fastq.gz")
     //path("${meta.id}_non_rRNA_2.fastq.gz")
     path("${meta.id}_bbduk.log")
-    tuple val(meta), path('*.fastq.gz'), emit: reads
+    tuple val(meta), path('*_subsampled*.fastq.gz'), emit: reads
     tuple val(meta), path('*.log')     , emit: log
     path('*.log')                      , emit: log2
     path "versions.yml"                , emit: versions
@@ -62,9 +32,13 @@ process BBMAP_BBDUK {
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
     def raw      = meta.single_end ? "in=${reads[0]}" : "in1=${reads[0]} in2=${reads[1]}"
-    def trimmed  = meta.single_end ? "out=${prefix}.fastq.gz" : "out1=${prefix}_non_rRNA_1.fastq.gz out2=${prefix}_non_rRNA_2.fastq.gz"
+    def trimmed  = meta.single_end ? "out=${prefix}_non_rRNA.fastq.gz" : "out1=${prefix}_non_rRNA_1.fastq.gz out2=${prefix}_non_rRNA_2.fastq.gz"
+    def subsampled = meta.single_end ? "out=${prefix}_subsampled.fastq.gz" : "out1=${prefix}_subsampled_1.fastq.gz out2=${prefix}_subsampled_2.fastq.gz"
     def db = mounted_db ?: staged_db
     def contaminants_fa = db ? "ref=${db}" : ''
+    if ( subsample_enabled && !sample_size ) {
+        error "The bbmap_bbduk process must have a sample_size value included"
+    }
     """
     bbduk.sh \\
         -Xmx${task.memory.toGiga()}g \\
@@ -75,6 +49,39 @@ process BBMAP_BBDUK {
         $args \\
         $contaminants_fa \\
         &>${prefix}_bbduk.log
+
+    
+    if [ "${subsample_enabled}" = "true" ]; then
+        # Read count
+        READS=\$(cat $read_count)
+        THRESHOLD=$sample_size
+
+        #If read counts exceed the threshold, perform subsampling
+        if [ "\$READS" -gt "\$THRESHOLD" ]; then
+            bbduk.sh \\
+            -Xmx${task.memory.toGiga()}g \\
+            $trimmed \\
+            $subsampled \\
+            samplerate=\$(echo "scale=6; \$THRESHOLD / \$READS" | bc) \\
+            sampleseed=100
+        else
+            if [ "$meta.single_end" = true ]; then
+                ln -s "${prefix}_non_rRNA.fastq.gz" "${prefix}_subsampled.fastq.gz"
+            else
+                ln -s "${prefix}_non_rRNA_1.fastq.gz" "${prefix}_subsampled_1.fastq.gz"
+                ln -s "${prefix}_non_rRNA_2.fastq.gz" "${prefix}_subsampled_2.fastq.gz"
+            fi
+        fi
+    else
+        if [ "$meta.single_end" = true ]; then
+            ln -s "${prefix}_non_rRNA.fastq.gz" "${prefix}_subsampled.fastq.gz"
+        else
+            ln -s "${prefix}_non_rRNA_1.fastq.gz" "${prefix}_subsampled_1.fastq.gz"
+            ln -s "${prefix}_non_rRNA_2.fastq.gz" "${prefix}_subsampled_2.fastq.gz"
+        fi
+    fi
+    
+
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
