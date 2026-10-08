@@ -152,3 +152,8 @@ work/
 # Disposable batch-vs-per-query BLAST performance test (tests/blast-perf/):
 # run outputs, not the test itself.
 tests/blast-perf/results/
+
+# ~30k fetched viral sequences for the scale test (tests/blast-perf/):
+# regenerate with fetch_queries_scale.sh; too large (hundreds of MB) to
+# commit, unlike the 10 curated queries in queries.fasta.
+tests/blast-perf/scale_queries/

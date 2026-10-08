@@ -14,10 +14,20 @@
 #   ./tests/blast-perf/run.sh batch                  # starts a new run_id, prints it
 #   ./tests/blast-perf/run.sh per_query <run_id>      # reuses that run_id
 #   ./tests/blast-perf/run.sh report <run_id>         # generates REPORT.md from both
+#   ./tests/blast-perf/run.sh cores                  # starts a new run_id
+#   ./tests/blast-perf/run.sh cores-report <run_id>
+#   ./tests/blast-perf/run.sh scale_batch            # starts a new run_id
+#   ./tests/blast-perf/run.sh scale_split <run_id>   # reuses that run_id
+#   ./tests/blast-perf/run.sh scale-report <run_id>
 #
 # Run from the repository root. Wait for the pool to scale back to 0
-# nodes (about 15 minutes after the queue empties) before starting the
-# second workflow, so it doesn't inherit the first run's warm node/cache.
+# nodes (about 15 minutes after the queue empties) before starting a
+# paired workflow (per_query after batch, scale_split after scale_batch),
+# so it doesn't inherit the first run's warm node/cache.
+#
+# scale_batch/scale_split need tests/blast-perf/scale_queries/queries_30k.fasta
+# (regenerate with ./tests/blast-perf/fetch_queries_scale.sh; it's not
+# committed, see .gitignore).
 
 set -euo pipefail
 
@@ -30,8 +40,10 @@ TEST_DIR="tests/blast-perf"
 CONFIG="${TEST_DIR}/blast-perf.config"
 
 usage() {
-    echo "Usage: $0 <batch|per_query> [run_id]"
+    echo "Usage: $0 <batch|per_query|cores|scale_batch|scale_split> [run_id]"
     echo "       $0 report <run_id>"
+    echo "       $0 cores-report <run_id>"
+    echo "       $0 scale-report <run_id>"
     exit 1
 }
 
@@ -59,8 +71,46 @@ if [[ "$MODE" == "report" ]]; then
     exit 0
 fi
 
-if [[ "$MODE" != "batch" && "$MODE" != "per_query" ]]; then
-    usage
+if [[ "$MODE" == "cores-report" ]]; then
+    RUN_ID="${2:-}"
+    [[ -z "$RUN_ID" ]] && usage
+    RESULTS_DIR="${TEST_DIR}/results/${RUN_ID}"
+
+    (
+        cd "$TEST_DIR"
+        ../../venv/bin/python3 summarise_cores.py "results/${RUN_ID}/cores"
+        mv REPORT.md "results/${RUN_ID}/REPORT.md"
+    )
+    echo "Report: ${RESULTS_DIR}/REPORT.md"
+    exit 0
+fi
+
+if [[ "$MODE" == "scale-report" ]]; then
+    RUN_ID="${2:-}"
+    [[ -z "$RUN_ID" ]] && usage
+    RESULTS_DIR="${TEST_DIR}/results/${RUN_ID}"
+
+    (
+        cd "$TEST_DIR"
+        ../../venv/bin/python3 summarise_scale.py \
+            "results/${RUN_ID}/scale_batch" \
+            "results/${RUN_ID}/scale_split"
+        mv REPORT.md "results/${RUN_ID}/REPORT.md"
+    )
+    echo "Report: ${RESULTS_DIR}/REPORT.md"
+    exit 0
+fi
+
+case "$MODE" in
+    batch|per_query|cores|scale_batch|scale_split) ;;
+    *) usage ;;
+esac
+
+if [[ "$MODE" == "scale_batch" || "$MODE" == "scale_split" ]] \
+    && [[ ! -f "${TEST_DIR}/scale_queries/queries_30k.fasta" ]]; then
+    echo -e "${RED}ERROR: ${TEST_DIR}/scale_queries/queries_30k.fasta not" \
+        "found. Run ./tests/blast-perf/fetch_queries_scale.sh first.${NC}"
+    exit 1
 fi
 
 RUN_ID="${2:-$(date +"%Y%m%d_%H%M%S")}"
@@ -84,7 +134,14 @@ echo "Results dir: $RESULTS_DIR"
 echo "Pool:        view"
 echo ""
 
-read -p "This runs real work on the production 'view' pool and costs money (~\$4-6 for this one workflow). Make sure it's not already busy. Continue? (yes/no): " confirm
+COST_ESTIMATE="~\$4-6"
+EXTRA_ARGS=()
+if [[ "$MODE" == "scale_batch" || "$MODE" == "scale_split" ]]; then
+    COST_ESTIMATE="~\$10-20 (30k queries, larger than the other tests)"
+    EXTRA_ARGS=(--queries "${TEST_DIR}/scale_queries/queries_30k.fasta")
+fi
+
+read -p "This runs real work on the production 'view' pool and costs money (${COST_ESTIMATE} for this one workflow). Make sure it's not already busy. Continue? (yes/no): " confirm
 if [[ "$confirm" != "yes" ]]; then
     echo "Execution cancelled"
     exit 0
@@ -96,7 +153,8 @@ echo ""
 echo -e "${GREEN}=== Running ${MODE}.nf ===${NC}"
 nextflow run "${TEST_DIR}/${MODE}.nf" \
     -c "$CONFIG" \
-    --outdir "$RESULTS_DIR"
+    --outdir "$RESULTS_DIR" \
+    "${EXTRA_ARGS[@]}"
 
 echo ""
 echo -e "${GREEN}=== Done: ${MODE} ===${NC}"
@@ -108,7 +166,16 @@ echo ""
 if [[ "$MODE" == "batch" ]]; then
     echo "Wait for the pool to reach 0 nodes, then run:"
     echo "  ./tests/blast-perf/run.sh per_query $RUN_ID"
-else
+elif [[ "$MODE" == "per_query" ]]; then
     echo "Once both have run, generate the report with:"
     echo "  ./tests/blast-perf/run.sh report $RUN_ID"
+elif [[ "$MODE" == "scale_batch" ]]; then
+    echo "Wait for the pool to reach 0 nodes, then run:"
+    echo "  ./tests/blast-perf/run.sh scale_split $RUN_ID"
+elif [[ "$MODE" == "scale_split" ]]; then
+    echo "Once both have run, generate the report with:"
+    echo "  ./tests/blast-perf/run.sh scale-report $RUN_ID"
+else
+    echo "Generate the report with:"
+    echo "  ./tests/blast-perf/run.sh cores-report $RUN_ID"
 fi
