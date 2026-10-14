@@ -39,7 +39,6 @@ process FASTP {
 process FASTP {
     tag "$meta.id"
     label 'setting_12'
-    //publishDir "${params.outdir}/$meta.id/02_qtrimmed", mode: 'copy', pattern: '{*fastq.gz}'
     publishDir { "${params.outdir}/$meta.id/02_qtrimmed" }, mode: 'copy', pattern: '{*fastp.html,*fastp.json,*fastp.log}'
 
     conda "bioconda::fastp=0.23.4"
@@ -49,7 +48,6 @@ process FASTP {
 
     input:
     tuple val(meta), path(reads)
-    //path  adapter_fasta
     val   save_trimmed_fail
     val   save_merged
     val   min_read_length
@@ -58,7 +56,6 @@ process FASTP {
     val   poly_x_threshold
 
     output:
-    //path("*.fastp.fastq.gz")
     path("*.fastp.html")
     path("*.fastp.json")
     tuple val(meta), path('*fastp*.fastq.gz') , emit: reads
@@ -105,7 +102,7 @@ process FASTP {
 
         fastp \\
             --in1 ${prefix}.fastq.gz \\
-            --out1  ${prefix}.fastp.fastq.gz \\
+            --out1  ${prefix}_fastp.fastq.gz \\
             --thread $task.cpus \\
             --json ${prefix}.fastp.json \\
             --html ${prefix}.fastp.html \\
@@ -119,7 +116,7 @@ process FASTP {
         END_VERSIONS
         """
     } else {
-        def merge_fastq = save_merged ? "-m --merged_out ${prefix}.merged.fastq.gz" : ''
+        def merge_fastq = save_merged ? "-m --merged_out ${prefix}_fastp_merged.fastq.gz" : ''
         """
         [ ! -f  ${prefix}_1.fastq.gz ] && ln -sf ${reads[0]} ${prefix}_1.fastq.gz
         [ ! -f  ${prefix}_2.fastq.gz ] && ln -sf ${reads[1]} ${prefix}_2.fastq.gz
