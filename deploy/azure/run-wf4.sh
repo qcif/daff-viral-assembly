@@ -170,6 +170,10 @@ nextflow_args=(
     azure
     -params-file
     "$PARAMS_FILE"
+    --input
+    "$INPUT"
+    --outdir
+    "$OUTDIR"
 )
 
 if [[ "$RESUME" == true ]]; then

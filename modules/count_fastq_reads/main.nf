@@ -6,7 +6,7 @@ process COUNT_FASTQ_READS {
   tuple val(meta), path(reads)
 
   output:
-  tuple val(meta), path(reads), path("*read_count.txt")
+  tuple val(meta), path("*read_count.txt"), emit: read_count
 
   script:
   """

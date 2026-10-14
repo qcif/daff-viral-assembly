@@ -155,7 +155,7 @@ class Config:
 
     @property
     def run_qc_raw_fastqc_path(self) -> Path:
-        return self._get_file_by_pattern("*_subsampled_1_fastqc.html")
+        return self._get_file_by_pattern("*_merged_1_fastqc.html")
 
     @property
     def run_qc_clean_fastqc_path(self) -> Path:

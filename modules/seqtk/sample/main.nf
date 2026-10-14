@@ -60,5 +60,4 @@ process SEQTK_SAMPLE {
     """
     echo "" | gzip > ${prefix}.fastq.gz
     """
-
 }
