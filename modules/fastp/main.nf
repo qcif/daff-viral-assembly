@@ -41,11 +41,6 @@ process FASTP {
     label 'setting_12'
     publishDir { "${params.outdir}/$meta.id/02_qtrimmed" }, mode: 'copy', pattern: '{*fastp.html,*fastp.json,*fastp.log}'
 
-    conda "bioconda::fastp=0.23.4"
-    container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
-        'https://depot.galaxyproject.org/singularity/fastp:0.23.4--h5f740d0_0' :
-        'biocontainers/fastp:0.23.4--h5f740d0_0' }"
-
     input:
     tuple val(meta), path(reads)
     val   save_trimmed_fail

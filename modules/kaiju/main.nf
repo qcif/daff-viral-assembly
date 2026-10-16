@@ -75,12 +75,6 @@ process KAIJU_KAIJU {
     tag "$meta.id"
     label 'setting_13'
     
-
-    conda "${moduleDir}/environment.yml"
-    container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
-        'https://depot.galaxyproject.org/singularity/kaiju:1.10.0--h43eeafb_0':
-        'biocontainers/kaiju:1.10.0--h43eeafb_0' }"
-    
     input:
     tuple val(meta), path(reads)
     val(mounted_kaiju_db)
