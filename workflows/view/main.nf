@@ -47,7 +47,6 @@ include { FASTA2TABLE_REF } from '../../modules/fasta2table_ref/main'
 include { FASTP } from '../../modules/fastp/main'
 include { FASTQC as FASTQC_RAW } from '../../modules/fastqc/main'
 include { FASTQC as FASTQC_TRIM } from '../../modules/fastqc/main'
-include { FQ_SUBSAMPLE } from '../../modules/fq/subsample/main'
 include { GENOMAD_ENDTOEND } from '../../modules/genomad/endtoend/main'
 include { GENOMAD_DOWNLOAD_DB } from '../../modules/genomad/download_db/main'
 include { HMMSCAN } from '../../modules/hmmscan/main'
@@ -68,7 +67,6 @@ include { RETRIEVE_VIRAL_READS_KRAKEN2 } from '../../modules/retrieve_viral_read
 include { SAMTOOLS_CONTIGS } from '../../modules/samtools/contigs/main'
 include { SAMTOOLS_MPILEUP } from '../../modules/samtools/mpileup/main'
 include { SAMTOOLS_REF } from '../../modules/samtools/ref/main'
-//include { SEQTK_SAMPLE } from '../../modules/seqtk/sample/main'
 include { SEQTK_SEQ } from '../../modules/seqtk/seq/main'
 include { SEQTK_SUBSEQ as EXTRACT_CONTIGS } from '../../modules/seqtk/subseq/main'
 include { SPADES } from '../../modules/spades/main'
@@ -270,15 +268,39 @@ workflow VIEW {
         tuple(mountedBlastDir, stagedBlastDir, blastDb.name)
     )
 
-    MEGABLAST(
-        SEQTK_SEQ.out.filt_fasta.splitFasta(by: 2500, file: true),
-        ch_blast_db
-    )
-    MEGABLAST.out.blast_results
-        .groupTuple()   
-        .set { ch_blastresults }
+    //MEGABLAST(
+    //    SEQTK_SEQ.out.filt_fasta.splitFasta(by: 2500, file: true),
+    //    ch_blast_db
+    //)
+    //MEGABLAST.out.blast_results
+    //    .groupTuple()   
+    //    .set { ch_blastresults }
+    //ch_extract_raw_viral_blast_hits = ch_blastresults
+    //    .join(SEQTK_SEQ.out.filt_headers)
+
+    if (params.blast_analysis_mode == 'split') {
+        MEGABLAST(
+            SEQTK_SEQ.out.filt_fasta.splitFasta(by: 2500, file: true),
+            ch_blast_db
+        )
+
+        ch_blastresults = MEGABLAST.out.blast_results.groupTuple()
+
+    } else if (params.blast_analysis_mode == 'single') {
+        MEGABLAST(
+            SEQTK_SEQ.out.filt_fasta,
+            ch_blast_db
+        )
+
+        ch_blastresults = MEGABLAST.out.blast_results
+
+    } else {
+        error "Invalid blast_analysis_mode '${params.blast_analysis_mode}'. Use 'single' or 'split'."
+    }
+
     ch_extract_raw_viral_blast_hits = ch_blastresults
         .join(SEQTK_SEQ.out.filt_headers)
+
     EXTRACT_RAW_VIRAL_BLAST_HITS(ch_extract_raw_viral_blast_hits, mounted_taxdump_db, staged_taxdump_db, params.filter_terms)
     //Add contig sequence to blast results summary table
     //Mapping back to contigs that had viral blast hits

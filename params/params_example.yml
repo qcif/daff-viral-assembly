@@ -1,7 +1,6 @@
 input: index.csv
 blastn_db: /full/path/to/ncbi/core_nt
 taxdump: ~/.taxonkit
-blast_threads: 2
 genomad_db: /full/path/to/genomad/genomad_db
 hmmer_db: /full/path/to/hmms/Pfam-A.hmm
 kraken2_db: /full/path/to/kraken_databases/core_nt

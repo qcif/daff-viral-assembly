@@ -1,7 +1,5 @@
 process BLAST_BLASTN {
     tag "${sampleid}"
-    label 'setting_8'
-    //containerOptions "--bind ${file(params.blastn_db).parent}"
 
     input:
     tuple val(sampleid), path(assembly)
@@ -21,7 +19,7 @@ process BLAST_BLASTN {
         -db ${db_dir}/${db_name} \\
         -out ${blastoutput} \\
         -evalue 1e-3 \\
-        -num_threads ${params.blast_threads} \\
+        -num_threads ${task.cpus} \\
         -outfmt '6 qseqid sgi sacc length pident mismatch gapopen qstart qend qlen sstart send slen sstrand evalue bitscore qcovhsp stitle staxids qseq sseq sseqid qcovs qframe sframe' \\
         -max_target_seqs 5
     """

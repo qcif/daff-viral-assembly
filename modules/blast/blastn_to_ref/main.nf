@@ -15,7 +15,7 @@ process BLAST_BLASTN_TO_REF {
       -db ${reference} \\
       -out ${sampleid}_contig_vs_refs_blastn.bls \\
       -evalue 1e-3 \\
-      -num_threads 2 \\
+      -num_threads ${task.cpus} \\
       -max_target_seqs 1
     """
 }

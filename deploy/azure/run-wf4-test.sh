@@ -93,7 +93,7 @@ echo "Output dir:      $OUTDIR"
 echo "Test databases:  tests/ (staged to the node by Nextflow)"
 echo "Params file:      $PARAMS_FILE"
 echo "Pool:            view_test"
-echo "Profile:         azure_test,test"
+echo "Profile:         azure_test"
 echo "Resume:          ${RESUME:-false}"
 echo ""
 
@@ -113,7 +113,7 @@ mkdir -p "$OUTDIR"
 # The trailing `test` profile supplies the tests/ database paths AND is what
 # triggers GENOMAD_DOWNLOAD_DB — see the note in conf/azure.test.config.
 nextflow run main.nf \
-    -profile azure_test,test \
+    -profile azure_test \
     --outdir "$OUTDIR" \
     -params-file "$PARAMS_FILE" \
     --analyst_name "${ANALYST_NAME:-Tester}" \
