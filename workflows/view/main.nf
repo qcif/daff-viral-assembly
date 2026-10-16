@@ -268,16 +268,6 @@ workflow VIEW {
         tuple(mountedBlastDir, stagedBlastDir, blastDb.name)
     )
 
-    //MEGABLAST(
-    //    SEQTK_SEQ.out.filt_fasta.splitFasta(by: 2500, file: true),
-    //    ch_blast_db
-    //)
-    //MEGABLAST.out.blast_results
-    //    .groupTuple()   
-    //    .set { ch_blastresults }
-    //ch_extract_raw_viral_blast_hits = ch_blastresults
-    //    .join(SEQTK_SEQ.out.filt_headers)
-
     if (params.blast_analysis_mode == 'split') {
         MEGABLAST(
             SEQTK_SEQ.out.filt_fasta.splitFasta(by: 2500, file: true),
