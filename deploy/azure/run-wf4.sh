@@ -23,7 +23,7 @@
 #     --input index_example_local.csv \
 #     --input-dir /absolute/path/to/fastqs
 # Example of index_example_local.csv file
-# sample,fastq_1,fastq_2,sample_information,sample_type,sample_receipt_date,storage_location
+# sample,fastq_1,fastq_2
 # Test,raw_data/SRX26197110_SRR30795872_1.fastq.gz,raw_data/SRX26197110_SRR30795872_2.fastq.gz,,,,,
 
 
@@ -32,7 +32,7 @@
 #     --input index_example_blob.csv
 
 # Example of index_example_blob.csv file
-# sample,fastq_1,fastq_2,sample_information,sample_type,sample_receipt_date,storage_location
+# sample,fastq_1,fastq_2
 # RID7188,az://uploads/marieemilie.gauthier@qut.edu.au/RID7188_S73_L002_R1_001.fastq.gz,az://uploads/marieemilie.gauthier@qut.edu.au/RID7188_S73_L002_R2_001.fastq.gz
 
 set -euo pipefail
