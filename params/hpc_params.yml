@@ -1,6 +1,6 @@
 input: index.csv
 blastn_db: /scratch/datasets/blast_db/20260402/core_nt
-taxdump:  /home/gauthiem/.taxonkit
+taxdump:  ~/.taxonkit
 genomad_db: /work/daff_viral_rnaseq/databases/genomad_db
 hmmer_db: /work/daff_viral_rnaseq/databases/hmms/Pfam-A.hmm
 kraken2_db: /work/eresearch/databases/kraken_databases/core_nt
@@ -11,4 +11,4 @@ qfiltered_reads_threshold: 8000000
 clean_reads_threshold: 2500000
 rvdb_taxonomy: /work/daff_viral_rnaseq/databases/RVDBv31_taxonomy.tab
 subsample_size: 40000000
-hpc_project: BTDLQH8060
+hpc_project: null
