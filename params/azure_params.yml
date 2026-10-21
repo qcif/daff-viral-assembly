@@ -1,9 +1,3 @@
-input: index.csv
-input_dir: /Users/gauthiem@qut.edu.au/Documents/Code/daff-viral-assembly
-
-analyst_name: "Maely"
-facility: "QUT"
-
 blastn_db: /mnt/nvme/refdata/core_nt/core_nt
 taxdump:  /mnt/nvme/refdata/taxdump/taxdump
 genomad_db: /mnt/nvme/refdata/genomad_db

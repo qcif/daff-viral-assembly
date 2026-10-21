@@ -15,6 +15,26 @@
 # Defaults to --input tests/index_test.csv --outdir output/$RUN_ID
 #
 
+
+#Scenario 1: FASTQ files are local and need to be uploaded onto Azure
+#Need to set --input-dir to the directory containing the local FASTQ files
+# the path to the fastq files in the index.csv file is relative to the input directory specified by --input-dir
+# ./deploy/azure/run-wf4.sh \
+#     --input index_example_local.csv \
+#     --input-dir /absolute/path/to/fastqs
+# Example of index_example_local.csv file
+# sample,fastq_1,fastq_2,sample_information,sample_type,sample_receipt_date,storage_location
+# Test,raw_data/SRX26197110_SRR30795872_1.fastq.gz,raw_data/SRX26197110_SRR30795872_2.fastq.gz,,,,,
+
+
+#Scenario 2: FASTQ files are local and need to be uploaded onto Azure
+# ./deploy/azure/run-wf4.sh \
+#     --input index_example_blob.csv
+
+# Example of index_example_blob.csv file
+# sample,fastq_1,fastq_2,sample_information,sample_type,sample_receipt_date,storage_location
+# RID7188,az://uploads/marieemilie.gauthier@qut.edu.au/RID7188_S73_L002_R1_001.fastq.gz,az://uploads/marieemilie.gauthier@qut.edu.au/RID7188_S73_L002_R2_001.fastq.gz
+
 set -euo pipefail
 
 # Colors for output
@@ -28,25 +48,12 @@ RUN_ID="$(date +"%Y%m%d_%H%M%S")_$PID"
 
 # Default values
 # =======
-INPUT="index.csv"
+INPUT="index_example_local.csv"
+INPUT_DIR=""
 PARAMS_FILE="params/azure_params.yml"
 OUTDIR="output/$RUN_ID"
 RESUME="false"
 
-# Azure Batch node paths (staged by start task to NVMe under /mnt/nvme/refdata/)
-# Shared refdata (also used by taxodactyl):
-# BLASTN_DB="/mnt/nvme/refdata/core_nt/core_nt"
-# TAXDUMP="/mnt/nvme/refdata/taxdump/taxdump"
-# # wf4-specific refdata (merged directly into /mnt/nvme/refdata/):
-# KRAKEN2_DB="/mnt/nvme/refdata/kraken2_db"
-# # Path to the .fmi itself — the workflow derives the containing directory and
-# # globs it for *.fmi, *names.dmp and *nodes.dmp
-# KAIJU_DB="/mnt/nvme/refdata/kaiju_db/kaiju_db.fmi"
-# HMMER_DB="/mnt/nvme/refdata/pfam/Pfam-A.hmm"
-# PROT_DB="/mnt/nvme/refdata/diamond/viral.dmnd"
-# GENOMAD_DB="/mnt/nvme/refdata/genomad_db"
-# RVDB_TAXONOMY="/mnt/nvme/refdata/rvdb_taxonomy"
-# RRNA_REF="/mnt/nvme/refdata/rrna_ref"
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -68,6 +75,10 @@ while [[ $# -gt 0 ]]; do
             INPUT="$2"
             shift 2
             ;;
+        --input-dir)
+            INPUT_DIR="$2"
+            shift 2
+            ;;
         -resume)
             RESUME=true
             shift
@@ -81,7 +92,9 @@ while [[ $# -gt 0 ]]; do
             echo "                       Default: params/azure_params.yml"
             echo "Options:"
             echo "  --input FILE         Input index CSV file"
-            echo "                       Default: index.csv"
+            echo "                       Default: index_example_local.csv"
+            echo "  --input-dir DIR      Input directory containing local FASTQ files that need to be uploaded to Azure"
+            echo "                       Default: empty"
             echo "  --outdir DIR         Output directory"
             echo "                       Default: output/$RUN_ID"
             echo "  -resume              Resume the previous Nextflow execution"
@@ -93,7 +106,7 @@ while [[ $# -gt 0 ]]; do
         *)
             echo -e "${RED}ERROR: Unknown argument: $1${NC}"
             echo ""
-            echo "Usage: $0 [--params-file <params.yml>] [--input <index.csv>] [--outdir <outdir>] [-resume]"
+            echo "Usage: $0 [--params-file <params.yml>] [--input <index.csv>] [--input-dir <input_dir>] [--outdir <outdir>] [-resume]"
             exit 1
             ;;
     esac
@@ -144,6 +157,9 @@ echo ""
 echo -e "${YELLOW}=== VIEW Workflow Azure Batch Run ===${NC}"
 echo "Profile:       azure"
 echo "Params file:   $PARAMS_FILE"
+echo "Input CSV:    $INPUT"
+echo "Input directory: $INPUT_DIR"
+echo "Output directory: $OUTDIR"
 echo "Resume:        $RESUME"
 echo ""
 echo "Workflow parameters will be read from:"
@@ -172,6 +188,8 @@ nextflow_args=(
     "$PARAMS_FILE"
     --input
     "$INPUT"
+    --input-dir
+    "$INPUT_DIR"
     --outdir
     "$OUTDIR"
 )

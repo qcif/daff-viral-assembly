@@ -1,0 +1,2 @@
+sample,fastq_1,fastq_2,sample_information,sample_type,sample_receipt_date,storage_location
+test,tests/test_1.fastq.gz,tests/test_2.fastq.gz
