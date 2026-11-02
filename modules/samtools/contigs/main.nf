@@ -16,10 +16,17 @@ process SAMTOOLS_CONTIGS {
 
     script:
     """
-    #filter out unmapped reads -F 4
-    samtools view -@ ${task.cpus} -Sb -F 4 ${sam} | samtools sort -@ ${task.cpus} -o ${sampleid}_contig_aln.sorted.bam
-    samtools index ${sampleid}_contig_aln.sorted.bam
-    samtools coverage ${sampleid}_contig_aln.sorted.bam  > ${sampleid}_contig_coverage.txt
-    samtools view -@ ${task.cpus} ${sampleid}_contig_aln.sorted.bam | awk '{mapq[\$3]+=\$5; count[\$3]++} END {for (chr in mapq) printf "%s\\t%.2f\\n", chr, mapq[chr]/count[chr]}' > ${sampleid}_contig_mapq.txt
+    if [ -s "${ref}" ] && [ -s "${sam}" ]; then
+        #filter out unmapped reads -F 4
+        samtools view -@ ${task.cpus} -Sb -F 4 ${sam} | samtools sort -@ ${task.cpus} -o ${sampleid}_contig_aln.sorted.bam
+        samtools index ${sampleid}_contig_aln.sorted.bam
+        samtools coverage ${sampleid}_contig_aln.sorted.bam  > ${sampleid}_contig_coverage.txt
+        samtools view -@ ${task.cpus} ${sampleid}_contig_aln.sorted.bam | awk '{mapq[\$3]+=\$5; count[\$3]++} END {for (chr in mapq) printf "%s\\t%.2f\\n", chr, mapq[chr]/count[chr]}' > ${sampleid}_contig_mapq.txt
+    else
+        touch "${sampleid}_contig_aln.sorted.bam" \\
+              "${sampleid}_contig_aln.sorted.bam.bai" \\
+              "${sampleid}_contig_coverage.txt" \\
+              "${sampleid}_contig_mapq.txt"
+    fi
     """
 }

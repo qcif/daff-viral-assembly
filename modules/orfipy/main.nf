@@ -13,11 +13,15 @@ process ORFIPY {
     script:
     """
     cat ${viral_fasta} ${other_fasta} > ${sampleid}_combined_contigs.fasta
-    orfipy ${sampleid}_combined_contigs.fasta \\
-      --outdir . \\
-      --chunk-size 100000 \\
-      --pep ${sampleid}_orfs.fasta \\
-      --min 300 \\
-      --procs ${task.cpus}
+    if [ -s "${sampleid}_combined_contigs.fasta" ]; then
+        orfipy ${sampleid}_combined_contigs.fasta \\
+          --outdir . \\
+          --chunk-size 100000 \\
+          --pep ${sampleid}_orfs.fasta \\
+          --min 300 \\
+          --procs ${task.cpus}
+    else
+        touch "${sampleid}_orfs.fasta"
+    fi
     """
 }

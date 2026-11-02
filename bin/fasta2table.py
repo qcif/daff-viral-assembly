@@ -155,11 +155,14 @@ def create_empty_outputs(sample_name, blast_file, mode="viral"):
     
     empty_df = pd.DataFrame(columns=expected_columns)
     
-    if mode == "viral":
+    if mode in ("viral", "contigs"):
         output_file = os.path.basename(blast_file).replace("_top_viral_hits.txt", "_top_viral_hits_with_contigs.txt")
         filtered_file = os.path.basename(blast_file).replace("_top_viral_hits.txt", "_top_viral_hits_filtered_with_contigs.txt")
+        filtered_fasta = os.path.basename(blast_file).replace("_top_viral_hits.txt", "_filtered_viral_contigs.fasta")
         empty_df.to_csv(output_file, index=False, sep="\t")
         empty_df.to_csv(filtered_file, index=False, sep="\t")
+        with open(filtered_fasta, "w") as f:
+            pass
         with open(f"{sample_name}_ref_ids_to_retrieve.txt", "w") as f:
             pass
     elif mode == "reference":

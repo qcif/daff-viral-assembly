@@ -6,6 +6,17 @@ import os.path
 from Bio import SeqIO
 from analyses_config import file_exists, is_file_empty
 
+def read_result_table(path, columns):
+    if path is None:
+        return pd.DataFrame(columns=columns)
+    try:
+        df = pd.read_csv(path, sep="\t", dtype=str)
+    except pd.errors.EmptyDataError:
+        return pd.DataFrame(columns=columns)
+    if df.empty:
+        return df.reindex(columns=list(dict.fromkeys([*columns, *df.columns]))).astype(object)
+    return df
+
 # Define PFAMs of interest
 PFAMS = [
     "PF00863.26","PF13608.11","PF00998.29","PF00680.26","PF00078.33","PF00767.23",
@@ -85,6 +96,9 @@ def filter_hmmscan(df):
     return df_filtered
 
 def summarize_domains(df_filtered):
+    if df_filtered.empty:
+        return pd.DataFrame(columns=["query_name", "ORFs", "PFAM_total", "RdRp"])
+
     # Extract ORF number and NODE name
     df_filtered["ORFs"] = df_filtered["query_name"].str.extract(r"_ORF\.(\d+)$")
     df_filtered["query_name"] = df_filtered["query_name"].str.replace(r"_ORF\.\d+$", "", regex=True)
@@ -195,6 +209,7 @@ def enrich_with_taxonomy(df, taxonomy):
 
     if df.empty:
         df["family"] = ""
+        df["blastx_taxonomy"] = ""
         return df
 
     # Load taxonomy
@@ -299,7 +314,10 @@ def load_diamond_results(path):
         "seq_name", "sseqid", "pident", "alignment_length", "qlen", "slen", "qstart", "qend", "sstart", "send", "evalue", "bitscore", "qcovhsp", "stitle"
     ]
         # Create a temporary file with header + original content
-    df = pd.read_csv(path, sep="\t", header=None, dtype=str)
+    try:
+        df = pd.read_csv(path, sep="\t", header=None, dtype=str)
+    except pd.errors.EmptyDataError:
+        df = pd.DataFrame(columns=columns)
     if df.shape[1] != len(columns):
         raise ValueError(
             f"Expected {len(columns)} columns (BLAST output), but found {df.shape[1]} in {path}"
@@ -1035,10 +1053,24 @@ def main():
     hmm_df.to_csv(sample_name + "_hmm_domain_summary_counts.tsv", sep="\t", index=False)
 
 
-    blast_df = pd.read_csv(blast, sep="\t", dtype=str)
-    kraken_df = pd.read_csv(kraken, sep="\t", dtype=str)
-    kaiju_df = pd.read_csv(kaiju, sep="\t", dtype=str)
-    map2ref_df = pd.read_csv(map2ref, sep="\t", dtype=str)
+    blast_columns = [
+        "qseqid", "species", "taxon_name", "pident", "qlen", "mapping_read_count",
+        "pc_mapping_reads", "best_contig_per_sp_filter", "term_filter", "cov_filter",
+        "sacc", "bitscore", "evalue", "contig_seq", "ncontigs_per_spp", "total_score_spp",
+        "mean_depth", "pc_cov_30X", "mean_mapping_quality", "total_conf_score",
+        "normalised_conf_score", "full_lineage",
+    ]
+    classification_columns = [
+        "taxon_name", "reads", "pc_reads", "broad_category", "term_filter", "resolution_level",
+    ]
+    reference_columns = [
+        "taxon_name", "mapping_read_count", "pc_mapping_reads", "mean_depth",
+        "normalised_conf_score", "reference_length",
+    ]
+    blast_df = read_result_table(blast, blast_columns)
+    kraken_df = read_result_table(kraken, classification_columns)
+    kaiju_df = read_result_table(kaiju, classification_columns)
+    map2ref_df = read_result_table(map2ref, reference_columns)
     #print(blast_df.head())
 
     known_virus_df = build_known_viral_summary(
@@ -1058,10 +1090,11 @@ def main():
     else:
         fasta_df = pd.DataFrame(columns=["seq_name", "contig_seq"])
 
-    if file_exists(genomad) and not is_file_empty(genomad):
-        
-        genomad_results = pd.read_csv(genomad, sep="\t", header=0)
-        fasta_genomad_df = pd.merge(fasta_df, genomad_results, on = ['seq_name'], how = 'outer')
+    genomad_results = read_result_table(genomad, [
+        "seq_name", "length", "n_genes", "genetic_code", "virus_score",
+        "n_hallmarks", "marker_enrichment", "taxonomy",
+    ])
+    fasta_genomad_df = pd.merge(fasta_df, genomad_results, on=['seq_name'], how='outer')
 
 
     #if file_exists(hmmscan) and not is_file_empty(hmmscan):
@@ -1072,13 +1105,15 @@ def main():
             right_on = ['query_name'],
             how = 'left')
         
-    if file_exists(blast_novel) and not is_file_empty(blast_novel):
-        
-        blast_results = pd.read_csv(blast_novel, sep="\t", header=0)
-        fasta_genomad_hmmscan_blast_df = pd.merge(fasta_genomad_hmmscan_df, blast_results, 
-                              left_on = ['seq_name'], 
-                              right_on = ['qseqid'],
-                              how = 'outer')
+    blast_results = read_result_table(blast_novel, ["qseqid", "sacc"])
+    fasta_genomad_hmmscan_blast_df = pd.merge(
+        fasta_genomad_hmmscan_df, blast_results,
+        left_on=['seq_name'], right_on=['qseqid'], how='outer',
+    )
+    for column in ("taxonomy", "sacc"):
+        fasta_genomad_hmmscan_blast_df[column] = (
+            fasta_genomad_hmmscan_blast_df[column].fillna("").astype(str)
+        )
 
     num_cols = ["length", "virus_score", "PFAM_total"]
     fasta_genomad_hmmscan_blast_df[num_cols] = fasta_genomad_hmmscan_blast_df[num_cols].apply(pd.to_numeric, errors="coerce")
@@ -1148,9 +1183,7 @@ def main():
     df_filt.to_csv(output_file, index=False, sep="\t")
 
     #derive summary table for evidence of novel viruses, by merging the kaiju, kraken, megablast, hmmscan and diamond results and applying filters to identify novel candidates. This is more focused on summarising evidence for novel viruses, whereas the previous table is focused on summarising all viral hits including known viruses.
-    kaiju_df = pd.read_csv(kaiju, sep="\t", dtype=str)
-    kraken_df = pd.read_csv(kraken, sep="\t", dtype=str)
-    megablast_df = pd.read_csv(blast, sep="\t", dtype=str)
+    megablast_df = blast_df.copy()
     #novel_df = pd.read_csv(args., sep="\t", dtype=str)
     #diamond_df = pd.read_csv(args.diamond, sep="\t", dtype=str)
     diamond_results_path = diamond

@@ -17,12 +17,21 @@ process SAMTOOLS_REF {
 
     script:
     """
-    #filter out unmapped reads -F 4
-    samtools view -@ ${task.cpus} -Sb -F 4 ${sam} | samtools sort -@ ${task.cpus} -o ${sampleid}_ref_aln.sorted.bam
-    samtools index ${sampleid}_ref_aln.sorted.bam
-    samtools coverage ${sampleid}_ref_aln.sorted.bam  > ${sampleid}_ref_coverage.txt
-    samtools view -@ ${task.cpus} ${sampleid}_ref_aln.sorted.bam | awk '{mapq[\$3]+=\$5; count[\$3]++} END {for (chr in mapq) printf "%s\\t%.2f\\n", chr, mapq[chr]/count[chr]}' > ${sampleid}_ref_mapq.txt
-    samtools consensus -@ ${task.cpus} -f fastq -a -A ${sampleid}_ref_aln.sorted.bam -o ${sampleid}_consensus.fastq 
-    samtools consensus -@ ${task.cpus} -f fasta -a -A ${sampleid}_ref_aln.sorted.bam -o ${sampleid}_samtools_consensus_from_ref.fasta
+    if [ -s "${ref}" ] && [ -s "${sam}" ]; then
+        #filter out unmapped reads -F 4
+        samtools view -@ ${task.cpus} -Sb -F 4 ${sam} | samtools sort -@ ${task.cpus} -o ${sampleid}_ref_aln.sorted.bam
+        samtools index ${sampleid}_ref_aln.sorted.bam
+        samtools coverage ${sampleid}_ref_aln.sorted.bam  > ${sampleid}_ref_coverage.txt
+        samtools view -@ ${task.cpus} ${sampleid}_ref_aln.sorted.bam | awk '{mapq[\$3]+=\$5; count[\$3]++} END {for (chr in mapq) printf "%s\\t%.2f\\n", chr, mapq[chr]/count[chr]}' > ${sampleid}_ref_mapq.txt
+        samtools consensus -@ ${task.cpus} -f fastq -a -A ${sampleid}_ref_aln.sorted.bam -o ${sampleid}_consensus.fastq
+        samtools consensus -@ ${task.cpus} -f fasta -a -A ${sampleid}_ref_aln.sorted.bam -o ${sampleid}_samtools_consensus_from_ref.fasta
+    else
+        touch "${sampleid}_ref_aln.sorted.bam" \\
+              "${sampleid}_ref_aln.sorted.bam.bai" \\
+              "${sampleid}_ref_coverage.txt" \\
+              "${sampleid}_ref_mapq.txt" \\
+              "${sampleid}_consensus.fastq" \\
+              "${sampleid}_samtools_consensus_from_ref.fasta"
+    fi
     """
 }

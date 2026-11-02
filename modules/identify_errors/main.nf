@@ -12,6 +12,10 @@ process IDENTIFY_ERRORS {
 
     script:
     """
-    trim_contig_ends.py ${pileup} > ${sampleid}_trim_coords.tsv
+    if [ -s "${pileup}" ]; then
+        trim_contig_ends.py ${pileup} > ${sampleid}_trim_coords.tsv
+    else
+        touch "${sampleid}_trim_coords.tsv"
+    fi
     """
 }

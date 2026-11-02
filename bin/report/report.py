@@ -126,6 +126,12 @@ def _get_report_context(
     
     domain_data = blast_viz.parse_hmmscan_domains(config.hmmscan_output_path)
 
+    parameters = _get_parameters(default_params_file, params_file)
+    subsample_size = parameters.get('subsample_size', {})
+    subsample_size = subsample_size.get('user')
+    if subsample_size is None:
+        subsample_size = parameters.get('subsample_size', {}).get('default')
+
     for contig_id, data in orf_data.items():
 
         orfs = data.get("orfs", [])
@@ -152,7 +158,8 @@ def _get_report_context(
         'end_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         'wall_time': _get_walltime(),
         'metadata': _get_metadata(samplesheet_file),
-        'parameters': _get_parameters(default_params_file, params_file),
+        'parameters': parameters,
+        'subsample_size': subsample_size,
         'run_qc': _get_run_qc(),
         'run_qc_raw_fastqc_filename': config.run_qc_raw_fastqc_path.name,
         'run_qc_clean_fastqc_filename': config.run_qc_clean_fastqc_path.name,

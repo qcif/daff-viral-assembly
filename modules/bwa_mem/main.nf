@@ -10,7 +10,11 @@ process BWA_MEM {
 
     script:
     """
-    bwa index ${target}
-    bwa mem -t ${task.cpus} ${target} $fastq1 $fastq2 > ${sampleid}_${aln_type}.sam 2>> ${sampleid}_${aln_type}.log
+    if [ -s "${target}" ]; then
+        bwa index ${target}
+        bwa mem -t ${task.cpus} ${target} $fastq1 $fastq2 > ${sampleid}_${aln_type}.sam 2>> ${sampleid}_${aln_type}.log
+    else
+        touch "${sampleid}_${aln_type}.sam"
+    fi
     """
 }

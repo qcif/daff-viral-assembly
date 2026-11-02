@@ -14,13 +14,17 @@ process BLAST_BLASTN {
     def db_dir = mounted_db_dir ?: staged_db_dir
     def blastoutput = assembly.getBaseName() + "_blastn.bls"
     """
-    export BLASTDB=${db_dir}
-    blastn -query ${assembly} \\
-        -db ${db_dir}/${db_name} \\
-        -out ${blastoutput} \\
-        -evalue 1e-3 \\
-        -num_threads ${task.cpus} \\
-        -outfmt '6 qseqid sgi sacc length pident mismatch gapopen qstart qend qlen sstart send slen sstrand evalue bitscore qcovhsp stitle staxids qseq sseq sseqid qcovs qframe sframe' \\
-        -max_target_seqs 5
+    if [ -s "${assembly}" ]; then
+        export BLASTDB=${db_dir}
+        blastn -query ${assembly} \\
+            -db ${db_dir}/${db_name} \\
+            -out ${blastoutput} \\
+            -evalue 1e-3 \\
+            -num_threads ${task.cpus} \\
+            -outfmt '6 qseqid sgi sacc length pident mismatch gapopen qstart qend qlen sstart send slen sstrand evalue bitscore qcovhsp stitle staxids qseq sseq sseqid qcovs qframe sframe' \\
+            -max_target_seqs 5
+    else
+        touch "${blastoutput}"
+    fi
     """
 }

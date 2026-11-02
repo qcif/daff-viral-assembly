@@ -10,8 +10,8 @@ process MOSDEPTH {
 
   script:
   """
-  if [[ ! -s ${consensus} ]]; then
-    touch ${sampleid}.thresholds.bed
+  if [[ ! -s "${consensus}" || ! -s "${bam}" || ! -s "${bai}" || ! -s "${bed}" ]]; then
+    touch "${sampleid}.thresholds.bed"
 
   else
     mosdepth --by ${bed} --thresholds 30 -t ${task.cpus} ${sampleid} ${bam}

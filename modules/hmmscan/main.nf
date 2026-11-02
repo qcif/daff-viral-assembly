@@ -20,11 +20,15 @@ process HMMSCAN {
     script:
     def db_dir = mounted_db_dir ?: staged_db_dir
     """
-    hmmscan --cpu ${task.cpus} \\
-            --domtblout ${sampleid}_hmmscan_per_domain_output.txt \\
-            --tblout ${sampleid}_hmmscan_per_target_output.txt \\
-            --pfamtblout ${sampleid}_hmmscan_succinct_output.txt \\
-            ${db_dir}/${db_name} ${fasta} \\
-            > ${sampleid}_hmmscan.log 2>&1
+    if [ -s "${fasta}" ]; then
+        hmmscan --cpu ${task.cpus} \\
+                --domtblout ${sampleid}_hmmscan_per_domain_output.txt \\
+                --tblout ${sampleid}_hmmscan_per_target_output.txt \\
+                --pfamtblout ${sampleid}_hmmscan_succinct_output.txt \\
+                ${db_dir}/${db_name} ${fasta} \\
+                > ${sampleid}_hmmscan.log 2>&1
+    else
+        touch "${sampleid}_hmmscan_per_domain_output.txt" "${sampleid}_hmmscan_per_target_output.txt" "${sampleid}_hmmscan_succinct_output.txt"
+    fi
     """
 }

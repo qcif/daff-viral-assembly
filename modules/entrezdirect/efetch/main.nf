@@ -16,6 +16,8 @@ process ENTREZDIRECT_EFETCH {
       cut -f1 "${ids_to_retrieve}" | while read -r i; do
         efetch -db nucleotide -id "\$i" -format fasta >> "${sampleid}_ref_sequences.fasta"
       done
+    else
+      touch "${sampleid}_ref_sequences.fasta"
     fi
     """
 }

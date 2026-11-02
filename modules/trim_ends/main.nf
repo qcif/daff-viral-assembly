@@ -11,7 +11,11 @@ process TRIM_ENDS {
 
     script:
     """
-    samtools faidx ${ref}
-    while read ctg L R; do samtools faidx ${ref} "\${ctg}:\${L}-\${R}" | sed "1s/.*/>\${ctg}/" >> ${sampleid}_contigs.trimmed.fa; done < ${trimmed_coords}
+    if [ -s "${ref}" ] && [ -s "${trimmed_coords}" ]; then
+        samtools faidx ${ref}
+        while read ctg L R; do samtools faidx ${ref} "\${ctg}:\${L}-\${R}" | sed "1s/.*/>\${ctg}/" >> ${sampleid}_contigs.trimmed.fa; done < ${trimmed_coords}
+    else
+        touch "${sampleid}_contigs.trimmed.fa"
+    fi
     """
 }

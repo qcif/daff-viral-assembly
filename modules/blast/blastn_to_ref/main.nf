@@ -10,12 +10,16 @@ process BLAST_BLASTN_TO_REF {
 
     script:
     """
-    makeblastdb -in ${reference} -parse_seqids -dbtype nucl
-    blastn -query ${assembly} \\
-      -db ${reference} \\
-      -out ${sampleid}_contig_vs_refs_blastn.bls \\
-      -evalue 1e-3 \\
-      -num_threads ${task.cpus} \\
-      -max_target_seqs 1
+    if [ -s "${assembly}" ] && [ -s "${reference}" ]; then
+        makeblastdb -in ${reference} -parse_seqids -dbtype nucl
+        blastn -query ${assembly} \\
+          -db ${reference} \\
+          -out ${sampleid}_contig_vs_refs_blastn.bls \\
+          -evalue 1e-3 \\
+          -num_threads ${task.cpus} \\
+          -max_target_seqs 1
+    else
+        touch "${sampleid}_contig_vs_refs_blastn.bls"
+    fi
     """
 }

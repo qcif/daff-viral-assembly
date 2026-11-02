@@ -3,7 +3,7 @@
 <p class="small">
   This section provides an overall data quality assessment and helps identify any issues that may affect downstream analyses. 
   Please note that input data are truncated to
-  <strong>40M reads</strong>
+  <strong>{{ "{:,}".format(subsample_size) }} reads</strong>
   to ensure reasonable run times.
 </p>
 

@@ -10,6 +10,10 @@ process CDHIT_CDHIT {
 
     script:
     """
-    cd-hit -i ${ref} -o ${sampleid}_ref_sequences_clustered.fasta -c 0.97 -n 5
+    if [ -s "${ref}" ]; then
+        cd-hit -i ${ref} -o ${sampleid}_ref_sequences_clustered.fasta -c 0.97 -n 5
+    else
+        touch "${sampleid}_ref_sequences_clustered.fasta"
+    fi
     """
 }

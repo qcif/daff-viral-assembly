@@ -11,9 +11,13 @@ process SAMTOOLS_MPILEUP {
 
     script:
     """
-    #filter out unmapped reads -F 4
-    samtools view -@ ${task.cpus} -Sb -F 4 ${sam} | samtools sort -@ ${task.cpus} -o ${sampleid}_contig_aln.sorted.bam
-    samtools index ${sampleid}_contig_aln.sorted.bam
-    samtools mpileup -aa -f ${ref} ${sampleid}_contig_aln.sorted.bam > ${sampleid}_contig_pileup.txt  
+    if [ -s "${ref}" ] && [ -s "${sam}" ]; then
+        #filter out unmapped reads -F 4
+        samtools view -@ ${task.cpus} -Sb -F 4 ${sam} | samtools sort -@ ${task.cpus} -o ${sampleid}_contig_aln.sorted.bam
+        samtools index ${sampleid}_contig_aln.sorted.bam
+        samtools mpileup -aa -f ${ref} ${sampleid}_contig_aln.sorted.bam > ${sampleid}_contig_pileup.txt
+    else
+        touch "${sampleid}_contig_pileup.txt"
+    fi
     """
 }

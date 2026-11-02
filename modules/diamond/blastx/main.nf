@@ -19,12 +19,16 @@ process DIAMOND_BLASTX {
     def prot_db = mounted_prot_db ?: staged_prot_db
     """
     cat ${viral_fasta} ${other_fasta} > ${sampleid}_combined_contigs.fasta
-    diamond blastx --query ${sampleid}_combined_contigs.fasta \\
-                  --db ${prot_db} \\
-                  --out ${sampleid}_diamond_matches.txt \\
-                  --evalue 1e-3 \\
-                  --max-target-seqs 1 \\
-                  --outfmt 6 qseqid sseqid pident length qlen slen qstart qend sstart send evalue bitscore qcovhsp stitle \\
-                  --threads ${task.cpus}
+    if [ -s "${sampleid}_combined_contigs.fasta" ]; then
+        diamond blastx --query ${sampleid}_combined_contigs.fasta \\
+                      --db ${prot_db} \\
+                      --out ${sampleid}_diamond_matches.txt \\
+                      --evalue 1e-3 \\
+                      --max-target-seqs 1 \\
+                      --outfmt 6 qseqid sseqid pident length qlen slen qstart qend sstart send evalue bitscore qcovhsp stitle \\
+                      --threads ${task.cpus}
+    else
+        touch "${sampleid}_diamond_matches.txt"
+    fi
     """
 }

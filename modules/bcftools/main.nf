@@ -15,6 +15,7 @@ process BCFTOOLS {
           emit: bcftools_masked_consensus_fasta
   script:
   """
+    if [ -s "${ref}" ] && [ -s "${bam}" ] && [ -s "${bai}" ]; then
   awk '/^>/ {print; next} {gsub(/[WSMKRYBDHVNwsmskrybdhvn]/, "N"); print}' \\
       "${ref}" \\
       > "${sampleid}_ref_cleaned.fasta"
@@ -55,5 +56,8 @@ process BCFTOOLS {
       --mask ${zero_coverage_bed} \\
       ${sampleid}_annotated.vcf.gz \\
       -o ${sampleid}_bcftools_masked_consensus.fasta
+    else
+        touch "${sampleid}_vcf_applied.fasta" "${sampleid}_bcftools_masked_consensus.fasta" "${sampleid}_annotated.vcf.gz"
+    fi
   """
 }

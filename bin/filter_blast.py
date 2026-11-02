@@ -11,6 +11,15 @@ import shutil
 import re
 from analyses_config import file_exists
 
+OUTPUT_COLUMNS = [
+    "sample_name", "qseqid", "sacc", "alignment_length", "evalue", "bitscore", "pident", "mismatch",
+    "gapopen", "qstart", "qend", "qlen", "sstart", "send", "slen", "sstrand",
+    "qcovhsp", "staxids", "qseq", "sseq", "qcovs", "species",
+    "species_updated", "RNA_type", "stitle", "full_lineage", "ncontigs_per_sacc", "ncontigs_per_spp",
+    "assembly_kmer_cov", "total_score_spp", "total_score_spp_rna", "total_score_sacc", "term_filter",
+    "cov_filter", "best_contig_per_sp_filter", "best_contig_per_sp_rna_filter", "best_contig_per_acc_filter"
+]
+
 def parse_arguments():
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(description="Load and enrich BLASTn results and select only viruses.")
@@ -33,7 +42,12 @@ def load_blast_results(path):
         "qcovs", "qframe", "sframe"
     ]
     # Create a temporary file with header + original content
-    df = pd.read_csv(path, sep="\t", header=None, dtype=str)
+    try:
+        df = pd.read_csv(path, sep="\t", header=None, dtype=str)
+    except pd.errors.EmptyDataError:
+        return pd.DataFrame(columns=columns)
+    if df.dropna(how="all").empty:
+        return pd.DataFrame(columns=columns)
     if df.shape[1] != len(columns):
         raise ValueError(
             f"Expected {len(columns)} columns (BLAST output), but found {df.shape[1]} in {path}"
@@ -89,6 +103,9 @@ def merge_taxonomy(dfs):
 
 def filter_and_format(df, sample_name, filter_file, headers):
     """Filter only viral hits and format."""
+    if df.empty:
+        return pd.DataFrame(columns=OUTPUT_COLUMNS)
+
     df.insert(0, "sample_name", sample_name)
     df = df[~df["species"].str.contains("synthetic construct", na=False)]
     df = df[~df["species"].str.contains("Expression vector", na=False)]
@@ -103,7 +120,8 @@ def filter_and_format(df, sample_name, filter_file, headers):
         & (df["broad_taxonomic_category"].str.strip() != "")
     ].copy()
     df = df[df["broad_taxonomic_category"] == "virus"].copy()
-    
+    if df.empty:
+        return pd.DataFrame(columns=OUTPUT_COLUMNS)
 
     df["RNA_type"] = np.where(
         df.stitle.str.contains("RNA1|RNA 1|segment 1|polyprotein P1", case=False, na=False), "RNA1",
@@ -116,7 +134,12 @@ def filter_and_format(df, sample_name, filter_file, headers):
         )
     )
 
-    df["species_updated"] = df[["species", "RNA_type"]].fillna("").astype(str).agg(" ".join, axis=1)
+    #df["species_updated"] = df[["species", "RNA_type"]].fillna("").astype(str).agg(" ".join, axis=1)
+    df["species_updated"] = (
+        df["species"].fillna("").astype(str)
+        + " "
+        + df["RNA_type"].fillna("").astype(str)
+    ).str.strip()
     df["species_updated"] = df["species_updated"].str.replace("RNA1 RNA1", "RNA1", regex=False)
     df["species_updated"] = df["species_updated"].str.replace("RNA2 RNA2", "RNA2", regex=False)
     df["species_updated"] = df["species_updated"].str.replace("RNA3 RNA3", "RNA3", regex=False)
@@ -250,12 +273,7 @@ def filter_and_format(df, sample_name, filter_file, headers):
         (df["qcovs"] < 30)
         )
     
-    final_columns_filt = ["sample_name", "qseqid", "sacc", "alignment_length", "evalue", "bitscore", "pident", "mismatch",
-                     "gapopen", "qstart", "qend", "qlen", "sstart", "send", "slen", "sstrand",
-                     "qcovhsp", "staxids", "qseq", "sseq", "qcovs", "species",
-                     "species_updated", "RNA_type", "stitle", "full_lineage", "ncontigs_per_sacc", "ncontigs_per_spp", "assembly_kmer_cov", "total_score_spp", "total_score_spp_rna", "total_score_sacc", "term_filter", "cov_filter", "best_contig_per_sp_filter", "best_contig_per_sp_rna_filter", "best_contig_per_acc_filter"]
-    
-    return df[final_columns_filt]
+    return df[OUTPUT_COLUMNS]
 
 def apply_group_score(df, group_col, target_col, score_func, new_col):
         """
@@ -342,9 +360,12 @@ def main():
         raise FileNotFoundError(f"{blastn_results_path} does not exist.")
 
     blastn_results = load_blast_results(blastn_results_path)
-    enriched_dfs = enrich_with_taxonomy(blastn_results, tk_db_dir)
-    merged_df = merge_taxonomy(enriched_dfs)
-    final_df = filter_and_format(merged_df, sample_name, filter_file, headers)
+    if blastn_results.empty:
+        final_df = pd.DataFrame(columns=OUTPUT_COLUMNS)
+    else:
+        enriched_dfs = enrich_with_taxonomy(blastn_results, tk_db_dir)
+        merged_df = merge_taxonomy(enriched_dfs)
+        final_df = filter_and_format(merged_df, sample_name, filter_file, headers)
 
     out_file = os.path.basename(args.blastn_results).replace("_blastn.txt", "_megablast_top_viral_hits.txt")
     final_df.to_csv(out_file, sep="\t", index=False)

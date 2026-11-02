@@ -51,10 +51,10 @@ class Config:
             f' <a href="{REPO_URL}" target="_blank">'
             f'{WF_NAME} Nextflow pipeline</a>.')
 
-    class CRITERIA:
-        # ! import these from anaylsis config
-        MIN_RAW_READS = 8000000
-        MIN_FILTERED_READS = 25000000
+    # class CRITERIA:
+    #     # ! import these from anaylsis config
+    #     MIN_RAW_READS = 8000000
+    #     MIN_FILTERED_READS = 25000000
 
     @property
     def default_params(self) -> dict[str, str]:

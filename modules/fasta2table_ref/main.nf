@@ -32,6 +32,10 @@ process FASTA2TABLE_REF {
 
     script:
     """
-    fasta2table.py --fasta ${fasta} --sample ${sampleid} --tophits ${stats} --mode ${run_mode}
+    if [ -s "${stats}" ] && [ -s "${fasta}" ]; then
+        fasta2table.py --fasta ${fasta} --sample ${sampleid} --tophits ${stats} --mode ${run_mode}
+    else
+        touch "${sampleid}_reference_with_cov_stats_final.txt"
+    fi
     """
 }

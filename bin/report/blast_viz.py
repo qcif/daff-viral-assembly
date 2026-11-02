@@ -412,7 +412,12 @@ def _store_orf(header, sequence, contigs, contig_lengths):
     })
 
 def parse_contig_lengths(stats_file):
-    df = pd.read_csv(stats_file, sep="\t")
+    try:
+        df = pd.read_csv(stats_file, sep="\t")
+    except pd.errors.EmptyDataError:
+        return {}
+    if df.empty:
+        return {}
     df.columns = [c.strip() for c in df.columns]
 
     # --- normalize contig name ---

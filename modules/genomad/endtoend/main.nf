@@ -31,15 +31,31 @@ process GENOMAD_ENDTOEND {
     def genomad_db = mounted_db ?: staged_db
     """
     cat ${viral_fasta} ${other_fasta} > ${sampleid}_combined_contigs.fasta
-    genomad \\
-      end-to-end \\
-      ${sampleid}_combined_contigs.fasta \\
-      ./ \\
-      ${genomad_db} \\
-      --threads ${task.cpus} \\
-      --min-score 0.7 \\
-      --splits 1 \\
-      2>&1 | tee ${sampleid}_genomad.log
+    if [ -s "${sampleid}_combined_contigs.fasta" ]; then
+        genomad \\
+          end-to-end \\
+          ${sampleid}_combined_contigs.fasta \\
+          ./ \\
+          ${genomad_db} \\
+          --threads ${task.cpus} \\
+          --min-score 0.7 \\
+          --splits 1 \\
+          2>&1 | tee ${sampleid}_genomad.log
+    else
+        mkdir -p "${sampleid}_combined_contigs_summary" "${sampleid}_combined_contigs_find_proviruses" "${sampleid}_combined_contigs_aggregated_classification" "${sampleid}_combined_contigs_annotate"
+        touch "${sampleid}_combined_contigs_summary/${sampleid}_combined_contigs_virus.fna" \\
+              "${sampleid}_combined_contigs_summary/${sampleid}_combined_contigs_virus_summary.tsv" \\
+              "${sampleid}_combined_contigs_summary/${sampleid}_combined_contigs_virus_genes.tsv" \\
+              "${sampleid}_combined_contigs_summary/${sampleid}_combined_contigs_virus_proteins.faa" \\
+              "${sampleid}_combined_contigs_find_proviruses/${sampleid}_combined_contigs_provirus.tsv" \\
+              "${sampleid}_combined_contigs_find_proviruses/${sampleid}_combined_contigs_provirus_taxonomy.tsv" \\
+              "${sampleid}_combined_contigs_find_proviruses/${sampleid}_combined_contigs_provirus.fna" \\
+              "${sampleid}_combined_contigs_find_proviruses/${sampleid}_combined_contigs_provirus_genes.tsv" \\
+              "${sampleid}_combined_contigs_find_proviruses/${sampleid}_combined_contigs_provirus_proteins.faa" \\
+              "${sampleid}_combined_contigs_aggregated_classification/${sampleid}_combined_contigs_aggregated_classification.tsv" \\
+              "${sampleid}_combined_contigs_annotate/${sampleid}_combined_contigs_taxonomy.tsv" \\
+              "${sampleid}_genomad.log"
+    fi
     
     cp ${sampleid}_combined_contigs_summary/${sampleid}_combined_contigs_virus_summary.tsv .
     """

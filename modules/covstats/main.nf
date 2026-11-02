@@ -24,14 +24,19 @@ process COVSTATS {
           emit: detections_summary
 
     script:
+    def output_name = mode == 'reference' ? "${sampleid}_reference_with_cov_stats.txt" : "${sampleid}_contigs_with_cov_stats.txt"
     """
-    derive_coverage_stats.py \\
-      --mode ${mode} \\
-      --sample ${sampleid} \\
-      --blastn_results ${blast_results} \\
-      --bbsplit_stats ${bbsplit_stats} \\
-      --coverage ${coverage} \\
-      --bed ${bed} \\
-      --mapping_quality ${mapping_q}
+    if [ -s "${blast_results}" ] && [ -s "${bbsplit_stats}" ] && [ -s "${coverage}" ] && [ -s "${bed}" ] && [ -s "${mapping_q}" ]; then
+        derive_coverage_stats.py \\
+          --mode ${mode} \\
+          --sample ${sampleid} \\
+          --blastn_results ${blast_results} \\
+          --bbsplit_stats ${bbsplit_stats} \\
+          --coverage ${coverage} \\
+          --bed ${bed} \\
+          --mapping_quality ${mapping_q}
+    else
+        touch "${output_name}"
+    fi
     """
 }

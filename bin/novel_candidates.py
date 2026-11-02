@@ -62,7 +62,7 @@ def main():
     ]
     #consider filtering the unclassified hits, as these are likely to be false positives?
     merged3_df_filt = merged3_df_filt[
-        ~merged3_df_filt["taxonomy"].str.lower().str.contains("caudoviricetes|iridoviridae|retroviridae", na=False)
+        ~merged3_df_filt["taxonomy"].str.lower().str.contains("caudoviricetes|iridoviridae|retroviridae|paramyxoviridae", na=False)
     ]
     merged3_df_filt = merged3_df_filt[merged3_df_filt["length"] >= 500]
     merged3_df_filt = merged3_df_filt[merged3_df_filt["virus_score"] >= 0.99]
