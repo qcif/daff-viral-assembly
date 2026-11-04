@@ -18,13 +18,15 @@ def parse_blast_for_ruler_continuous(blast_filename):
     """
     Parses BLAST output and returns:
         - ref_lengths: {ref_id: length}
-        - merged_contig_alignments: [{'contig': ..., 'ref': ..., 'ref_start': ..., 'ref_end': ...}]
-    Merges all blocks for each (contig, ref) into a single interval (so one box per contig/ref).
+        - merged_contig_alignments: [{'contig': ..., 'ref': ..., 'ref_start': ..., 'ref_end': ..., 'strand': ...}]
+    Merges wrapped subject lines within each HSP, keeping separate HSPs split.
     """
     ref_lengths = {}
-    contig_blocks = {}  # key = (contig, ref), value = [all starts, all ends]
+    contig_blocks = {}
     current_ref = None
     current_contig = None
+    current_strand = None
+    current_hsp = 0
 
     with open(blast_filename) as f:
         lines = f.readlines()
@@ -35,9 +37,14 @@ def parse_blast_for_ruler_continuous(blast_filename):
         m_q = re.match(r"^\s*Query=\s*(\S+)", line)
         if m_q:
             current_contig = m_q.group(1)
+            current_ref = None
+            current_strand = None
+            current_hsp = 0
         m_ref = re.match(r"^>(\S+)", line)
         if m_ref:
             current_ref = m_ref.group(1)
+            current_strand = None
+            current_hsp = 0
             k = i+1
             while k < n and not lines[k].startswith(">") and lines[k].strip() != "":
                 m_len = re.match(r"Length\s*=\s*(\d+)", lines[k])
@@ -46,15 +53,24 @@ def parse_blast_for_ruler_continuous(blast_filename):
                     ref_lengths[ref_clean] = int(m_len.group(1))
                     break
                 k += 1
-        if line.startswith("Sbjct"):
-            m_s = re.match(r"Sbjct\s+(\d+)\s+[A-Za-z\-]+\s+(\d+)", line)
-            if m_s and current_ref and current_contig:
-                start, end = int(m_s.group(1)), int(m_s.group(2))
-                key = (current_contig, current_ref)
-                if key not in contig_blocks:
-                    contig_blocks[key] = {"starts": [], "ends": [], "contig": current_contig, "ref": current_ref}
-                contig_blocks[key]["starts"].append(start)
-                contig_blocks[key]["ends"].append(end)
+        if re.match(r"\s*Score\s*=", line):
+            current_hsp += 1
+            current_strand = None
+        strand_match = re.search(r"Strand\s*=\s*(Plus|Minus)\s*/\s*(Plus|Minus)", line, re.IGNORECASE)
+        if strand_match:
+            current_strand = "+" if strand_match.group(1).lower() == strand_match.group(2).lower() else "-"
+        m_s = re.match(r"\s*Sbjct\s+(\d+)\s+[A-Za-z\-]+\s+(\d+)", line)
+        if m_s and current_ref and current_contig:
+            start, end = int(m_s.group(1)), int(m_s.group(2))
+            strand = current_strand or ("+" if start <= end else "-")
+            key = (current_contig, current_ref, current_hsp, strand)
+            if key not in contig_blocks:
+                contig_blocks[key] = {
+                    "starts": [], "ends": [], "contig": current_contig,
+                    "ref": current_ref, "strand": strand,
+                }
+            contig_blocks[key]["starts"].append(start)
+            contig_blocks[key]["ends"].append(end)
         i += 1
     merged_contig_alignments = []
     for v in contig_blocks.values():
@@ -63,7 +79,8 @@ def parse_blast_for_ruler_continuous(blast_filename):
             "contig": v["contig"],
             "ref": v["ref"],
             "ref_start": min(all_pos),
-            "ref_end":   max(all_pos)
+            "ref_end":   max(all_pos),
+            "strand": v["strand"],
         })
     return ref_lengths, merged_contig_alignments
 
@@ -251,9 +268,12 @@ def generate_reference_svg(ref_length, contigs):
     width = 900   # or 1000 for safety
     right_padding = 100
     scale = (width - right_padding) / ref_length
-    height = 50 + len(contigs) * 20
-
-    scale = width / ref_length
+    contig_rows = {}
+    for contig in contigs:
+        key = (contig['contig'], contig.get('ref'))
+        if key not in contig_rows:
+            contig_rows[key] = len(contig_rows)
+    height = 60 + len(contig_rows) * 20
 
     svg = [f'<svg width="{width}" height="{height}" xmlns="http://www.w3.org/2000/svg">']
 
@@ -271,14 +291,17 @@ def generate_reference_svg(ref_length, contigs):
         svg.append(f'<text x="{x}" y="40" font-size="10" text-anchor="middle">{pos//1000}k</text>')
 
     # Contigs
-    for i, c in enumerate(contigs):
-        y = 60 + i * 20
-        x1 = c['ref_start'] * scale
-        x2 = c['ref_end'] * scale
-
-        svg.append(
-            f'<rect x="{x1}" y="{y}" width="{x2-x1}" height="16" fill="#e33"/>'
-        )
+    for contig in contigs:
+        y = 60 + contig_rows[(contig['contig'], contig.get('ref'))] * 20
+        x1 = (min(contig['ref_start'], contig['ref_end']) - 1) * scale
+        x2 = max(contig['ref_start'], contig['ref_end']) * scale
+        arrow_tip = min(8, (x2 - x1) / 2)
+        strand = contig.get('strand', '+' if contig['ref_start'] <= contig['ref_end'] else '-')
+        if strand == '-':
+            points = f'{x2},{y} {x1+arrow_tip},{y} {x1},{y+8} {x1+arrow_tip},{y+16} {x2},{y+16}'
+        else:
+            points = f'{x1},{y} {x2-arrow_tip},{y} {x2},{y+8} {x2-arrow_tip},{y+16} {x1},{y+16}'
+        svg.append(f'<polygon points="{points}" fill="#e33"/>')
         x_center = (x1 + x2) / 2
 
         # If label would overflow right edge
@@ -290,7 +313,7 @@ def generate_reference_svg(ref_length, contigs):
             anchor = "middle"
 
         svg.append(
-            f'<text x="{x_text}" y="{y-2}" font-size="9" text-anchor="{anchor}">{c["contig"]}</text>'
+            f'<text x="{x_text}" y="{y-2}" font-size="9" text-anchor="{anchor}">{html.escape(contig["contig"])}</text>'
         )
 
     svg.append('</svg>')

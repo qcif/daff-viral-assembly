@@ -92,6 +92,19 @@
               {{ contig_id }}
             {% endif %}
 
+          {% elif colname == 'sacc' and blast_reference_data %}
+            {% set ref_id = row[colname] %}
+            {% if ref_id in blast_reference_data %}
+              <a href="javascript:void(0);"
+                data-bs-toggle="modal"
+                data-bs-target="#blastModal_{{ ref_id | html_id }}"
+                style="cursor: pointer; color: #178cd2; text-decoration: underline;">
+                {{ row[colname] }}
+              </a>
+            {% else %}
+              {{ row[colname] }}
+            {% endif %}
+
           {% elif colname == 'contig_seq' %}
             {{ render_view_sequence_button("Assembled sequence " + contig_id, row[colname]) }}
           {% elif colname == 'term_filter' %}
@@ -121,6 +134,46 @@
     {% endif %}
   {% endif %}
 </div>
+
+{% if blast_reference_data %}
+  {% for ref_id, ref_data in blast_reference_data.items() %}
+
+  <div class="modal fade"
+       id="blastModal_{{ ref_id | html_id }}"
+       tabindex="-1">
+
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+      <div class="modal-content">
+
+        <div class="modal-header">
+          <h5 class="modal-title">
+            BLAST alignments — {{ ref_id }}
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+
+          {% if ref_data.svg %}
+            <div style="text-align:center; margin-bottom:15px;">
+              {{ ref_data.svg | safe }}
+            </div>
+          {% endif %}
+
+          {% if ref_data.table_html %}
+            <div style="max-height:70vh; overflow:auto;">
+              {{ ref_data.table_html | safe }}
+            </div>
+          {% else %}
+            <p>No alignment data available.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% endfor %}
+{% endif %}
 
 
 {% if contig_orf_data %}
