@@ -39,7 +39,6 @@ include { COUNT_FASTQ_READS } from '../../modules/count_fastq_reads/main'
 include { COVSTATS as REF_COVSTATS} from '../../modules/covstats/main'
 include { DIAMOND_BLASTX } from '../../modules/diamond/blastx/main'
 include { ENTREZDIRECT_EFETCH as EXTRACT_REF_FASTA } from '../../modules/entrezdirect/efetch/main'
-include { EXTRACT_BLAST_HITS } from '../../modules/extract_blast_hits/main'
 include { EXTRACT_RAW_VIRAL_BLAST_HITS } from '../../modules/extract_raw_viral_blast_hits/main'
 include { EXTRACT_FINAL_VIRAL_BLAST_HITS } from '../../modules/extract_final_viral_blast_hits/main'
 include { FASTA2TABLE_CONTIGS } from '../../modules/fasta2table_contigs/main'
@@ -248,7 +247,6 @@ workflow VIEW {
         staged_taxdump_db  = []
     }
 
-    //In other modes, if the database is not provided, it will download it automatically
     else {
         mounted_taxdump_db = ''
         staged_taxdump_db  = file(params.taxdump, checkIfExists: true)
@@ -329,8 +327,8 @@ workflow VIEW {
         .join(ch_stats)
         .join(SAMTOOLS_CONTIGS.out.coverage)
         .join(SAMTOOLS_CONTIGS.out.mapping_quality)
-        .map { sampleid, bed, blast_results, bbsplit_stats, coverage, mapping_q
-        -> tuple(sampleid, 'contig', bed, blast_results, bbsplit_stats, coverage, mapping_q) }
+        .map { sampleid, bed, per_base, blast_results, bbsplit_stats, coverage, mapping_q ->
+        tuple(sampleid, 'contig', bed, per_base, blast_results, bbsplit_stats, coverage, mapping_q) }
 
     //Predict ORFs on filtered contigs
     //Derive ORFs from contig sequences using orfipy
@@ -386,11 +384,14 @@ workflow VIEW {
     def (mounted_prot_db, staged_prot_db) =
         databaseInputs(params.prot_db)
     DIAMOND_BLASTX ( ch_diamond, mounted_prot_db, staged_prot_db )
-    CONTIG_COVSTATS( ch_contig_cov_stats_summary)
+    CONTIG_COVSTATS( ch_contig_cov_stats_summary )
     //Mapping back to reference sequences retrieved from blast hits
     EXTRACT_REF_FASTA ( ch_fasta2table_contigs.ref_ids )
     CLUSTER ( EXTRACT_REF_FASTA.out.fasta_files )
-    MEGABLAST_TO_REF ( ch_fasta2table_contigs.contig_fasta.join(CLUSTER.out.clusters) )
+    //Instead of mapping contigs back to cluster to derive alignments, map them back to the reference sequences using NCBI so results match
+    //Report results in the Megablast tab instead of the Mapping back to ref
+    //MEGABLAST_TO_REF ( ch_fasta2table_contigs.contig_fasta.join(CLUSTER.out.clusters) )
+    MEGABLAST_TO_REF ( ch_fasta2table_contigs.contig_fasta.join(EXTRACT_REF_FASTA.out.fasta_files) )
     ch_mapping = CLUSTER.out.clusters.join(ch_cleaned_fq) 
         .map { sampleid, cluster_fasta, fastq1, fastq2 ->
             tuple(sampleid, "ref_aln", cluster_fasta, fastq1, fastq2)
@@ -409,8 +410,8 @@ workflow VIEW {
         .join(ch_stats)
         .join(SAMTOOLS_REF.out.coverage)
         .join(SAMTOOLS_REF.out.mapping_quality)
-        .map { sampleid, bed, blast_results, bbsplit_stats, coverage, mapping_q
-        -> tuple(sampleid, 'reference', bed, blast_results, bbsplit_stats, coverage, mapping_q) }
+        .map { sampleid, bed, per_base, blast_results, bbsplit_stats, coverage, mapping_q
+        -> tuple(sampleid, 'reference', bed, per_base, blast_results, bbsplit_stats, coverage, mapping_q) }
 
     REF_COVSTATS(ch_ref_cov_stats_summary)
     ch_fasta2table_ref_input = REF_COVSTATS.out.detections_summary

@@ -454,23 +454,33 @@ qcovs >= 30
 ```
 The ```term_filter``` removes rows where species_updated or stitle match exclusion terms from the filter file.
 
-## Confidence score derivation  
-The confidence score is a mapping-support score from 0 to 8.
-It is based on 4 criteria:
+## Confidence score derivation
+Confidence scores are calculated separately for contig and reference mapping. Each mode uses four flags worth up to 2 points each, for a total score from 0 to 8.
 
-**Scoring table**
-| Metric | GREEN (2) | ORANGE (1) | RED (0) | 
+### Contig mapping
+
+| Metric / flag | GREEN (2) | ORANGE (1) | RED (0) |
 |---|---:|---:|---:|
-| `pc_cov_30X` | `>= 100` | `>= 50` and `< 100` | `< 50` | 
-| `mapping_read_count` | `>= 1000` | `>= 200` and `< 1000` | `< 200` | 
-| `mean_depth` | `>= 100` | `>= 50` and `< 100` | `< 50` | 
-| `mean_mapping_quality` | `>= 30` | `>= 10` and `< 30` | `< 10` | 
+| Reference coverage by contig (%) | `>= 90` | `>= 50` and `< 90` | `< 50` |
+| Contig coverage by reference (%) | `>= 90` | `>= 75` and `< 90` | `< 75` |
+| Cumulative depth of coverage at ≥30× (%) | `>= 100` | `>= 50` and `< 100` | `< 50` |
+| `mean_depth` | `>= 100` | `>= 30` and `< 100` | `< 30` |
 
-Because there are four flags and each can score a maximum of 2 points, the maximum total score is:
-```4 × 2 = 8```
+### Reference mapping
 
-The normalised confidence score is then:
-```normalised_conf_score = total_conf_score / 8```
+| Metric / flag | GREEN (2) | ORANGE (1) | RED (0) |
+|---|---:|---:|---:|
+| Longest continuous region with depth of coverage at ≥1× (%) | `>= 90` | `>= 50` and `< 100` | `< 40` |
+| Cumulative depth of coverage at ≥1× (%) | `>= 90` | `>= 80` and `< 90` | `< 80` |
+| Cumulative depth of coverage at ≥30× (%) | `>= 100` | `>= 50` and `< 100` | `< 50` |
+| `mean_depth` | `>= 100` | `>= 30` and `< 100` | `< 30` |
+
+
+In both modes, the maximum total is `4 flags * 2 points = 8`, and:
+
+```text
+normalised_conf_score = total_conf_score / 8
+```
 
 ## Evidence used to flag potential novel virus candidates
 

@@ -7,9 +7,7 @@
      
      This allows us to evaluate how well the raw sequencing data supports the presence of each reference sequence in the sample, and to generate a <strong>consensus sequence</strong> for each reference based on the aligned reads.
 
-     The table is sorted by a <strong>confidence score</strong> that takes into consideration the number of reads mapped, mean depth, % coverage at 30X, and mean mapping quality, and is normalised to a value between 0 and 1. A higher score indicates higher confidence in the mapping result.
-
-     The <strong>normalised confidence score</strong> reflects how well the sequencing data supports each reference sequence, based on read depth, coverage, and mapping quality.
+     The <strong>normalised confidence score</strong> reflects how well the sequencing data supports each reference sequence, based on read depth and coverage. A higher score indicates higher confidence in the mapping result.
     </div>
     <div class="col-auto">
       <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#mappingInfoModal">
@@ -106,7 +104,7 @@
             <strong>Important note:</strong> the mapping-to-reference approach only works well when the reference sequence identified is closely related to the virus present in the sample. If the virus is highly divergent from known reference sequences, reads might not align well and it may not be possible to generate an accurate consensus sequence.
           </li>
           <li>
-            The rows are sorted based on the recovered <strong>confidence score</strong>, which takes into consideration the number of reads mapped, mean depth, % coverage at 30X, and mean mapping quality, and is normalised to a value between 0 and 1. A higher score indicates higher confidence in the mapping result.
+            The rows are sorted based on the recovered <strong>confidence score</strong>, which takes into consideration read depth and coverage, and is normalised to a value between 0 and 1. A higher score indicates higher confidence in the mapping result.
           </li>
         </ol>
       </div>
