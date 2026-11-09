@@ -289,8 +289,8 @@ def apply_qc_flags_reference(df):
     df["1x_long_cov_flag"] = np.select(
         [
             df.pc_longest_covered_region >= 90,
-            df.pc_cov_1X >= 40,
-            df.pc_cov_1X < 40,
+            df.pc_longest_covered_region >= 40,
+            df.pc_longest_covered_region< 40,
         ],
         ["GREEN", "ORANGE", "RED"],
         default="GREY",
