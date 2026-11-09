@@ -365,6 +365,37 @@ The pipeline includes several execution profiles selectable with `-profile`:
 
 Multiple profiles can be combined with commas, e.g. `-profile singularity,test`.
 
+
+## Confidence score derivation
+Confidence scores are calculated separately for contig and reference mapping. Each mode uses four flags worth up to 2 points each, for a total score from 0 to 10.
+
+### Contig mapping
+
+| Metric / flag | GREEN (2) | ORANGE (1) | RED (0) |
+|---|---:|---:|---:|
+| Reference coverage by contig (%) | `>= 90` | `>= 50` and `< 90` | `< 50` |
+| Contig coverage by reference (%) | `>= 90` | `>= 75` and `< 90` | `< 75` |
+| Cumulative depth of coverage at ≥30× (%) | `>= 100` | `>= 50` and `< 100` | `< 50` |
+| `mean_depth` | `>= 100` | `>= 30` and `< 100` | `< 30` |
+| Percentage mapping reads | `>= 0.1` | `>= 0.1 `and `< 0.1`| `< 0.01` |
+
+### Reference mapping
+
+| Metric / flag | GREEN (2) | ORANGE (1) | RED (0) |
+|---|---:|---:|---:|
+| Longest continuous region with depth of coverage at ≥1× (%) | `>= 90` | `>= 40` and `< 100` | `< 40` |
+| Cumulative depth of coverage at ≥1× (%) | `>= 90` | `>= 80` and `< 90` | `< 80` |
+| Cumulative depth of coverage at ≥30× (%) | `>= 100` | `>= 50` and `< 100` | `< 50` |
+| `mean_depth` | `>= 100` | `>= 30` and `< 100` | `< 30` |
+| Percentage mapping reads | `>= 0.1` | `>= 0.1 `and `< 0.1`| `< 0.01` |
+
+
+In both modes, the maximum total is `5 flags * 2 points = 10`, and:
+
+```text
+normalised_conf_score = total_conf_score / 10
+```
+
 ## Selecting best representative per species
 **1. Pre-filtering before representative selection**   
 The script first:
@@ -401,37 +432,7 @@ qcovs >= 30
 ```
 The ```term_filter``` removes rows where species_updated or stitle match exclusion terms from the filter file.
 
-## Confidence score derivation
-Confidence scores are calculated separately for contig and reference mapping. Each mode uses four flags worth up to 2 points each, for a total score from 0 to 8.
-
-### Contig mapping
-
-| Metric / flag | GREEN (2) | ORANGE (1) | RED (0) |
-|---|---:|---:|---:|
-| Reference coverage by contig (%) | `>= 90` | `>= 50` and `< 90` | `< 50` |
-| Contig coverage by reference (%) | `>= 90` | `>= 75` and `< 90` | `< 75` |
-| Cumulative depth of coverage at ≥30× (%) | `>= 100` | `>= 50` and `< 100` | `< 50` |
-| `mean_depth` | `>= 100` | `>= 30` and `< 100` | `< 30` |
-| Percentage mapping reads | >= 0.1 | >= 0.1 and < 0.1| < 0.01 |
-
-### Reference mapping
-
-| Metric / flag | GREEN (2) | ORANGE (1) | RED (0) |
-|---|---:|---:|---:|
-| Longest continuous region with depth of coverage at ≥1× (%) | `>= 90` | `>= 40` and `< 100` | `< 40` |
-| Cumulative depth of coverage at ≥1× (%) | `>= 90` | `>= 80` and `< 90` | `< 80` |
-| Cumulative depth of coverage at ≥30× (%) | `>= 100` | `>= 50` and `< 100` | `< 50` |
-| `mean_depth` | `>= 100` | `>= 30` and `< 100` | `< 30` |
-| Percentage mapping reads | >= 0.1 | >= 0.1 and < 0.1| < 0.01 |
-
-
-In both modes, the maximum total is `5 flags * 2 points = 10`, and:
-
-```text
-normalised_conf_score = total_conf_score / 10
-```
-
-The best contig per species is selected based on nest normalised score recoevered per species.  
+The best contig per species is selected based on the best normalised score recoevered per species.  
 
 ## Evidence used to flag potential novel virus candidates
 
