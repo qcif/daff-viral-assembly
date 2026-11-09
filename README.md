@@ -432,7 +432,7 @@ qcovs >= 30
 ```
 The ```term_filter``` removes rows where species_updated or stitle match exclusion terms from the filter file.
 
-The best contig per species is selected based on the best normalised score recoevered per species.  
+3. The ```best contig per species``` is selected based on the best normalised score recoevered per species.  
 
 ## Evidence used to flag potential novel virus candidates
 
