@@ -366,7 +366,7 @@ The pipeline includes several execution profiles selectable with `-profile`:
 Multiple profiles can be combined with commas, e.g. `-profile singularity,test`.
 
 ## Selecting best representative per species
-**1. Pre-filtering before representative selection** 
+**1. Pre-filtering before representative selection**   
 The script first:
 - Adds taxonomy using pytaxonkit.
 - Removes hits where species contains: synthetic construct or expression vector
@@ -384,61 +384,8 @@ The script first:
   RNA3, RNA 3, segment 3, polyprotein P3
 ```
 
-**2. Selecting the best representative**  
-Grouping is done by accession number, species and species/RNA segment.
-Only the best representative per species is rendered in the hmlt report so we will focus the rest of this section on this.   
-For each species, each row gets points when it is the best within that species for specific metrics.
-The total species score is:
-```
-total_score_spp =
-    pident_score_spp
-  + bitscore_score_spp
-  + evalue_score_spp
-  + assembly_kmer_cov_score_spp
-  + qcovs_score
-  + best_qcovs_score_spp
-  + completeness_score
-  + alignment_length_score_spp
-  + query_length_score_spp
-```
-| Feature | Rule | Points |
-|---|---|---:|
-| `% identity` / `pident` | Highest within species | +1 |
-| `bitscore` | Highest within species | +2 |
-| `evalue` | Lowest within species | +2 |
-| SPAdes `assembly_kmer_cov` | Highest within species | +2 |
-| `qcovs` global threshold | `qcovs > 75` | +1 |
-| `qcovs` best in species | Highest within species | +2 |
-| `alignment_length` | Longest within species | +2 |
-| `qlen` | Longest query/contig length within species | +2 |
-| Completeness wording in `stitle` | Complete-genome / partial-sequence wording, see table below | +3, 0, or -3 |
 
-For the completeness title score, the BLAST subject title, stitle, is used to favour complete genomes/sequences and penalise partial/limited gene hits.
-
-Score are: 
-```
-+3 if stitle contains:
-- complete sequence
-- complete genome
-- polyprotein gene complete cds
-- polyprotein 1 gene complete cds
-- polyprotein 2 gene complete cds
-
--3 if stitle contains:
-- nearly complete sequence
-- partial
-- polymerase protein
-- RNA-dependent RNA polymerase
-
-0 otherwise
-```
-So a complete-genome reference is preferred over a partial gene-level match, all else being equal.
-
-The best representative per species is the contig/reference hit with the highest ```total_score_spp``` within that species.
-
-(The same is done for species_updated. This is important for multipartite/segmented viruses, because it can retain a best representative for RNA1, RNA2, RNA3 separately.)
-
-**3. Final reporting filters** 
+**2. Final reporting filters** 
 The script creates boolean columns that dowstream steps can use:
 ```
 term_filter
@@ -465,22 +412,26 @@ Confidence scores are calculated separately for contig and reference mapping. Ea
 | Contig coverage by reference (%) | `>= 90` | `>= 75` and `< 90` | `< 75` |
 | Cumulative depth of coverage at ≥30× (%) | `>= 100` | `>= 50` and `< 100` | `< 50` |
 | `mean_depth` | `>= 100` | `>= 30` and `< 100` | `< 30` |
+| Percentage mapping reads | >= 0.1 | >= 0.1 and < 0.1| < 0.01 |
 
 ### Reference mapping
 
 | Metric / flag | GREEN (2) | ORANGE (1) | RED (0) |
 |---|---:|---:|---:|
-| Longest continuous region with depth of coverage at ≥1× (%) | `>= 90` | `>= 50` and `< 100` | `< 40` |
+| Longest continuous region with depth of coverage at ≥1× (%) | `>= 90` | `>= 40` and `< 100` | `< 40` |
 | Cumulative depth of coverage at ≥1× (%) | `>= 90` | `>= 80` and `< 90` | `< 80` |
 | Cumulative depth of coverage at ≥30× (%) | `>= 100` | `>= 50` and `< 100` | `< 50` |
 | `mean_depth` | `>= 100` | `>= 30` and `< 100` | `< 30` |
+| Percentage mapping reads | >= 0.1 | >= 0.1 and < 0.1| < 0.01 |
 
 
-In both modes, the maximum total is `4 flags * 2 points = 8`, and:
+In both modes, the maximum total is `5 flags * 2 points = 10`, and:
 
 ```text
-normalised_conf_score = total_conf_score / 8
+normalised_conf_score = total_conf_score / 10
 ```
+
+The best contig per species is selected based on nest normalised score recoevered per species.  
 
 ## Evidence used to flag potential novel virus candidates
 
