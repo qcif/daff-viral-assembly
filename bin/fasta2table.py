@@ -34,7 +34,7 @@ def process_denovo_contigs(fasta_df, blastn_results, sample_name, blast_file):
     """Process BLAST results for viral hits."""
     try:
         # Validate expected columns
-        required_cols = ["qseqid", "term_filter", "cov_filter", "best_contig_per_sp_filter"]
+        required_cols = ["qseqid", "term_filter", "cov_filter"]
         missing_cols = [col for col in required_cols if col not in blastn_results.columns]
         if missing_cols:
             raise ValueError(f"Missing required columns for viral mode: {missing_cols}")
@@ -51,7 +51,6 @@ def process_denovo_contigs(fasta_df, blastn_results, sample_name, blast_file):
         
         # Add sample name column and sort
         merged_df.insert(0, "sample_name", sample_name)
-        merged_df = merged_df.sort_values(["best_contig_per_sp_filter"], ascending=[False])
         
         # Save full results
         output_file = os.path.basename(blast_file).replace("_top_viral_hits.txt", "_top_viral_hits_with_contigs.txt")

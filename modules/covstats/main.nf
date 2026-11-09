@@ -12,6 +12,7 @@ process COVSTATS {
     tuple val(sampleid),
           val(mode),
           path(bed),
+          path(per_base),
           path(blast_results),
           path(bbsplit_stats),
           path(coverage),
@@ -26,7 +27,7 @@ process COVSTATS {
     script:
     def output_name = mode == 'reference' ? "${sampleid}_reference_with_cov_stats.txt" : "${sampleid}_contigs_with_cov_stats.txt"
     """
-    if [ -s "${blast_results}" ] && [ -s "${bbsplit_stats}" ] && [ -s "${coverage}" ] && [ -s "${bed}" ] && [ -s "${mapping_q}" ]; then
+    if [ -s "${blast_results}" ] && [ -s "${bbsplit_stats}" ] && [ -s "${coverage}" ] && [ -s "${bed}" ] && [ -s "${mapping_q}" ] && [ -s "${per_base}" ]; then
         derive_coverage_stats.py \\
           --mode ${mode} \\
           --sample ${sampleid} \\
@@ -34,7 +35,8 @@ process COVSTATS {
           --bbsplit_stats ${bbsplit_stats} \\
           --coverage ${coverage} \\
           --bed ${bed} \\
-          --mapping_quality ${mapping_q}
+          --mapping_quality ${mapping_q} \\
+          --per_base ${per_base}
     else
         touch "${output_name}"
     fi

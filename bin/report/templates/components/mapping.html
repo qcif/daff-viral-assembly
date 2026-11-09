@@ -7,9 +7,7 @@
      
      This allows us to evaluate how well the raw sequencing data supports the presence of each reference sequence in the sample, and to generate a <strong>consensus sequence</strong> for each reference based on the aligned reads.
 
-     The table is sorted by a <strong>confidence score</strong> that takes into consideration the number of reads mapped, mean depth, % coverage at 30X, and mean mapping quality, and is normalised to a value between 0 and 1. A higher score indicates higher confidence in the mapping result.
-
-     The <strong>normalised confidence score</strong> reflects how well the sequencing data supports each reference sequence, based on read depth, coverage, and mapping quality.
+     The <strong>normalised confidence score</strong> reflects how well the sequencing data supports each reference sequence, based on read depth and coverage. A higher score indicates higher confidence in the mapping result.
     </div>
     <div class="col-auto">
       <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#mappingInfoModal">
@@ -54,20 +52,6 @@
 
           {% elif colname == 'consensus_seq' %}
             {{ render_view_sequence_button("Assembled sequence matching accession " + accession, row[colname]) }}
-
-          {% elif colname == 'sacc' and blast_reference_data %}
-
-            {% set ref_id = row[colname] %}
-            {% if ref_id in blast_reference_data %}
-              <a href="javascript:void(0);"
-                data-bs-toggle="modal"
-                data-bs-target="#blastModal_{{ ref_id | html_id }}"
-                style="cursor: pointer; color: #178cd2; text-decoration: underline;">
-                {{ row[colname] }}
-              </a>
-            {% else %}
-              {{ row[colname] }}
-            {% endif %}
 
           {% else %}
             {{ row[colname] }}
@@ -120,7 +104,7 @@
             <strong>Important note:</strong> the mapping-to-reference approach only works well when the reference sequence identified is closely related to the virus present in the sample. If the virus is highly divergent from known reference sequences, reads might not align well and it may not be possible to generate an accurate consensus sequence.
           </li>
           <li>
-            The rows are sorted based on the recovered <strong>confidence score</strong>, which takes into consideration the number of reads mapped, mean depth, % coverage at 30X, and mean mapping quality, and is normalised to a value between 0 and 1. A higher score indicates higher confidence in the mapping result.
+            The rows are sorted based on the recovered <strong>confidence score</strong>, which takes into consideration read depth and coverage, and is normalised to a value between 0 and 1. A higher score indicates higher confidence in the mapping result.
           </li>
         </ol>
       </div>
@@ -131,43 +115,3 @@
     </div>
   </div>
 </div>
-
-{% if blast_reference_data %}
-  {% for ref_id, ref_data in blast_reference_data.items() %}
-
-  <div class="modal fade"
-       id="blastModal_{{ ref_id | html_id }}"
-       tabindex="-1">
-
-    <div class="modal-dialog modal-xl modal-dialog-scrollable">
-      <div class="modal-content">
-
-        <div class="modal-header">
-          <h5 class="modal-title">
-            BLAST alignments — {{ ref_id }}
-          </h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-
-        <div class="modal-body">
-
-          {% if ref_data.svg %}
-            <div style="text-align:center; margin-bottom:15px;">
-              {{ ref_data.svg | safe }}
-            </div>
-          {% endif %}
-
-          {% if ref_data.table_html %}
-            <div style="max-height:70vh; overflow:auto;">
-              {{ ref_data.table_html | safe }}
-            </div>
-          {% else %}
-            <p>No alignment data available.</p>
-          {% endif %}
-        </div>
-      </div>
-    </div>
-  </div>
-
-  {% endfor %}
-{% endif %}

@@ -21,6 +21,7 @@ staxids,Subject taxid,,,Y,
 qseq,Query sequence,,,,
 sseq,Match sequence,,,,
 qcovs,Query coverage,int,Y,Y,
+reference_coverage,Reference coverage,int,Y,Y,
 species,Preliminary taxonomic classification,,Y,Y,
 taxon_name,Taxonomic name with RNA type,,,Y,
 RNA_type,RNA type,,Y,Y,
@@ -42,7 +43,6 @@ pc_mapping_reads,% Reads,float,Y,Y,Percentage of quality filtered reads that map
 mean_depth,Mean depth,float,Y,Y,Average depth of coverage across the contig
 pc_cov_30X,% Coverage at 30X,float,Y,Y,Percentage of the contig that is covered by at least 30 reads
 mean_mapping_quality,Mean mapping quality,float,Y,Y,Average mapping quality of the reads that mapped to the contig
-read_count_flag,Read count flag,,,Y,
 mean_depth_flag,Mean depth flag,,,Y,
 30x_cov_flag,30X coverage flag,,,Y,
 mean_mq_flag,Mean MQ flag,,,Y,

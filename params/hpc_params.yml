@@ -1,6 +1,5 @@
 input: index.csv
 blastn_db: /scratch/datasets/blast_db/20260402/core_nt
-taxdump:  ~/.taxonkit
 genomad_db: /work/daff_viral_rnaseq/databases/genomad_db
 hmmer_db: /work/daff_viral_rnaseq/databases/hmms/Pfam-A.hmm
 kraken2_db: /work/eresearch/databases/kraken_databases/core_nt
