@@ -151,7 +151,17 @@ def _apply_shared_qc_flags(df):
         ["GREEN", "ORANGE", "RED"],
         default="GREY"
     )
-
+    df["pc_mapping_reads"] = pd.to_numeric(df["pc_mapping_reads"], errors="coerce").fillna(0)
+    df["pc_mapping_reads_flag"] = np.select(
+        [
+            df.pc_mapping_reads >= 0.1,
+            df.pc_mapping_reads >= 0.01,
+            df.pc_mapping_reads < 0.01,
+        ],
+        ["GREEN", "ORANGE", "RED"],
+        default="GREY",
+    )
+    
     # df["mean_mq_flag"] = np.select(
     #     [
     #         df.mean_mapping_quality >= 30,
@@ -165,16 +175,25 @@ def _apply_shared_qc_flags(df):
     return df
 
 
-def _add_confidence_scores(df, flags):
+def _add_confidence_scores(df, flags, average_flags=()):
     flag_map = {"GREEN": 2, "ORANGE": 1, "RED": 0, "GREY": 0}
 
-    for f in flags:
-        df[f + "_score"] = df[f].map(flag_map)
+    for flag in flags:
+        df[f"{flag}_score"] = df[flag].map(flag_map)
 
-    df["total_conf_score"] = df[[f + "_score" for f in flags]].sum(axis=1)
+    components = [
+        f"{flag}_score" for flag in flags if flag not in average_flags
+    ]
 
-    df["normalised_conf_score"] = df["total_conf_score"] / (2 * len(flags))
+    # if average_flags:
+    #     depth_scores = [f"{flag}_score" for flag in average_flags]
+    #     df["depth_support_score"] = df[depth_scores].mean(axis=1, skipna=False)
+    #     components.append("depth_support_score")
 
+    df["total_conf_score"] = df[components].sum(
+        axis=1, min_count=len(components)
+    )
+    df["normalised_conf_score"] = df["total_conf_score"] / (2 * len(components))
 
     return df
 
@@ -189,14 +208,25 @@ def apply_qc_flags_contig(df):
         .fillna(0)
     )
     df["reference_coverage_flag"] = np.select(
-        [
-            df.reference_coverage >= 90,
-            df.reference_coverage >= 50,
-            df.reference_coverage < 50,
-        ],
-        ["GREEN", "ORANGE", "RED"],
-        default="GREY",
+         [
+             df.reference_coverage >= 90,
+             df.reference_coverage >= 50,
+             df.reference_coverage < 50,
+         ],
+         ["GREEN", "ORANGE", "RED"],
+         default="GREY",
     )
+
+    # df["pc_mapping_reads"] = pd.to_numeric(df["pc_mapping_reads"], errors="coerce").fillna(0)
+    # df["pc_mapping_reads_flag"] = np.select(
+    #     [
+    #         df.pc_mapping_reads >= 0.1,
+    #         df.pc_mapping_reads >= 0.01,
+    #         df.pc_mapping_reads < 0.01,
+    #     ],
+    #     ["GREEN", "ORANGE", "RED"],
+    #     default="GREY",
+    # )
 
     df["contig_coverage_flag"] = np.select(
         [
@@ -207,13 +237,26 @@ def apply_qc_flags_contig(df):
         ["GREEN", "ORANGE", "RED"],
         default="GREY",
     )
-    
-    return _add_confidence_scores(df, [
-        "30x_cov_flag",
-        "reference_coverage_flag",
-        "contig_coverage_flag",
-        "mean_depth_flag",
-    ])
+    df["mean_mq_flag"] = np.select(
+         [
+            df.mean_mapping_quality >= 30,
+            df.mean_mapping_quality >= 10,
+            df.mean_mapping_quality < 10
+         ],
+         ["GREEN", "ORANGE", "RED"],
+         default="GREY"
+    )
+    return _add_confidence_scores(
+        df,
+        [
+            "30x_cov_flag",
+            "mean_depth_flag",
+            "pc_mapping_reads_flag",
+            "reference_coverage_flag",
+            "contig_coverage_flag",
+        ]#,
+        # average_flags=("30x_cov_flag", "mean_depth_flag"),
+    )
 
 
 def apply_qc_flags_reference(df):
@@ -252,13 +295,36 @@ def apply_qc_flags_reference(df):
         ["GREEN", "ORANGE", "RED"],
         default="GREY",
     )
-    return _add_confidence_scores(df, [
-        "30x_cov_flag",
-        "1x_cov_flag",
-        "1x_long_cov_flag",
-        "mean_depth_flag"
-        #"mean_mq_flag",
-    ])
+    # df["reference_coverage_flag"] = np.select(
+    #     [
+    #         df.reference_coverage >= 90,
+    #         df.reference_coverage >= 50,
+    #         df.reference_coverage < 50,
+    #     ],
+    #     ["GREEN", "ORANGE", "RED"],
+    #     default="GREY",
+    # )
+    # return _add_confidence_scores(
+    #     df, 
+    #     [
+    #         "30x_cov_flag",
+    #         "1x_cov_flag",
+    #         "1x_long_cov_flag",
+    #         "mean_depth_flag"
+    #     ],
+    #     average_flags=("30x_cov_flag", "mean_depth_flag"),
+    # )
+    return _add_confidence_scores(
+        df, 
+        [
+            "30x_cov_flag",
+            "1x_cov_flag",
+            "1x_long_cov_flag",
+            "mean_depth_flag",
+            "pc_mapping_reads_flag",]
+        # ],
+        # average_flags=("30x_cov_flag", "mean_depth_flag"),
+    )
 
 # -----------------------------
 # Contig mode
@@ -273,6 +339,35 @@ def process_contigs(blast_df, coverage_df):
     ).fillna(0)
 
     return merged
+
+
+def add_blast_rank_score(df):
+    scores = pd.to_numeric(df["total_score_spp"], errors="coerce")
+    groups = scores.groupby(df["species"])
+
+    rank = groups.rank(method="min", ascending=True)
+    n = groups.transform("count")
+
+    df["blast_rank_score"] = (rank - 1) / (n - 1).where(n > 1)
+    df.loc[n == 1, "blast_rank_score"] = 1.0
+    return df
+
+
+def add_global_score(df):
+    df["global_score"] = df[["blast_rank_score", "normalised_conf_score"]].mean(axis=1)
+    return df
+
+
+def add_best_contig_filters(df):
+    groups_and_flags = [
+        ("species", "best_contig_per_sp_filter"),
+        ("species_updated", "best_contig_per_sp_rna_filter"),
+        ("sacc", "best_contig_per_acc_filter"),
+    ]
+    for group_column, flag_column in groups_and_flags:
+        best_indices = df.groupby(group_column)["normalised_conf_score"].idxmax()
+        df[flag_column] = df.index.isin(best_indices)
+    return df
 
 
 def longest_covered_regions(depth_file, min_depth=1):
@@ -349,7 +444,6 @@ def process_references(blast_df, coverage_df):
         right_on="sacc",
         how="inner"
     )
-
     return merged
 
 
@@ -358,12 +452,14 @@ def process_references(blast_df, coverage_df):
 # -----------------------------
 def save_output(df, sample, mode):
     # Format numeric columns
-    df['pc_mapping_reads'] = df['pc_mapping_reads'].round(1)
+    df['pc_mapping_reads'] = df['pc_mapping_reads'].round(3)
     df['mean_depth'] = df['mean_depth'].round(1)
     df['normalised_conf_score'] = df['normalised_conf_score'].round(3)
+    
     df = df.sort_values("normalised_conf_score", ascending=False)
 
     if mode == "contig":
+        df['global_score'] = df['global_score'].round(3)
         outfile = f"{sample}_contigs_with_cov_stats.txt"
     else:
         outfile = f"{sample}_reference_with_cov_stats.txt"
@@ -371,7 +467,6 @@ def save_output(df, sample, mode):
     df.to_csv(outfile, sep="\t", index=False)
 
     print(f"Saved {outfile}")
-
 
 
 # -----------------------------
@@ -402,6 +497,9 @@ def main():
     if args.mode == "contig":
         merged = process_contigs(blast_df, coverage_df)
         flagged_df = apply_qc_flags_contig(merged)
+        flagged_df = add_blast_rank_score(flagged_df)
+        flagged_df = add_global_score(flagged_df)
+        flagged_df = add_best_contig_filters(flagged_df)
         #might want to harmonise between 2 modes here, revisit later
         flagged_df.rename(
             columns={
@@ -415,12 +513,12 @@ def main():
             "qcovhsp","staxids","qseq","sseq","qcovs",
             "species","taxon_name","RNA_type","stitle","full_lineage",
             "ncontigs_per_sacc","ncontigs_per_spp","assembly_kmer_cov",
-            "total_score_spp","total_score_spp_rna","total_score_sacc",
+            "total_score_spp","blast_rank_score","total_score_spp_rna","total_score_sacc",
             "cov_filter","term_filter",
             "best_contig_per_sp_filter","best_contig_per_sp_rna_filter","best_contig_per_acc_filter",
             "mapping_read_count","pc_mapping_reads","mean_depth","pc_cov_30X",
-            "mean_mapping_quality","reference_coverage","reference_coverage_flag","contig_coverage_flag","mean_depth_flag",
-            "30x_cov_flag","total_conf_score","normalised_conf_score"
+            "mean_mapping_quality","pc_mapping_reads_flag","reference_coverage","contig_coverage_flag","mean_depth_flag",
+            "30x_cov_flag","total_conf_score","normalised_conf_score","global_score"
         ]]
         save_output(flagged_df_subset, args.sample, args.mode)
 

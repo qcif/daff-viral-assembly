@@ -9,7 +9,7 @@ import numpy as np
 import tempfile
 import shutil
 import re
-from analyses_config import file_exists
+from analyses_config import file_exists, standardize_viruse_viroid_names
 
 OUTPUT_COLUMNS = [
     "sample_name", "qseqid", "sacc", "alignment_length", "evalue", "bitscore", "pident", "mismatch",
@@ -17,7 +17,7 @@ OUTPUT_COLUMNS = [
     "qcovhsp", "staxids", "qseq", "sseq", "qcovs", "species",
     "species_updated", "RNA_type", "stitle", "full_lineage", "ncontigs_per_sacc", "ncontigs_per_spp",
     "assembly_kmer_cov", "total_score_spp", "total_score_spp_rna", "total_score_sacc", "term_filter",
-    "cov_filter", "best_contig_per_sp_filter", "best_contig_per_sp_rna_filter", "best_contig_per_acc_filter"
+    "cov_filter"
 ]
 
 def parse_arguments():
@@ -122,6 +122,7 @@ def filter_and_format(df, sample_name, filter_file, headers):
     df = df[df["broad_taxonomic_category"] == "virus"].copy()
     if df.empty:
         return pd.DataFrame(columns=OUTPUT_COLUMNS)
+    df = standardize_viruse_viroid_names(df, "species")
 
     df["RNA_type"] = np.where(
         df.stitle.str.contains("RNA1|RNA 1|segment 1|polyprotein P1", case=False, na=False), "RNA1",
@@ -180,9 +181,6 @@ def filter_and_format(df, sample_name, filter_file, headers):
             + df["alignment_length_score_spp"]
             + df["query_length_score_spp"]
     )
-    best_idx_per_spp = df.groupby("species")["total_score_spp"].idxmax()
-    df["best_contig_per_sp_filter"] = df.index.isin(best_idx_per_spp)
-
     #apply scores at species-rna level
     df = apply_group_score(df, "species_updated", "pident", max_pid, "pident_score_spp_rna")
     df = apply_group_score(df, "species_updated", "bitscore", max_bitscore, "bitscore_score_spp_rna")
@@ -205,9 +203,6 @@ def filter_and_format(df, sample_name, filter_file, headers):
             + df["alignment_length_score_spp_rna"]
             + df["query_length_score_spp_rna"]
     )
-    best_idx_per_spp_rna = df.groupby("species_updated")["total_score_spp_rna"].idxmax()
-    df["best_contig_per_sp_rna_filter"] = df.index.isin(best_idx_per_spp_rna)
-
     #apply the same scores per accession number
     df = apply_group_score(df, "sacc", "pident", max_pid, "pident_score_sacc")
     df = apply_group_score(df, "sacc", "bitscore", max_bitscore, "bitscore_score_sacc")
@@ -228,12 +223,6 @@ def filter_and_format(df, sample_name, filter_file, headers):
             + df["alignment_length_score_sacc"]
             + df["query_length_score_sacc"]
     )
-
-    # Find the index of the best hit per species
-    best_idx_per_acc = df.groupby("sacc")["total_score_sacc"].idxmax()
-
-    #Create a new column indicating whether the row is the best hit
-    df["best_contig_per_acc_filter"] = df.index.isin(best_idx_per_acc)
 
     # Read exclusion patterns from a file
     with open(filter_file, "r") as f:

@@ -5,7 +5,7 @@ import os
 import numpy as np
 import re
 from pytaxonkit import lineage
-from analyses_config import file_exists
+from analyses_config import file_exists, standardize_viruse_viroid_names
 
 
 def parse_arguments():
@@ -167,6 +167,7 @@ def main():
     if not file_exists(kraken2_path):
         raise FileNotFoundError(f"{kraken2_path} does not exist.")
     df = pd.read_csv(kaiju_path, sep="\t", dtype=str)
+    df = standardize_viruse_viroid_names(df, "taxon_name")
 
     # ------------------------------------
     # Load Kaiju summary table
@@ -242,6 +243,7 @@ def main():
     br = br.rename(columns={
         "name": "taxon_name",
     })
+    br = standardize_viruse_viroid_names(br, "taxon_name")
     br["term_filter"] = ~(
         br["taxon_name"].str.contains(pattern, case=False, na=False)
         )

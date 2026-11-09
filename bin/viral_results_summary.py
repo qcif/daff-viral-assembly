@@ -4,7 +4,7 @@ import pandas as pd
 import re
 import os.path
 from Bio import SeqIO
-from analyses_config import file_exists, is_file_empty
+from analyses_config import file_exists, is_file_empty, standardize_viruse_viroid_names
 
 def read_result_table(path, columns):
     if path is None:
@@ -161,31 +161,6 @@ def summarize_domains(df_filtered):
     return summary
 def add_group_max(df, group_col, target_col, new_col):
     df[new_col] = df.groupby(group_col)[target_col].transform("max")
-    return df
-
-VIROID_RENAME = {
-    "Citrus dwarfing viroid": "Apscaviroid nanocitri",
-    "Citrus viroid IIIa": "Apscaviroid nanocitri"
-}
-
-def standardize_viroid_names(df, column, df_name=""):
-    """Ensure consistent naming for two viroids across any dataframe.
-
-    Converts both known variants to the canonical name and warns if any
-    old names remain afterwards.
-    """
-    if column not in df.columns:
-        return df
-
-    #df[column] = df[column].replace(VIROID_RENAME)
-    df = df.copy()
-    df.loc[:, column] = df[column].replace(VIROID_RENAME)
-
-    remaining = df[column].isin(VIROID_RENAME.keys())
-    if remaining.any():
-        remaining_vals = df.loc[remaining, column].unique().tolist()
-        print(f"WARNING: {df_name} still contains outdated viroid names in '{column}': {remaining_vals}")
-
     return df
 
 # Function to convert FASTA file to DataFrame
@@ -618,6 +593,11 @@ def build_known_viral_summary(
         errors="coerce"
     )
 
+    # blast_df["global_score"] = pd.to_numeric(
+    #     blast_df["global_score"],
+    #     errors="coerce"
+    # )
+
     # ---------------------------------------------------------
     # Best representative contig statistics
     # ---------------------------------------------------------
@@ -710,29 +690,10 @@ def build_known_viral_summary(
     # ---------------------------------------------------------
     # Standardize viroid names
     # ---------------------------------------------------------
-    filtered_blast_df = standardize_viroid_names(
-        filtered_blast_df,
-        "species",
-        df_name="filtered_blast_df"
-    )
-
-    kraken_df = standardize_viroid_names(
-        kraken_df,
-        "taxon_name",
-        df_name="kraken_df"
-    )
-
-    kaiju_df = standardize_viroid_names(
-        kaiju_df,
-        "taxon_name",
-        df_name="kaiju_df"
-    )
-
-    map2ref_df = standardize_viroid_names(
-        map2ref_df,
-        "taxon_name",
-        df_name="map2ref_df"
-    )
+    filtered_blast_df = standardize_viruse_viroid_names(filtered_blast_df, "species")
+    kraken_df = standardize_viruse_viroid_names(kraken_df, "taxon_name")
+    kaiju_df = standardize_viruse_viroid_names(kaiju_df, "taxon_name")
+    map2ref_df = standardize_viruse_viroid_names(map2ref_df, "taxon_name")
 
     # ---------------------------------------------------------
     # Build species list
@@ -803,6 +764,7 @@ def build_known_viral_summary(
                 "max_contig_mapping_read_count_spp",
                 "max_pc_contig_mapping_reads_spp",
                 "total_score_spp",
+#                "global_score",
                 "mapping_read_count",
                 "pc_mapping_reads",
                 "mean_depth",
@@ -920,6 +882,7 @@ def build_known_viral_summary(
                           "kaiju_reads", "kaiju_pc_reads", 
                           "mapping_read_count","pc_mapping_reads",
                           "ncontigs_per_spp", "qseqid", "contig_seq", "best_rep_pident", "best_rep_length",
+#                          "global_score",
                           "mean_depth", "pc_cov_30X", "normalised_conf_score", "max_PFAM_total_spp", "species_has_RdRp", 
                           "max_reference_length_spp", "max_normalised_conf_score_spp", "max_mean_depth_spp"]
 

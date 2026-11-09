@@ -280,9 +280,9 @@ class BlastHits(AbstractResultRows):
             # Define thresholds (customize as needed)
             if conf_score == 0:
                 return 'secondary'   # grey
-            elif conf_score < 0.5:
+            elif conf_score < 0.4:
                 return 'danger'      # red
-            elif conf_score < 0.8:
+            elif conf_score < 0.7:
                 return 'warning'     # orange
             else:
                 return 'success'     # green
@@ -450,9 +450,9 @@ class MappingResults(AbstractResultRows):
             # Define thresholds (customize as needed)
             if conf_score == 0 and sacc in [None, '', '0', '-']:
                 return 'secondary'   # grey
-            elif conf_score < 0.5:
+            elif conf_score < 0.4:
                 return 'danger'      # red
-            elif conf_score < 0.8:
+            elif conf_score < 0.7:
                 return 'warning'     # orange
             else:
                 return 'success'     # green
@@ -505,9 +505,9 @@ class SummaryResults(AbstractResultRows):
             # Define thresholds (customize as needed)
             if conf_score == 0 :
                 return 'secondary'   # grey
-            elif conf_score < 0.5:
+            elif conf_score < 0.4:
                 return 'danger'      # red
-            elif conf_score < 0.8:
+            elif conf_score < 0.7:
                 return 'warning'     # orange
             else:
                 return 'success'     # green

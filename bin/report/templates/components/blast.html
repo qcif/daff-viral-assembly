@@ -313,6 +313,7 @@ $(document).ready(function () {
   orderCellsTop: true,
   order: [
     [20, 'desc'],
+    [14, 'desc'],
     [4, 'desc']
     ]
   });
@@ -375,7 +376,8 @@ $(document).ready(function () {
           .draw();
       });
   })();
-  table.draw();
+  table.column(termFilterIdx).search('^-$', true, false); // Add this line
+  table.draw(); // Keep the existing line
 
 
 });
