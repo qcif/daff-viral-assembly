@@ -693,6 +693,16 @@ def build_known_viral_summary(
     filtered_blast_df = standardize_viruse_viroid_names(filtered_blast_df, "species")
     kraken_df = standardize_viruse_viroid_names(kraken_df, "taxon_name")
     kaiju_df = standardize_viruse_viroid_names(kaiju_df, "taxon_name")
+    #kaiju_df = standardize_viruse_viroid_names(kaiju_df, "taxon_name")
+
+    kaiju_support = kaiju_df[["taxon_name", "reads", "pc_reads"]].copy()
+    for col in ["reads", "pc_reads"]:
+        kaiju_support[col] = pd.to_numeric(kaiju_support[col], errors="coerce")
+
+    kaiju_support = (
+        kaiju_support.groupby("taxon_name", as_index=False)[["reads", "pc_reads"]]
+        .sum()
+    )
     map2ref_df = standardize_viruse_viroid_names(map2ref_df, "taxon_name")
 
     # ---------------------------------------------------------
@@ -789,11 +799,18 @@ def build_known_viral_summary(
     # ---------------------------------------------------------
     # Merge Kaiju support
     # ---------------------------------------------------------
+    # merged_df2 = merged_df.merge(
+    #     kaiju_df[["taxon_name", "reads", "pc_reads"]],
+    #     left_on="taxon",
+    #     right_on="taxon_name",
+    #     how="left"
+    # )
     merged_df2 = merged_df.merge(
-        kaiju_df[["taxon_name", "reads", "pc_reads"]],
+        kaiju_support,
         left_on="taxon",
         right_on="taxon_name",
-        how="left"
+        how="left",
+        validate="many_to_one",
     )
 
     merged_df2[["reads", "pc_reads"]] = (

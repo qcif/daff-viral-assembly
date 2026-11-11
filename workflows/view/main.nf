@@ -22,8 +22,9 @@ def databaseInputs(String reference) {
     error "Unknown database_mode: ${params.database_mode}"
 }
 
-include { BBMAP_BBDUK } from '../../modules/bbmap/bbduk/main'
-include { BBMAP_BBSPLIT } from '../../modules/bbmap/bbsplit/main'
+//include { BBMAP_BBDUK } from '../../modules/bbmap/bbduk/main'
+//include { BBMAP_BBSPLIT } from '../../modules/bbmap/bbsplit/main'
+include { BBMAP } from '../../modules/bbmap/main'
 include { BCFTOOLS } from '../../modules/bcftools/main'
 include { BEDTOOLS } from '../../modules/bedtools/main'
 include { BLAST_BLASTN as MEGABLAST } from '../../modules/blast/blastn/main'
@@ -171,15 +172,26 @@ workflow VIEW {
     //When using a chanmel, for ex. ch_rrna, it has only one item, it stops pairing after the first sample, only one task runs
     //This is why only the first sample is processed.
     //Provide the rrna ref as a file parameter instead
-    COUNT_FASTQ_READS(CAT_FASTQ.out.reads)
-    ch_with_counts = trim_reads_for_bbduk.join(COUNT_FASTQ_READS.out.read_count)
+    //COUNT_FASTQ_READS(CAT_FASTQ.out.reads)
+    //ch_with_counts = trim_reads_for_bbduk.join(COUNT_FASTQ_READS.out.read_count)
     def (mounted_rrna_ref, staged_rrna_ref) = databaseInputs(params.rrna_ref)
 
-    BBMAP_BBDUK ( ch_with_counts, mounted_rrna_ref, staged_rrna_ref, params.subsample_enabled, params.subsample_size)
+    // BBMAP_BBDUK ( ch_with_counts, mounted_rrna_ref, staged_rrna_ref, params.subsample_enabled, params.subsample_size)
     
-    //remove phiX reads
-    BBMAP_BBSPLIT (
-        BBMAP_BBDUK.out.reads,
+    // //remove phiX reads
+    // BBMAP_BBSPLIT (
+    //     BBMAP_BBDUK.out.reads,
+    //     [],
+    //     file(params.phix),
+    //     [ [], [] ],
+    //     false
+    // )
+
+    BBMAP ( trim_reads_for_bbduk, 
+        mounted_rrna_ref, 
+        staged_rrna_ref, 
+        params.subsample_enabled, 
+        params.subsample_size,
         [],
         file(params.phix),
         [ [], [] ],
@@ -188,21 +200,35 @@ workflow VIEW {
 
     //Provide option to filter host or filter a plant host by default?
     //READ CLASSIFICATION WITH KRAKEN2
-    ch_cleaned_fq = BBMAP_BBSPLIT.out.all_fastq.map { meta, reads ->
+    //ch_cleaned_fq = BBMAP_BBSPLIT.out.all_fastq.map { meta, reads ->
+    ch_cleaned_fq = BBMAP.out.all_fastq.map { meta, reads ->
         def sample_id = meta.id
         def read1 = reads[0]
         def read2 = reads[1]
         tuple(sample_id, read1, read2)
     }
-    ch_stats = BBMAP_BBSPLIT.out.stats.map { meta, stats ->
+    //ch_stats = BBMAP_BBSPLIT.out.stats.map { meta, stats ->
+    // ch_stats = BBMAP.out.stats.map { meta, stats ->
+    //     def sampleid = meta.id
+    //     def stats1 = stats
+    //     tuple(sampleid, stats)
+    // }
+
+    // ch_log = BBMAP.out.bbduk_log.map { meta, logs ->
+    //     def sampleid = meta.id
+    //     def log1 = logs
+    //     tuple(sampleid, log1)
+    // }
+    analysed_read_count_ch = BBMAP.out.analysed_read_count.map { meta, analysed_read_count ->
         def sampleid = meta.id
-        def stats1 = stats
-        tuple(sampleid, stats1)
+        def read_count = analysed_read_count
+        tuple(sampleid, read_count)
     }
-    
+
     def (mounted_kraken2_db, staged_kraken2_db) =
         databaseInputs(params.kraken2_db)
-    KRAKEN2_KRAKEN2(BBMAP_BBSPLIT.out.all_fastq, mounted_kraken2_db, staged_kraken2_db, params.kraken2_save_classified_reads, params.kraken2_save_unclassified_reads, params.kraken2_save_readclassifications)
+    //KRAKEN2_KRAKEN2(BBMAP_BBSPLIT.out.all_fastq, mounted_kraken2_db, staged_kraken2_db, params.kraken2_save_classified_reads, params.kraken2_save_unclassified_reads, params.kraken2_save_readclassifications)
+    KRAKEN2_KRAKEN2(BBMAP.out.all_fastq, mounted_kraken2_db, staged_kraken2_db, params.kraken2_save_classified_reads, params.kraken2_save_unclassified_reads, params.kraken2_save_readclassifications)
     
     //The logic of the original Bracken est_abundance.py had to be modified as it was not working as intended for viral species 
     // only defined at S1 (strain) level but not S level, these would just not appear in the bracken report. 
@@ -230,11 +256,12 @@ workflow VIEW {
     //Explore downtrack downloading krona taxonomy to see if it improves the visualisation?
     def (mounted_kaiju_db, staged_kaiju_db) =
         databaseInputs(params.kaiju_db_dir)
-    KAIJU_KAIJU ( BBMAP_BBSPLIT.out.all_fastq, mounted_kaiju_db, staged_kaiju_db )
+    //KAIJU_KAIJU ( BBMAP_BBSPLIT.out.all_fastq, mounted_kaiju_db, staged_kaiju_db )
+    KAIJU_KAIJU ( BBMAP.out.all_fastq, mounted_kaiju_db, staged_kaiju_db )
     KRONA_KTIMPORTTEXT ( KAIJU_KAIJU.out.krona_results )
     
     ch_read_classification = KAIJU_KAIJU.out.kaiju_results.join(KRAKEN2_ABUNDANCE_ESTIMATE.out.kraken2_results)
-                                                        .join(ch_stats)
+                                                        .join(analysed_read_count_ch)
     
     // def (mounted_taxdump_db, staged_taxdump_db) =
     //     databaseInputs(params.taxdump)
@@ -324,11 +351,11 @@ workflow VIEW {
         .map { sampleid, tophits, fasta -> tuple(sampleid, tophits, fasta, 'contigs') }
     ch_fasta2table_contigs = FASTA2TABLE_CONTIGS ( ch_fasta2table_contigs_input )
     ch_contig_cov_stats_summary = MOSDEPTH_CONTIGS.out.mosdepth_results.join(ch_fasta2table_contigs.blast_results2)
-        .join(ch_stats)
+        .join(analysed_read_count_ch)
         .join(SAMTOOLS_CONTIGS.out.coverage)
         .join(SAMTOOLS_CONTIGS.out.mapping_quality)
-        .map { sampleid, bed, per_base, blast_results, bbsplit_stats, coverage, mapping_q ->
-        tuple(sampleid, 'contig', bed, per_base, blast_results, bbsplit_stats, coverage, mapping_q) }
+        .map { sampleid, bed, per_base, blast_results, analysed_read_count, coverage, mapping_q ->
+        tuple(sampleid, 'contig', bed, per_base, blast_results, analysed_read_count, coverage, mapping_q) }
 
     //Predict ORFs on filtered contigs
     //Derive ORFs from contig sequences using orfipy
@@ -407,11 +434,11 @@ workflow VIEW {
     ch_pyfaidx_ref = PYFAIDX_REF ( ch_pyfaidx_ref_input )
     MOSDEPTH_REF (SAMTOOLS_REF.out.sorted_bam.join(ch_pyfaidx_ref.bed))
     ch_ref_cov_stats_summary =  MOSDEPTH_REF.out.mosdepth_results.join(ch_fasta2table_contigs.blast_results2)
-        .join(ch_stats)
+        .join(analysed_read_count_ch)
         .join(SAMTOOLS_REF.out.coverage)
         .join(SAMTOOLS_REF.out.mapping_quality)
-        .map { sampleid, bed, per_base, blast_results, bbsplit_stats, coverage, mapping_q
-        -> tuple(sampleid, 'reference', bed, per_base, blast_results, bbsplit_stats, coverage, mapping_q) }
+        .map { sampleid, bed, per_base, blast_results, analysed_read_count, coverage, mapping_q
+        -> tuple(sampleid, 'reference', bed, per_base, blast_results, analysed_read_count, coverage, mapping_q) }
 
     REF_COVSTATS(ch_ref_cov_stats_summary)
     ch_fasta2table_ref_input = REF_COVSTATS.out.detections_summary
@@ -424,8 +451,11 @@ workflow VIEW {
     ch_multiqc_files = FASTP.out.json.map { meta, json ->
         json
         }
-        .mix(BBMAP_BBSPLIT.out.stats2)
-        .mix(BBMAP_BBDUK.out.log2)
+        //.mix(BBMAP_BBSPLIT.out.stats2)
+        //.mix(BBMAP_BBSPLIT.out.stats)
+        //.mix(BBMAP_BBDUK.out.log2)
+        .mix(BBMAP.out.stats)
+        .mix(BBMAP.out.bbduk_log)
         .collect()
 
     QC_REPORT(ch_multiqc_files)

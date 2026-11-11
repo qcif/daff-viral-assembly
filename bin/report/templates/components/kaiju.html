@@ -65,8 +65,12 @@
         >
           {% for colname in kaiju.columns_primary_display  %}
           <td class="align-middle {% if loop.index == 1 %}text-start{% endif %}">
-            {% if colname == 'evalue' %}
-            <span style="white-space: nowrap;">{{ row[colname] }}</span>
+            {% if colname == 'taxon_name' %}
+              {% set name = row[colname] %}
+              {% set species = row.get('standardised_species', '') %}
+              {{ name | e }}{% if species and species != name %} (<em>{{ species | e }}</em>){% endif %}
+            {% elif colname == 'evalue' %}
+              <span style="white-space: nowrap;">{{ row[colname] }}</span>
             {% elif colname == 'term_filter' %}
               {{ '' if row[colname] else 'Y' }}
             {% elif colname == 'cov_filter' %}

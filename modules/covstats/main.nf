@@ -14,7 +14,7 @@ process COVSTATS {
           path(bed),
           path(per_base),
           path(blast_results),
-          path(bbsplit_stats),
+          path(analysed_read_count),
           path(coverage),
           path(mapping_q)
 
@@ -27,12 +27,12 @@ process COVSTATS {
     script:
     def output_name = mode == 'reference' ? "${sampleid}_reference_with_cov_stats.txt" : "${sampleid}_contigs_with_cov_stats.txt"
     """
-    if [ -s "${blast_results}" ] && [ -s "${bbsplit_stats}" ] && [ -s "${coverage}" ] && [ -s "${bed}" ] && [ -s "${mapping_q}" ] && [ -s "${per_base}" ]; then
+    if [ -s "${blast_results}" ] && [ -s "${analysed_read_count}" ] && [ -s "${coverage}" ] && [ -s "${bed}" ] && [ -s "${mapping_q}" ] && [ -s "${per_base}" ]; then
         derive_coverage_stats.py \\
           --mode ${mode} \\
           --sample ${sampleid} \\
           --blastn_results ${blast_results} \\
-          --bbsplit_stats ${bbsplit_stats} \\
+          --analysed_read_count ${analysed_read_count} \\
           --coverage ${coverage} \\
           --bed ${bed} \\
           --mapping_quality ${mapping_q} \\

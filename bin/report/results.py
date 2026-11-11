@@ -2,6 +2,7 @@
 
 import csv
 from typing import Optional, Union, get_args, get_origin
+from analyses_config import load_virus_viroid_name_map
 
 from Bio import SeqIO
 
@@ -410,11 +411,25 @@ class AbstractTaxonomicClassificationResult(AbstractResultRows):
 class KrakenResults(AbstractTaxonomicClassificationResult):
     COLUMN_METADATA = _csv_to_dict(config.SCHEMA.KRAKEN_FIELD_CSV)
     COLUMNS = list(COLUMN_METADATA.keys())
+    def __init__(self, *args):
+        super().__init__(*args)
+        name_map = load_virus_viroid_name_map()
+
+        for row in self.rows:
+            name = row.get("taxon_name", "")
+            row["standardised_species"] = name_map.get(name, "")
 
 
 class KaijuResults(AbstractTaxonomicClassificationResult):
     COLUMN_METADATA = _csv_to_dict(config.SCHEMA.KAIJU_FIELD_CSV)
     COLUMNS = list(COLUMN_METADATA.keys())
+    def __init__(self, *args):
+        super().__init__(*args)
+        name_map = load_virus_viroid_name_map()
+
+        for row in self.rows:
+            name = row.get("taxon_name", "")
+            row["standardised_species"] = name_map.get(name, "")
 
 
 class MappingResults(AbstractResultRows):

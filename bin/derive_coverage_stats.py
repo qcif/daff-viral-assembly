@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 from functools import reduce
 import re
+from analyses_config import parse_analysed_read_count
 
 
 def parse_args():
@@ -14,7 +15,7 @@ def parse_args():
     parser.add_argument("--mode", choices=["contig", "reference"], required=True)
     parser.add_argument("--sample", required=True)
     parser.add_argument("--blastn_results", required=True)
-    parser.add_argument("--bbsplit_stats", required=True)
+    parser.add_argument("--analysed_read_count", required=True)
     parser.add_argument("--coverage", required=True)
     parser.add_argument("--bed", required=True)
     parser.add_argument("--mapping_quality", required=True)
@@ -25,48 +26,48 @@ def parse_args():
 # -----------------------------
 # Parse bbsplit stats
 # -----------------------------
-def parse_bbsplit_log(logfile):
+# def parse_bbsplit_log(logfile):
 
-    total_reads = None
-    r1_mapped = r2_mapped = 0
-    section = None
+#     total_reads = None
+#     r1_mapped = r2_mapped = 0
+#     section = None
 
-    with open(logfile) as f:
-        for line in f:
-            line = line.strip()
+#     with open(logfile) as f:
+#         for line in f:
+#             line = line.strip()
 
-            m_total = re.match(r"Reads Used:\s+(\d+)", line)
-            if m_total:
-                total_reads = int(m_total.group(1))
-                continue
+#             m_total = re.match(r"Reads Used:\s+(\d+)", line)
+#             if m_total:
+#                 total_reads = int(m_total.group(1))
+#                 continue
 
-            if line.startswith("Read 1 data"):
-                section = "R1"
-                continue
-            if line.startswith("Read 2 data"):
-                section = "R2"
-                continue
+#             if line.startswith("Read 1 data"):
+#                 section = "R1"
+#                 continue
+#             if line.startswith("Read 2 data"):
+#                 section = "R2"
+#                 continue
 
-            m_mapped = re.match(r"mapped:\s+[\d\.%]+\s+(\d+)", line)
-            if m_mapped:
-                count = int(m_mapped.group(1))
-                if section == "R1":
-                    r1_mapped = count
-                elif section == "R2":
-                    r2_mapped = count
+#             m_mapped = re.match(r"mapped:\s+[\d\.%]+\s+(\d+)", line)
+#             if m_mapped:
+#                 count = int(m_mapped.group(1))
+#                 if section == "R1":
+#                     r1_mapped = count
+#                 elif section == "R2":
+#                     r2_mapped = count
 
-    if total_reads is None:
-        raise ValueError("Could not find total reads in log file")
+#     if total_reads is None:
+#         raise ValueError("Could not find total reads in log file")
 
-    total_mapped_reads = r1_mapped + r2_mapped
-    clean_reads = total_reads - total_mapped_reads
+#     total_mapped_reads = r1_mapped + r2_mapped
+#     clean_reads = total_reads - total_mapped_reads
 
-    return clean_reads
+#     return clean_reads
 
 # -----------------------------
 # Load coverage stats
 # -----------------------------
-def load_coverage_stats(coverage_path, bed_path, mq_path, filtered_reads):
+def load_coverage_stats(coverage_path, bed_path, mq_path, analysed_read_count):
 
     samtools_cov = pd.read_csv(
         coverage_path,
@@ -84,7 +85,7 @@ def load_coverage_stats(coverage_path, bed_path, mq_path, filtered_reads):
         inplace=True
     )
     samtools_cov["pc_mapping_reads"] = (
-        samtools_cov["mapping_read_count"] / filtered_reads * 100
+        samtools_cov["mapping_read_count"] / analysed_read_count * 100
     )
 
     #
@@ -478,13 +479,14 @@ def main():
 
     blast_df = pd.read_csv(args.blastn_results, sep="\t")
 
-    filtered_reads = parse_bbsplit_log(args.bbsplit_stats)
+    #filtered_reads = parse_bbsplit_log(args.bbsplit_stats)
+    analysed_read_count = parse_analysed_read_count(args.analysed_read_count)
 
     samtools_cov, mosdepth_df, mq_df = load_coverage_stats(
         args.coverage,
         args.bed,
         args.mapping_quality,
-        filtered_reads
+        analysed_read_count
     )
 
     coverage_df = merge_tables(

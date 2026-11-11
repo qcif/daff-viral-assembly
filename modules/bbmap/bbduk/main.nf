@@ -67,7 +67,8 @@ process BBMAP_BBDUK {
             $trimmed_input \\
             $subsampled \\
             samplerate=\$SAMPLERATE \\
-            sampleseed=100
+            sampleseed=100 \\
+            &>${prefix}_bbduk.log
         else
             if [ "$meta.single_end" = true ]; then
                 ln -s "${prefix}_non_rRNA.fastq.gz" "${prefix}_subsampled.fastq.gz"

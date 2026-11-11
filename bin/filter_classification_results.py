@@ -5,7 +5,7 @@ import os
 import numpy as np
 import re
 from pytaxonkit import lineage
-from analyses_config import file_exists, standardize_viruse_viroid_names
+from analyses_config import file_exists, standardize_viruse_viroid_names, parse_analysed_read_count
 
 
 def parse_arguments():
@@ -15,48 +15,48 @@ def parse_arguments():
     parser.add_argument("--sample_name", required=True, type=str)
     parser.add_argument("--kraken2", required=True, type=str)
     parser.add_argument("--taxonkit_database_dir", required=True, type=str)
-    parser.add_argument("--stats", required=True, type=str, help="path to bbsplit stats file")
+    parser.add_argument("--read_counts", required=True, type=str, help="path to bbsplit stats file")
     parser.add_argument("--filter", required=True, type=str, help="path to file with terms to filter out")
     parser.add_argument("--outdir", default=".", help="output directory")
     return parser.parse_args()
 
-def parse_bbsplit_log(logfile):
-    total_reads = None
-    r1_mapped = r2_mapped = 0
-    with open(logfile, "r") as f:
-        section = None
-        for line in f:
-            line = line.strip()
+# def parse_bbsplit_log(logfile):
+#     total_reads = None
+#     r1_mapped = r2_mapped = 0
+#     with open(logfile, "r") as f:
+#         section = None
+#         for line in f:
+#             line = line.strip()
 
-            # total input reads
-            m_total = re.match(r"Reads Used:\s+(\d+)", line)
-            if m_total:
-                total_reads = int(m_total.group(1))
-                continue
+#             # total input reads
+#             m_total = re.match(r"Reads Used:\s+(\d+)", line)
+#             if m_total:
+#                 total_reads = int(m_total.group(1))
+#                 continue
 
-            # detect sections
-            if line.startswith("Read 1 data"):
-                section = "R1"
-                continue
-            elif line.startswith("Read 2 data"):
-                section = "R2"
-                continue
+#             # detect sections
+#             if line.startswith("Read 1 data"):
+#                 section = "R1"
+#                 continue
+#             elif line.startswith("Read 2 data"):
+#                 section = "R2"
+#                 continue
 
-            # mapped reads per read
-            m_mapped = re.match(r"mapped:\s+[\d\.%]+\s+(\d+)", line)
-            if m_mapped:
-                count = int(m_mapped.group(1))
-                if section == "R1":
-                    r1_mapped = count
-                elif section == "R2":
-                    r2_mapped = count
+#             # mapped reads per read
+#             m_mapped = re.match(r"mapped:\s+[\d\.%]+\s+(\d+)", line)
+#             if m_mapped:
+#                 count = int(m_mapped.group(1))
+#                 if section == "R1":
+#                     r1_mapped = count
+#                 elif section == "R2":
+#                     r2_mapped = count
 
-    if total_reads is None:
-        raise ValueError("Could not find total reads in log file.")
+#     if total_reads is None:
+#         raise ValueError("Could not find total reads in log file.")
 
-    total_mapped_reads = r1_mapped + r2_mapped
-    clean_reads = total_reads - total_mapped_reads
-    return clean_reads
+#     total_mapped_reads = r1_mapped + r2_mapped
+#     clean_reads = total_reads - total_mapped_reads
+#     return clean_reads
 
 def categorise_kaiju(row):
     resolution = classify_taxonomic_resolution(row)
@@ -153,8 +153,8 @@ def main():
     sample_name = args.sample_name
     kraken2_path = args.kraken2
     tk_db_dir = args.taxonkit_database_dir
-    log = args.stats
     filter_file = args.filter
+    analysed_read_count_file = args.read_counts
 
     with open(filter_file, "r") as f:
         exclude_patterns = [line.strip() for line in f if line.strip()]
@@ -167,7 +167,7 @@ def main():
     if not file_exists(kraken2_path):
         raise FileNotFoundError(f"{kraken2_path} does not exist.")
     df = pd.read_csv(kaiju_path, sep="\t", dtype=str)
-    df = standardize_viruse_viroid_names(df, "taxon_name")
+    #df = standardize_viruse_viroid_names(df, "taxon_name")
 
     # ------------------------------------
     # Load Kaiju summary table
@@ -238,19 +238,21 @@ def main():
     )
     br["resolution_level"] = br.apply(classify_taxonomic_resolution, axis=1)
     br["broad_category"] = br.apply(classify_broad_category, axis=1)
-    filtered_read_counts = parse_bbsplit_log(log)
+    #filtered_read_counts = parse_bbsplit_log(log)
+    analysed_read_count = parse_analysed_read_count(analysed_read_count_file)
+    
     br["reads"] = pd.to_numeric(br["reads"], errors="coerce")
     br = br.rename(columns={
         "name": "taxon_name",
     })
-    br = standardize_viruse_viroid_names(br, "taxon_name")
+    #br = standardize_viruse_viroid_names(br, "taxon_name")
     br["term_filter"] = ~(
         br["taxon_name"].str.contains(pattern, case=False, na=False)
         )
     # Sum of all classified reads in kraken2 table
     classified_reads = br["reads"].sum()
     # Compute unclassified reads
-    unclassified_reads = filtered_read_counts - classified_reads
+    unclassified_reads = analysed_read_count - classified_reads
     unclassified_reads = max(unclassified_reads, 0)  # safety
     # Build the unclassified row
     unclassified_row = {
@@ -265,7 +267,7 @@ def main():
     }
     # Append to the bottom of the table
     br = pd.concat([br, pd.DataFrame([unclassified_row])], ignore_index=True)
-    br["pc_reads"] = (br["reads"] / filtered_read_counts) * 100
+    br["pc_reads"] = (br["reads"] / analysed_read_count) * 100
     br["cov_filter"] = br["pc_reads"].astype(float) >= 0.001
     
     #Ensure reads is numeric, then filter detections with >= 10 reads
