@@ -255,7 +255,7 @@ workflow VIEW {
     //Incorporate a separate module for kaiju2krona and kaiju2table?
     //Explore downtrack downloading krona taxonomy to see if it improves the visualisation?
     def (mounted_kaiju_db, staged_kaiju_db) =
-        databaseInputs(params.kaiju_db_dir)
+        databaseInputs(params.kaiju_db_dir.toString())
     //KAIJU_KAIJU ( BBMAP_BBSPLIT.out.all_fastq, mounted_kaiju_db, staged_kaiju_db )
     KAIJU_KAIJU ( BBMAP.out.all_fastq, mounted_kaiju_db, staged_kaiju_db )
     KRONA_KTIMPORTTEXT ( KAIJU_KAIJU.out.krona_results )
