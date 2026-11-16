@@ -9,12 +9,16 @@ EXIT_NO_TRACE=3
 EXIT_PROBLEMS=1
 
 usage() {
-    echo "Usage: $0 --dir <outdir> [--samplesheet <samplesheet.csv>]"
-    echo "Reads <outdir>/01_pipeline_logs/execution_trace_*.txt"
+    echo "Usage: $0 --dir <outdir> [--samplesheet <samplesheet.csv>]" \
+        "[--trace <trace.txt>]"
+    echo "Reads the newest <outdir>/01_pipeline_logs/execution_trace_*.txt,"
+    echo "falling back to the Cloudgene trace <outdir>/../logs/*-trace.csv"
+    echo "(Cloudgene's -with-trace overrides the pipeline's trace config)."
 }
 
 DIR=""
 SAMPLESHEET=""
+TRACE=""
 while [[ "$#" -gt 0 ]]; do
     case "$1" in
         --dir)
@@ -27,6 +31,11 @@ while [[ "$#" -gt 0 ]]; do
             SAMPLESHEET="$2"
             shift 2
             ;;
+        --trace)
+            [[ -n "${2:-}" ]] || { echo "Missing value for --trace"; usage; exit 1; }
+            TRACE="$2"
+            shift 2
+            ;;
         -h|--help) usage; exit 0 ;;
         *) echo "Unknown parameter passed: $1"; usage; exit 1 ;;
     esac
@@ -34,16 +43,25 @@ done
 [[ -n "$DIR" ]] || { usage; exit 1; }
 
 logs_dir="${DIR}/01_pipeline_logs"
+# Cloudgene passes -with-trace <job>/logs/step<N>-trace.csv, which replaces
+# the trace file set in nextflow.config. Same tab-separated format.
+cloudgene_logs_dir="$(dirname "$DIR")/logs"
 
 # Timestamped names (YYYY-MM-DD_HH-MM-SS) sort lexically; take the newest.
-trace=""
-if [[ -d "$logs_dir" ]]; then
+trace="$TRACE"
+if [[ -z "$trace" && -d "$logs_dir" ]]; then
     trace="$(find "$logs_dir" -maxdepth 1 -type f \
         -name 'execution_trace_*.txt' | sort | tail -n 1)"
 fi
+if [[ -z "$trace" && -d "$cloudgene_logs_dir" ]]; then
+    trace="$(find "$cloudgene_logs_dir" -maxdepth 1 -type f \
+        -name '*-trace.csv' -printf '%T@ %p\n' \
+        | sort -n | tail -n 1 | cut -d' ' -f2-)"
+fi
 
 if [[ -z "$trace" || ! -s "$trace" ]]; then
-    echo "ERROR: no execution trace found in ${logs_dir}."
+    echo "ERROR: no execution trace found in ${logs_dir}" \
+        "or ${cloudgene_logs_dir}."
     echo "The run did not finish writing its results; see the workflow log."
     exit "$EXIT_NO_TRACE"
 fi
