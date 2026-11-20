@@ -46,16 +46,26 @@ Both pools use the same autoscale formula (defined in `batch-helpers.sh`):
 
 - Scale to **1 node** if any tasks are pending in the last 15 minutes
 - Scale to **0 nodes** when idle for 15 minutes
+- **Stall breaker:** scale to **0 nodes** if tasks have been queued for 90 minutes with none running
 - Evaluation interval: 5 minutes (minimum allowed by Azure)
 
+The stall breaker exists because a node that fails its start task (`starttaskfailed`) or becomes `unusable` still counts towards the target, while the queued tasks keep the target at 1. Without it, a broken node is billed until someone notices. A formula can't see node states or delete a specific node, so it detects the symptom instead. The 90-minute window is well beyond a cold start (~30–40 min).
+
+Once stalled, the pool **stays at 0 until the queue clears**. Kill the stuck Nextflow run, fix the cause (see `az_node_logs` while the node still exists), then resubmit.
+
+See `DEFAULT_AUTOSCALE_FORMULA` in `deploy/azure/batch-helpers.sh` for the current formula. Every `GetSample()` call is guarded by `GetSamplePercent()`, so a freshly created pool with no metric history can't deadlock at 0 nodes.
+
+To check what the formula would do right now without applying it:
+
+```sh
+az batch pool autoscale evaluate \
+  --account-name "$AZURE_BATCH_ACCOUNT_NAME" \
+  --account-endpoint "$AZURE_BATCH_ENDPOINT" \
+  --pool-id view \
+  --auto-scale-formula "$DEFAULT_AUTOSCALE_FORMULA"
 ```
-$keepWarmMinutes = 15;
-$concurrentNodes = 1;
-interval = TimeInterval_Minute * $keepWarmMinutes;
-$tasks = max($PendingTasks.GetSample(1), avg($PendingTasks.GetSample(interval)));
-$TargetDedicatedNodes = $tasks > 0 ? $concurrentNodes : 0;
-$NodeDeallocationOption = taskcompletion;
-```
+
+Manual resizes and node deletes are rejected while autoscale is enabled. To remove a single node, disable autoscale first (`az batch pool autoscale disable ...`), delete it, then re-enable with `az_pool_update --autoscale <pool>`.
 
 ## Enabling Autoscale Manually
 

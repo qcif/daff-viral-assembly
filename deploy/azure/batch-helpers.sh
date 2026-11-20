@@ -26,18 +26,34 @@ DEFAULT_AUTOSCALE_INTERVAL="PT5M"
 # created pool that deadlocks the first run: no samples -> formula aborts ->
 # no nodes -> tasks stay pending forever. GetSamplePercent() never aborts, so
 # it is safe to call unguarded and is used to decide whether history exists.
+#
+# Stall breaker: a node in starttaskfailed/unusable state still counts towards
+# the target, and the queued tasks keep the target at 1, so a broken node is
+# billed indefinitely. A formula cannot see node states or remove a specific
+# node, but it can see the symptom: tasks present ($PendingTasks = active +
+# running) for the whole $stallMinutes window while $RunningTasks stayed at 0.
+# The window must comfortably exceed a cold start (~30-40 min incl. refdata
+# download). When stalled, the target drops to 0 and the node is removed. It
+# stays at 0 until the queue clears (e.g. the stuck Nextflow run is killed),
+# so a stalled pool needs a look rather than silently retrying forever.
 DEFAULT_AUTOSCALE_FORMULA='
 $keepWarmMinutes = 15;
 $scaleUpMinutes = 5;
+$stallMinutes = 90;
+$stallMinCoverage = 70;
 $concurrentNodes = 1;
 interval = TimeInterval_Minute * $keepWarmMinutes;
 upInterval = TimeInterval_Minute * $scaleUpMinutes;
+stallInterval = TimeInterval_Minute * $stallMinutes;
 
 $recent = $PendingTasks.GetSamplePercent(upInterval) > 0 ? max($PendingTasks.GetSample(upInterval)) : 0;
 $sustained = $PendingTasks.GetSamplePercent(interval) > 0 ? avg($PendingTasks.GetSample(interval)) : 0;
-
 $tasks = max($recent, $sustained);
-targetPoolSize = $tasks > 0 ? $concurrentNodes : 0;
+
+$stallCoverage = min($PendingTasks.GetSamplePercent(stallInterval), $RunningTasks.GetSamplePercent(stallInterval));
+$stalled = $stallCoverage >= $stallMinCoverage ? (min($PendingTasks.GetSample(stallInterval)) > 0 && max($RunningTasks.GetSample(stallInterval)) == 0 ? 1 : 0) : 0;
+
+targetPoolSize = ($tasks > 0 && $stalled == 0) ? $concurrentNodes : 0;
 $TargetDedicatedNodes = targetPoolSize;
 $NodeDeallocationOption = taskcompletion;'
 
