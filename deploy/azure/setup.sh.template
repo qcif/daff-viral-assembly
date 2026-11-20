@@ -24,6 +24,20 @@ REFDATA_BLOB_URL="https://daffstandard.blob.core.windows.net/refdata-wf2/"
 # Downloading into /mnt/nvme/refdata so everything is under one directory
 REFDATA_WF4_BLOB_URL="https://daffstandard.blob.core.windows.net/refdata-wf4"
 
+# Batch task working directories. Every task stages a full copy of its inputs
+# here, which overflowed the VM's temp disk on large runs. Batch does not allow
+# the node root to be relocated, so the workitems dir is bind-mounted from the
+# NVMe instead (transparent to the Batch agent and to task containers).
+BATCH_ROOT_DIR="${AZ_BATCH_NODE_ROOT_DIR:-/mnt/batch/tasks}"
+BATCH_WORKITEMS_DIR="$BATCH_ROOT_DIR/workitems"
+NVME_WORKITEMS_DIR="$NVME_MNT/batch-workitems"
+
+# Docker images and container writable layers default to /var/lib/docker on the
+# small OS disk; move them to the NVMe too.
+DOCKER_DAEMON_JSON="/etc/docker/daemon.json"
+DOCKER_OLD_ROOT="/var/lib/docker"
+NVME_DOCKER_ROOT="$NVME_MNT/docker"
+
 # -----------------------------------------------------------------------------
 # FUNCTIONS
 # -----------------------------------------------------------------------------
@@ -77,6 +91,86 @@ mount_nvme() {
     echo "Current mounts:" >&2
     mount | grep nvme >&2 || true
     df -h "$NVME_MNT" >&2 || true
+}
+
+relocate_batch_workitems() {
+    echo "=== Relocating Batch task dirs to NVMe ===" >&2
+    echo "Batch workitems dir: $BATCH_WORKITEMS_DIR" >&2
+
+    if mountpoint -q "$BATCH_WORKITEMS_DIR"; then
+        echo "$BATCH_WORKITEMS_DIR is already a mount point — skipping." >&2
+        df -h "$BATCH_WORKITEMS_DIR" >&2 || true
+        return
+    fi
+
+    mkdir -p "$BATCH_WORKITEMS_DIR" "$NVME_WORKITEMS_DIR"
+
+    # Preserve anything the agent has already created (normally empty on a
+    # fresh node, as the start task runs before any job task)
+    if [[ -n "$(ls -A "$BATCH_WORKITEMS_DIR")" ]]; then
+        echo "Copying existing workitems contents to NVMe..." >&2
+        cp -a "$BATCH_WORKITEMS_DIR/." "$NVME_WORKITEMS_DIR/"
+    fi
+
+    # Match ownership/permissions of the original dir so the agent and task
+    # users can still write to it
+    chown --reference="$BATCH_WORKITEMS_DIR" "$NVME_WORKITEMS_DIR"
+    chmod --reference="$BATCH_WORKITEMS_DIR" "$NVME_WORKITEMS_DIR"
+
+    mount --bind "$NVME_WORKITEMS_DIR" "$BATCH_WORKITEMS_DIR"
+    echo "Bind-mounted $NVME_WORKITEMS_DIR -> $BATCH_WORKITEMS_DIR" >&2
+    df -h "$BATCH_WORKITEMS_DIR" >&2 || true
+}
+
+relocate_docker_root() {
+    echo "=== Relocating Docker data-root to NVMe ===" >&2
+
+    # Always stop/start docker, even when already configured: after a reboot
+    # docker can start before the NVMe is mounted and would write its data
+    # under the bare /mnt/nvme mount point on the OS disk.
+    systemctl stop docker.socket docker || true
+
+    mkdir -p "$NVME_DOCKER_ROOT"
+
+    # Carry over images already pulled (e.g. the pool's prefetched images) on
+    # first relocation only
+    if [[ -d "$DOCKER_OLD_ROOT" && -z "$(ls -A "$NVME_DOCKER_ROOT")" ]]; then
+        echo "Copying $DOCKER_OLD_ROOT to $NVME_DOCKER_ROOT..." >&2
+        cp -a "$DOCKER_OLD_ROOT/." "$NVME_DOCKER_ROOT/"
+    fi
+
+    # Merge data-root into any existing daemon.json rather than overwriting
+    # settings the Batch image may rely on
+    mkdir -p "$(dirname "$DOCKER_DAEMON_JSON")"
+    python3 - "$DOCKER_DAEMON_JSON" "$NVME_DOCKER_ROOT" <<'EOF'
+import json
+import os
+import sys
+
+path, data_root = sys.argv[1], sys.argv[2]
+config = {}
+if os.path.exists(path) and os.path.getsize(path) > 0:
+    with open(path) as f:
+        config = json.load(f)
+config["data-root"] = data_root
+with open(path, "w") as f:
+    json.dump(config, f, indent=2)
+EOF
+    echo "Docker daemon config:" >&2
+    cat "$DOCKER_DAEMON_JSON" >&2
+
+    systemctl start docker
+    echo "Docker root dir: $(docker info --format '{{.DockerRootDir}}')" >&2
+
+    if [[ "$(docker info --format '{{.DockerRootDir}}')" != "$NVME_DOCKER_ROOT" ]]; then
+        echo "ERROR: Docker is not using $NVME_DOCKER_ROOT" >&2
+        return 1
+    fi
+
+    # Reclaim the OS disk space now that everything lives on the NVMe
+    if [[ -d "$DOCKER_OLD_ROOT" ]]; then
+        rm -rf "${DOCKER_OLD_ROOT:?}"/*
+    fi
 }
 
 install_azcopy() {
@@ -215,7 +309,7 @@ restore_genomad_symlinks() {
 # MAIN
 # -----------------------------------------------------------------------------
 
-echo "===== START TASK: Begin staging refdata on NVMe =====" >&2
+echo "===== START TASK: Begin NVMe setup and refdata staging =====" >&2
 echo "Date: $(date)" >&2
 echo "User: $(whoami)" >&2
 echo "Working directory: $(pwd)" >&2
@@ -235,7 +329,25 @@ else
 fi
 
 echo "" >&2
-echo "STEP 3: Installing azcopy" >&2
+echo "STEP 3: Relocating Batch task dirs to NVMe" >&2
+if relocate_batch_workitems; then
+    echo "✓ Batch task dirs relocated" >&2
+else
+    echo "✗ Failed to relocate Batch task dirs" >&2
+    exit 1
+fi
+
+echo "" >&2
+echo "STEP 4: Relocating Docker data-root to NVMe" >&2
+if relocate_docker_root; then
+    echo "✓ Docker data-root relocated" >&2
+else
+    echo "✗ Failed to relocate Docker data-root" >&2
+    exit 1
+fi
+
+echo "" >&2
+echo "STEP 5: Installing azcopy" >&2
 if install_azcopy; then
     echo "✓ azcopy installed successfully" >&2
 else
@@ -244,7 +356,7 @@ else
 fi
 
 echo "" >&2
-echo "STEP 4: Staging shared reference data" >&2
+echo "STEP 6: Staging shared reference data" >&2
 if stage_refdata; then
     echo "✓ Shared reference data staging completed" >&2
 else
@@ -253,7 +365,7 @@ else
 fi
 
 echo "" >&2
-echo "STEP 5: Staging wf4-specific reference data" >&2
+echo "STEP 7: Staging wf4-specific reference data" >&2
 if stage_refdata_wf4; then
     echo "✓ wf4 reference data staging completed" >&2
 else
@@ -262,7 +374,7 @@ else
 fi
 
 echo "" >&2
-echo "STEP 6: Restoring geNomad mini-DB symlinks" >&2
+echo "STEP 8: Restoring geNomad mini-DB symlinks" >&2
 if restore_genomad_symlinks; then
     echo "✓ geNomad symlinks restored" >&2
 else
